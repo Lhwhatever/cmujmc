@@ -22,7 +22,7 @@ model User {
   updatedAt     DateTime  @updatedAt
 
   matches  UserMatch[]
-  events   UserEvent[]
+  leagues  UserLeague[]
   accounts Account[]
   sessions Session[]
 }
@@ -74,13 +74,15 @@ enum Status {
 }
 
 model Match {
-  id      Int      @id @default(autoincrement())
-  created DateTime @default(now())
-  status  Status   @default(PENDING)
-  eventId Int?
+  id        Int      @id @default(autoincrement())
+  created   DateTime @default(now())
+  status    Status   @default(PENDING)
+  eventId   Int?
+  rulesetId Int
 
   parent  Event?      @relation(fields: [eventId], references: [id])
   players UserMatch[]
+  ruleset Ruleset     @relation(fields: [rulesetId], references: [id])
 }
 
 model UserMatch {
@@ -97,12 +99,22 @@ model UserMatch {
 }
 
 model Event {
-  id        Int         @id @default(autoincrement())
+  id        Int       @id @default(autoincrement())
   startDate DateTime?
   endDate   DateTime?
   matches   Match[]
-  parentId  Int?
-  players   UserEvent[]
+  parentId  Int
+  parent    League    @relation(fields: [parentId], references: [id])
+}
+
+model League {
+  id            Int     @id @default(autoincrement())
+  invitational  Boolean
+  defaultRuleId Int
+
+  defaultRuleset  Ruleset      @relation(fields: [defaultRuleId], references: [id])
+  events          Event[]
+  UserSeriesEntry UserLeague[]
 }
 
 enum GameMode {
@@ -110,34 +122,36 @@ enum GameMode {
   YONMA
 }
 
-model Rule {
-  id          Int       @id @default(autoincrement())
+model Ruleset {
+  id          Int          @id @default(autoincrement())
   gameMode    GameMode
   name        String
   description String?
   payload     Json
-  uma         RuleUma[]
+  uma         RulesetUma[]
   startPts    Int
   returnPts   Int
+  League      League[]
+  Match       Match[]
 }
 
-model RuleUma {
-  ruleId   Int
-  position Int
+model RulesetUma {
+  parentId Int
+  position Int // 1-indexed
   value    Decimal
 
-  rule Rule @relation(fields: [ruleId], references: [id])
+  parent Ruleset @relation(fields: [parentId], references: [id])
 
-  @@id([ruleId, position])
+  @@id([parentId, position])
 }
 
-model UserEvent {
-  eventId  Int
+model UserLeague {
   userId   String
+  leagueId Int
   leniency Boolean
 
-  user  User  @relation(fields: [userId], references: [id])
-  event Event @relation(fields: [eventId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+  league League @relation(fields: [leagueId], references: [id])
 
-  @@id([eventId, userId])
+  @@id([leagueId, userId])
 }

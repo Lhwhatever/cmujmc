@@ -1,60 +1,12 @@
-/**
- * Adds seed data to your db
- *
- * @link https://www.prisma.io/docs/guides/database/seed-database
- */
-import { PrismaClient, GameMode, Prisma } from '@prisma/client';
-import process from 'node:process';
+import { PrismaClient } from '@prisma/client';
 import console from 'node:console';
-import * as readline from 'node:readline/promises';
+import readline from 'node:readline/promises';
+import process from 'node:process';
 import { AbortSignal } from 'next/dist/compiled/@edge-runtime/primitives';
 
 const prisma = new PrismaClient();
 
-const rulesets: Prisma.RulesetCreateInput[] = [
-  {
-    gameMode: GameMode.YONMA,
-    name: 'WRC 2022 Default',
-    description: 'Rules used in the World Riichi Championships of 2022 in Vienna',
-    payload: { akadora: 0 },
-    startPts: 30000,
-    returnPts: 30000,
-    uma: {
-      create: [
-        { position: 1, value: +15 },
-        { position: 2, value: +5 },
-        { position: 3, value: -5 },
-        { position: 4, value: -15 },
-      ]
-    }
-  },
-  {
-    gameMode: GameMode.YONMA,
-    name: 'M-League 2024-25',
-    description: 'Rules used in M-League 2024-25',
-    payload: { akadora: 3 },
-    startPts: 25000,
-    returnPts: 30000,
-    uma: {
-      create: [
-        { position: 1, value: +50 },
-        { position: 2, value: +10 },
-        { position: 3, value: -10 },
-        { position: 4, value: -30 },
-      ]
-    }
-  }]
-
-async function seedRulesets() {
-  if (await prisma.ruleset.findFirst() !== null) return;
-  console.log("No rulesets found, seeding...")
-  for (const data of rulesets) {
-    console.log(`Adding ruleset ${data.name}`);
-    await prisma.ruleset.create({ data });
-  }
-}
-
-async function seedAdmin() {
+async function main() {
   if (await prisma.user.findFirst({ where: { admin: true }}) !== null) return;
   const users = await prisma.user.findMany();
   if (users.length === 0) {
@@ -138,11 +90,6 @@ async function seedAdmin() {
   });
 
   console.log(`Promoted ${user.name} to admin.`);
-}
-
-async function main() {
-  await seedAdmin();
-  await seedRulesets();
 }
 
 main()

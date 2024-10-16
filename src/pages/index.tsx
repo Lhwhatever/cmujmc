@@ -1,13 +1,10 @@
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import React from 'react';
 import { Page } from '../components/Page';
 
 export default function IndexPage() {
   return (
     <Page>
-      <div className="flex h-screen flex-col md:flex-row">
-        Test
-      </div>
+      <div className="flex h-screen flex-col md:flex-row">Test</div>
     </Page>
   );
 }

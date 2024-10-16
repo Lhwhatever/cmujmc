@@ -22,13 +22,11 @@ export const Page = ({ children, title }: Props) => {
       </div>
       <main className="p-2">
         {children}
-        <div className="flex-1 overflow-y-hidden md:h-screen">
-          {process.env.NODE_ENV !== 'production' && (
-            <div className="hidden md:block">
-              <ReactQueryDevtools initialIsOpen={false} />
-            </div>
-          )}
-        </div>
+        {process.env.NODE_ENV !== 'production' && (
+          <div className="md:block">
+            <ReactQueryDevtools initialIsOpen={false} />
+          </div>
+        )}
       </main>
     </>
   )

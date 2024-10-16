@@ -1,41 +1,21 @@
 import React from 'react';
 import { Page } from '../../components/Page';
-import { RouterOutputs, trpc } from '../../utils/trpc';
 import { useSession } from 'next-auth/react';
-import Table from '../../components/Table';
+import UserOverview from '../../components/admin/UserOverview';
+import Loading from '../../components/Loading';
+import RulesetOverview from '../../components/admin/RulesetOverview';
 
-type UserTableProps = {
-  users: RouterOutputs['user']['listAll']['users'],
-};
-
-const UserTable = ({ users }: UserTableProps) => {
+const Contents = () => {
   return (
-    <Table head={
-      <Table.Row>
-        <Table.Heading scope="col">Name</Table.Heading>
-        <Table.Heading scope="row">Role</Table.Heading>
-      </Table.Row>
-    }>
-      {users.map((user) => (
-        <Table.Row key={user.id}>
-          <Table.Heading scope="row">{user.displayName}</Table.Heading>
-          <Table.Cell>{user.admin ? 'Admin' : 'User'}</Table.Cell>
-        </Table.Row>
-      ))}
-    </Table>
-  )
-}
-
-const UserDashboard = () => {
-  const users = trpc.user.listAll.useQuery();
-
-  return (
-    <div>
-      <h3 className="text-2xl">Users</h3>
-      {users.data
-        ? <UserTable users={users.data.users} />
-        : <div>Loading...</div>
-      }
+    <div className="flex flex-col space-y-4">
+      <div>
+        <h1 className="text-2xl">Users</h1>
+        <UserOverview />
+      </div>
+      <div>
+        <h1 className="text-2xl">Rulesets</h1>
+        <RulesetOverview />
+      </div>
     </div>
   );
 };
@@ -43,22 +23,30 @@ const UserDashboard = () => {
 export default function AdminPage() {
   const { status, data: session } = useSession({ required: true });
   if (status === 'loading') {
-    return <div>Loading...</div>;
+    return (
+      <Page>
+        <Loading />
+      </Page>
+    );
   }
 
   if (session?.user.role !== 'admin') {
-    return <div>Unauthorized</div>;
+    return (
+      <Page>
+        <div>Unauthorized</div>
+      </Page>
+    );
   }
 
   return (
     <Page>
-      <UserDashboard />
+      <Contents />
     </Page>
-  )
+  );
 }
 
 AdminPage.auth = {
   role: 'admin',
   loading: <div>Loading...</div>,
   unauthorized: '/',
-}
+};
