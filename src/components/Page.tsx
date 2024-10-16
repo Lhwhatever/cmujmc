@@ -1,6 +1,7 @@
 import React from 'react';
 import Head from 'next/head';
 import Navbar from './Navbar';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 
 type Props = {
   title?: string;
@@ -19,8 +20,15 @@ export const Page = ({ children, title }: Props) => {
           <Navbar />
         </header>
       </div>
-      <main>
+      <main className="p-2">
         {children}
+        <div className="flex-1 overflow-y-hidden md:h-screen">
+          {process.env.NODE_ENV !== 'production' && (
+            <div className="hidden md:block">
+              <ReactQueryDevtools initialIsOpen={false} />
+            </div>
+          )}
+        </div>
       </main>
     </>
   )

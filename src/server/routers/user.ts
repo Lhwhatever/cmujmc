@@ -1,15 +1,12 @@
-import { publicProcedure, router } from '../trpc';
-import { z } from 'zod';
+import { adminProcedure, router } from '../trpc';
+import { prisma } from '../prisma';
 
 const userRouter = router({
-  create: publicProcedure
-    // TODO: require user be admin
-    .input(z.object({
-      username: z.string(),
-      admin: z.boolean(),
-    }))
-    .mutation(async (opts) => {
-  }),
+  listAll: adminProcedure
+    .query(async () => {
+      const users = await prisma.user.findMany({});
+      return { users };
+    }),
 });
 
 export default userRouter;

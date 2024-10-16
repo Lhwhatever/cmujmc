@@ -1,28 +1,12 @@
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import { useSession } from 'next-auth/react';
 import React from 'react';
 import { Page } from '../components/Page';
 
 export default function IndexPage() {
-  const { data: session, status } = useSession();
-  console.log(`status = ${status}`)
-  if (status === 'authenticated') {
-    console.log(session);
-  }
-
   return (
     <Page>
       <div className="flex h-screen flex-col md:flex-row">
         Test
-        <div className="flex-1 overflow-y-hidden md:h-screen">
-          <section className="flex h-full flex-col justify-end space-y-4 bg-gray-700 p-4">
-            {process.env.NODE_ENV !== 'production' && (
-              <div className="hidden md:block">
-                <ReactQueryDevtools initialIsOpen={false} />
-              </div>
-            )}
-          </section>
-        </div>
       </div>
     </Page>
   );

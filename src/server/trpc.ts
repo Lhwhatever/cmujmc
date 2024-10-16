@@ -11,6 +11,7 @@
 import type { Context } from './context';
 import { initTRPC, TRPCError } from '@trpc/server';
 import superjson from 'superjson';
+import { prisma } from './prisma';
 
 const t = initTRPC.context<Context>().create({
   /**
@@ -24,6 +25,10 @@ const t = initTRPC.context<Context>().create({
     return shape;
   },
 });
+
+function throwUnauthorized(): never {
+  throw new TRPCError({ code: 'UNAUTHORIZED' });
+}
 
 /**
  * Create a router
@@ -47,17 +52,17 @@ export const mergeRouters = t.mergeRouters;
  */
 export const authedProcedure = t.procedure.use(function isAuthed(opts) {
   const user = opts.ctx.session?.user;
-
-  if (!user?.name) {
-    throw new TRPCError({ code: 'UNAUTHORIZED' });
-  }
-
+  if (!user?.name) throwUnauthorized();
   return opts.next({
-    ctx: {
-      user: {
-        ...user,
-        name: user.name,
-      },
-    },
+    ctx: { user },
+  });
+});
+
+export const adminProcedure = t.procedure.use(async function isAdmin (opts) {
+  const id = opts.ctx.session?.user?.id ?? throwUnauthorized();
+  const user = await prisma.user.findUnique({ where: { id } });
+  if (!(user?.admin)) throwUnauthorized();
+  return opts.next({
+    ctx: { user }
   });
 });

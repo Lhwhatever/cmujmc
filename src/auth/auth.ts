@@ -34,6 +34,7 @@ declare module "next-auth" {
   interface Session {
     user: {
       id: string;
+      role: 'user' | 'admin';
     } & DefaultSession["user"];
   }
 }
@@ -47,8 +48,13 @@ export const authOptions: AuthOptions = {
     }),
   ],
   callbacks: {
-    session({ session, user }) {
+    async session({ session, user }) {
+      const { admin } = await prisma.user.findFirstOrThrow({
+        where: { id: user.id },
+        select: { admin: true }
+      });
       session.user.id = user.id;
+      session.user.role = admin ? 'admin' : 'user';
       return session;
     }
   }

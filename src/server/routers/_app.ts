@@ -4,9 +4,11 @@
 import { router, publicProcedure } from '../trpc';
 import { observable } from '@trpc/server/observable';
 import { clearInterval } from 'timers';
+import userRouter from './user';
 
 export const appRouter = router({
   healthcheck: publicProcedure.query(() => 'yay!'),
+  user: userRouter,
 
   randomNumber: publicProcedure.subscription(() => {
     return observable<number>((emit) => {
