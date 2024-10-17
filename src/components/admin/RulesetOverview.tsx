@@ -4,7 +4,7 @@ import { RouterOutputs, trpc } from '../../utils/trpc';
 import Loading from '../Loading';
 
 type RulesetTableProps = {
-  data: RouterOutputs['rulesets']['listAll']['rulesets'];
+  data: RouterOutputs['rulesets']['list']['rulesets'];
 };
 
 const RulesetTable = ({ data }: RulesetTableProps) => {
@@ -45,7 +45,7 @@ const RulesetTable = ({ data }: RulesetTableProps) => {
 };
 
 export default function RulesetOverview() {
-  const rulesets = trpc.rulesets.listAll.useQuery();
+  const rulesets = trpc.rulesets.list.useQuery();
 
   if (!rulesets.data) return <Loading />;
   return <RulesetTable data={rulesets.data.rulesets} />;

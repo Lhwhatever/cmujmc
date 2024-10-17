@@ -1,18 +1,16 @@
-import { Input, Field } from '@headlessui/react';
+import { Field, Textarea } from '@headlessui/react';
 import React from 'react';
 import { FieldPath, FieldValues } from 'react-hook-form';
 import { IFieldProps } from './baseTypes';
 import clsx from 'clsx';
 import FieldLabel from './FieldLabel';
 
-export type InputFieldProps<
+export type TextareaFieldProps<
   TFieldValues extends FieldValues = FieldValues,
   TFieldName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
-> = IFieldProps<TFieldValues, TFieldName> & {
-  valueAsNumber?: true;
-};
+> = IFieldProps<TFieldValues, TFieldName>;
 
-export default function InputField<
+export default function TextareaField<
   TFieldValues extends FieldValues = FieldValues,
   TFieldName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
 >({
@@ -21,8 +19,7 @@ export default function InputField<
   register,
   name,
   errors,
-  valueAsNumber,
-}: InputFieldProps<TFieldValues, TFieldName>) {
+}: TextareaFieldProps<TFieldValues, TFieldName>) {
   const error = errors[name]?.message;
 
   const inputClass = clsx(
@@ -33,13 +30,7 @@ export default function InputField<
   return (
     <Field>
       <FieldLabel label={label} required={required} />
-      <Input
-        className={inputClass}
-        {...register(name, {
-          required,
-          valueAsNumber,
-        })}
-      />
+      <Textarea className={inputClass} {...register(name, { required })} />
       {error && <div className="text-red-500 text-xs">{error as string}</div>}
     </Field>
   );
