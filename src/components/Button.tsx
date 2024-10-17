@@ -1,22 +1,50 @@
 import React from 'react';
 import clsx from 'clsx';
+import { Button as HeadlessButton } from '@headlessui/react';
+
+const colorStyles = {
+  outlined: {
+    green: 'text-green-400 border-green-400 data-[hover]:bg-green-500',
+    yellow: 'text-yellow-400 border-yellow-400 data-[hover]:bg-yellow-500',
+  },
+  filled: {
+    green: `bg-green-600 data-[hover]:bg-green-800`,
+    yellow: 'bg-yellow-600 data-[hover]:bg-yellow-800',
+  },
+};
 
 export type ButtonProps = {
   onClick?: () => void;
+  leftIcon?: React.ReactNode;
   children?: React.ReactNode;
-  color?: 'none';
-}
+  color: 'yellow' | 'green';
+  fill: keyof typeof colorStyles;
+};
 
-export default function Button({ children, onClick }: ButtonProps) {
+export default function Button({
+  children,
+  leftIcon,
+  onClick,
+  color,
+  fill,
+}: ButtonProps) {
+  console.log(color);
   const className = clsx(
-    'text-yellow-400 border border-yellow-400',
-    'font-medium rounded-lg text-sm',
-    'px-5 py-2.5 text-center',
-    'hover:text-white hover:bg-yellow-500',
-    'focus:ring-4 focus:outline-none focus:ring-yellow-300',
+    'font-medium rounded-lg text-sm px-5 py-2.5 text-center',
+    fill === 'outlined' && 'border data-[hover]:text-white',
+    fill === 'filled' && 'text-white border',
+    colorStyles[fill][color],
   );
 
-  return <button type="button" onClick={onClick} className={className}>
-    {children}
-  </button>
+  return (
+    <HeadlessButton onClick={onClick} className={className}>
+      {leftIcon ? (
+        <div className="flex flex-row">
+          {leftIcon} <div>{children}</div>
+        </div>
+      ) : (
+        children
+      )}
+    </HeadlessButton>
+  );
 }

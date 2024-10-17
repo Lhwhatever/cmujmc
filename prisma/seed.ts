@@ -15,7 +15,8 @@ const rulesets: Prisma.RulesetCreateInput[] = [
   {
     gameMode: GameMode.YONMA,
     name: 'WRC 2022 Default',
-    description: 'Rules used in the World Riichi Championships of 2022 in Vienna',
+    description:
+      'Rules used in the World Riichi Championships of 2022 in Vienna',
     payload: { akadora: 0 },
     startPts: 30000,
     returnPts: 30000,
@@ -25,8 +26,9 @@ const rulesets: Prisma.RulesetCreateInput[] = [
         { position: 2, value: +5 },
         { position: 3, value: -5 },
         { position: 4, value: -15 },
-      ]
-    }
+      ],
+    },
+    chomboDelta: -30.0,
   },
   {
     gameMode: GameMode.YONMA,
@@ -41,13 +43,15 @@ const rulesets: Prisma.RulesetCreateInput[] = [
         { position: 2, value: +10 },
         { position: 3, value: -10 },
         { position: 4, value: -30 },
-      ]
-    }
-  }]
+      ],
+    },
+    chomboDelta: -30.0,
+  },
+];
 
 async function seedRulesets() {
-  if (await prisma.ruleset.findFirst() !== null) return;
-  console.log("No rulesets found, seeding...")
+  if ((await prisma.ruleset.findFirst()) !== null) return;
+  console.log('No rulesets found, seeding...');
   for (const data of rulesets) {
     console.log(`Adding ruleset ${data.name}`);
     await prisma.ruleset.create({ data });
@@ -55,15 +59,19 @@ async function seedRulesets() {
 }
 
 async function seedAdmin() {
-  if (await prisma.user.findFirst({ where: { admin: true }}) !== null) return;
+  if ((await prisma.user.findFirst({ where: { admin: true } })) !== null)
+    return;
   const users = await prisma.user.findMany();
   if (users.length === 0) {
-    console.warn("No users in database, could not promote one to admin.");
+    console.warn('No users in database, could not promote one to admin.');
     return;
   }
 
-  console.log("Promote a user to admin:");
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  console.log('Promote a user to admin:');
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
 
   const pageSize = 5;
   let page = 0;
@@ -74,18 +82,26 @@ async function seedAdmin() {
 
     const signal = AbortSignal.timeout(10_000);
 
-    const result = await rl.question([
-      'Select one of the following choices:',
-      ...users.slice(start, end).map((data, index) =>
-        `[${index + 1}] ${data.displayName} (${data.name})`
-      ),
+    const result = await rl.question(
       [
-        page == 0 && '[p] - previous',
-        end >= users.length && '[n] - next',
-        '[q] - quit',
-      ].filter(x => !!x).join(', '),
-      ''
-    ].join('\n'), { signal });
+        'Select one of the following choices:',
+        ...users
+          .slice(start, end)
+          .map(
+            (data, index) =>
+              `[${index + 1}] ${data.displayName} (${data.name})`,
+          ),
+        [
+          page == 0 && '[p] - previous',
+          end >= users.length && '[n] - next',
+          '[q] - quit',
+        ]
+          .filter((x) => !!x)
+          .join(', '),
+        '',
+      ].join('\n'),
+      { signal },
+    );
 
     const trimmed = result.trim().toLowerCase();
     console.log(`Got: ${trimmed}`);
@@ -93,7 +109,7 @@ async function seedAdmin() {
       if (page > 0) {
         --page;
       } else {
-        console.error("Cannot return to previous page, try again.");
+        console.error('Cannot return to previous page, try again.');
       }
       continue;
     }
@@ -102,7 +118,7 @@ async function seedAdmin() {
       if (end < users.length) {
         ++page;
       } else {
-        console.error("Cannot go to next page, try again.");
+        console.error('Cannot go to next page, try again.');
       }
       continue;
     }
@@ -113,7 +129,7 @@ async function seedAdmin() {
 
     const pageIdx = parseInt(trimmed);
     if (Number.isNaN(pageIdx)) {
-      console.error("Unknown input, try again");
+      console.error('Unknown input, try again');
       continue;
     }
 
@@ -123,18 +139,18 @@ async function seedAdmin() {
       break;
     }
 
-    console.error("Bad input, try again");
+    console.error('Bad input, try again');
   }
   rl.close();
 
   if (promotee === undefined) {
-    console.log("Not promoting anyone to admin.");
+    console.log('Not promoting anyone to admin.');
     return;
   }
 
   const user = await prisma.user.update({
     where: { id: users[promotee].id },
-    data: { admin: true }
+    data: { admin: true },
   });
 
   console.log(`Promoted ${user.name} to admin.`);

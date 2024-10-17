@@ -4,17 +4,26 @@ import { useSession } from 'next-auth/react';
 import UserOverview from '../../components/admin/UserOverview';
 import Loading from '../../components/Loading';
 import RulesetOverview from '../../components/admin/RulesetOverview';
+import LeagueControlPanel from '../../components/admin/LeagueControlPanel';
+import Heading from '../../components/Heading';
 
 const Contents = () => {
   return (
     <div className="flex flex-col space-y-4">
       <div>
-        <h1 className="text-2xl">Users</h1>
+        <Heading level="h3">Admin Dashboard</Heading>
+      </div>
+      <div>
+        <Heading level="h4">Users</Heading>
         <UserOverview />
       </div>
       <div>
-        <h1 className="text-2xl">Rulesets</h1>
+        <Heading level="h4">Rulesets</Heading>
         <RulesetOverview />
+      </div>
+      <div>
+        <Heading level="h4">Leagues and Tournaments</Heading>
+        <LeagueControlPanel />
       </div>
     </div>
   );

@@ -86,16 +86,18 @@ model Match {
 }
 
 model UserMatch {
-  playerId   String
-  matchId    Int
-  rawScore   Int?
-  chombos    Int?
-  adjustment Decimal @default(0.0)
+  matchId                 Int
+  playerPosition          Int
+  playerId                String?
+  unregisteredPlaceholder String?
+  rawScore                Int?
+  chombos                 Int?
+  adjustment              Decimal @default(0.0)
 
-  player User  @relation(fields: [playerId], references: [id])
+  player User? @relation(fields: [playerId], references: [id])
   match  Match @relation(fields: [matchId], references: [id])
 
-  @@id([playerId, matchId])
+  @@id([matchId, playerPosition])
 }
 
 model Event {
@@ -108,9 +110,14 @@ model Event {
 }
 
 model League {
-  id            Int     @id @default(autoincrement())
-  invitational  Boolean
-  defaultRuleId Int
+  id             Int       @id @default(autoincrement())
+  name           String
+  description    String?
+  invitational   Boolean
+  defaultRuleId  Int
+  startingPoints Decimal   @default(0.0)
+  startDate      DateTime? @default(now())
+  endDate        DateTime?
 
   defaultRuleset  Ruleset      @relation(fields: [defaultRuleId], references: [id])
   events          Event[]
@@ -131,6 +138,7 @@ model Ruleset {
   uma         RulesetUma[]
   startPts    Int
   returnPts   Int
+  chomboDelta Decimal // negative
   League      League[]
   Match       Match[]
 }

@@ -6,11 +6,13 @@ import { observable } from '@trpc/server/observable';
 import { clearInterval } from 'timers';
 import userRouter from './user';
 import rulesetRouter from './ruleset';
+import leagueRouter from './league';
 
 export const appRouter = router({
   healthcheck: publicProcedure.query(() => 'yay!'),
   user: userRouter,
   rulesets: rulesetRouter,
+  leagues: leagueRouter,
 
   randomNumber: publicProcedure.subscription(() => {
     return observable<number>((emit) => {

@@ -6,13 +6,13 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 type Props = {
   title?: string;
   children?: React.ReactNode;
-}
+};
 
 export const Page = ({ children, title }: Props) => {
   return (
     <>
       <Head>
-        <title>{title ?? "CMU Japanese Mahjong"}</title>
+        <title>{title ?? 'CMU Japanese Mahjong'}</title>
         <meta name="description" content="CMU Japanese Mahjong Club" />
       </Head>
       <div>
@@ -20,7 +20,7 @@ export const Page = ({ children, title }: Props) => {
           <Navbar />
         </header>
       </div>
-      <main className="p-2">
+      <main className="container mx-auto p-2">
         {children}
         {process.env.NODE_ENV !== 'production' && (
           <div className="md:block">
@@ -29,5 +29,5 @@ export const Page = ({ children, title }: Props) => {
         )}
       </main>
     </>
-  )
-}
+  );
+};
