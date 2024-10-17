@@ -42,11 +42,12 @@ export function TableRow({ children, ...props }: TableRowProps) {
 export type TableProps = {
   head?: React.ReactNode;
   children?: React.ReactNode;
+  className?: React.ReactNode;
 };
 
-export default function Table({ head, children }: TableProps) {
+export default function Table({ head, children, className }: TableProps) {
   return (
-    <div className="relative overflow-x-auto">
+    <div className={clsx('relative overflow-x-auto', className)}>
       <table className="w-full text-sm text-left rtl:text-right text-gray-500">
         <thead className="text-xs text-gray-700 uppercase bg-gray-100">
           {head}

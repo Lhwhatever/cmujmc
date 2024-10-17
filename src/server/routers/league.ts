@@ -2,6 +2,7 @@ import { adminProcedure, publicProcedure, router } from '../trpc';
 import { prisma } from '../prisma';
 import { z } from 'zod';
 import * as Schema from '../../protocol/league';
+import { TRPCError } from '@trpc/server';
 
 const leagueRouter = router({
   list: publicProcedure.query(async () => {
@@ -44,10 +45,17 @@ const leagueRouter = router({
     ),
 
   get: publicProcedure.input(Schema.get).query(async (opts) => {
-    const league = await prisma.league.findUniqueOrThrow({
-      where: { id: opts.input },
+    const id = opts.input;
+    const league = await prisma.league.findUnique({
+      where: { id },
       include: { defaultRuleset: true },
     });
+    if (league === null) {
+      throw new TRPCError({
+        code: 'NOT_FOUND',
+        message: `No league with ID ${id}`,
+      });
+    }
     return { league };
   }),
 });

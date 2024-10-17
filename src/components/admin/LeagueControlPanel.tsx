@@ -20,31 +20,11 @@ import ComboboxField from '../form/ComboboxField';
 import Fuse, { FuseResult } from 'fuse.js';
 import TextareaField from '../form/TextareaField';
 import { useRouter } from 'next/router';
+import { formatDateRange } from '../../utils/dates';
 
 type DateRangeCellProps = {
   startDate?: Date | null;
   endDate?: Date | null;
-};
-
-const DateRangeCell = ({ startDate, endDate }: DateRangeCellProps) => {
-  if (startDate) {
-    if (endDate) {
-      return (
-        <TableCell className="flex flex-row">
-          <div>{startDate.toLocaleDateString()} to</div>
-          <div>{endDate.toLocaleDateString()}</div>
-        </TableCell>
-      );
-    } else {
-      return <TableCell>Starts {startDate.toLocaleDateString()}</TableCell>;
-    }
-  } else {
-    if (endDate) {
-      return <TableCell>Ends {endDate.toLocaleDateString()}</TableCell>;
-    } else {
-      return <TableCell>No start/end</TableCell>;
-    }
-  }
 };
 
 type LeagueTableProps = {
@@ -73,16 +53,16 @@ const LeagueTable = ({ data }: LeagueTableProps) => {
           className="cursor-pointer hover:bg-green-100"
           onClick={() => router.push(`/league/${league.id}`)}
         >
-          <TableHeading scope="row" className="flex flex-col">
-            <div className="underline decoration-dotted">{league.name}</div>
+          <TableHeading scope="row" className="flex flex-col space-y-0">
+            <div className="underline decoration-dotted m-0">{league.name}</div>
             {league.invitational && (
-              <div className="text-xs italic">Invite-only</div>
+              <div className="text-xs italic m-0">Invite-only</div>
             )}
           </TableHeading>
-          <DateRangeCell
-            startDate={league.startDate}
-            endDate={league.endDate}
-          />
+          <TableCell className="text-wrap">
+            {formatDateRange(league.startDate, league.endDate) ??
+              'No start/end'}
+          </TableCell>
           <TableCell>{league.defaultRuleset.name}</TableCell>
         </TableRow>
       ))}
