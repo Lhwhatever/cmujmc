@@ -101,12 +101,13 @@ model UserMatch {
 }
 
 model Event {
-  id        Int       @id @default(autoincrement())
-  startDate DateTime?
-  endDate   DateTime?
-  matches   Match[]
-  parentId  Int
-  parent    League    @relation(fields: [parentId], references: [id])
+  id          Int       @id @default(autoincrement())
+  startDate   DateTime?
+  endDate     DateTime?
+  closingDate DateTime? // last time which users can enter
+  matches     Match[]
+  parentId    Int
+  parent      League    @relation(fields: [parentId], references: [id])
 }
 
 model League {

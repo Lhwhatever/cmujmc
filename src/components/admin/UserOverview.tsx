@@ -1,6 +1,6 @@
 import React from 'react';
 import { RouterOutputs, trpc } from '../../utils/trpc';
-import Table from '../Table';
+import Table, { TableCell, TableHeading, TableRow } from '../Table';
 import Loading from '../Loading';
 
 type UserTableProps = {
@@ -11,17 +11,17 @@ const UserTable = ({ users }: UserTableProps) => {
   return (
     <Table
       head={
-        <Table.Row>
-          <Table.Heading scope="col">Name</Table.Heading>
-          <Table.Heading scope="col">Role</Table.Heading>
-        </Table.Row>
+        <TableRow>
+          <TableHeading scope="col">Name</TableHeading>
+          <TableHeading scope="col">Role</TableHeading>
+        </TableRow>
       }
     >
       {users.map((user) => (
-        <Table.Row key={user.id}>
-          <Table.Heading scope="row">{user.displayName}</Table.Heading>
-          <Table.Cell>{user.admin ? 'Admin' : 'User'}</Table.Cell>
-        </Table.Row>
+        <TableRow key={user.id}>
+          <TableHeading scope="row">{user.displayName}</TableHeading>
+          <TableCell>{user.admin ? 'Admin' : 'User'}</TableCell>
+        </TableRow>
       ))}
     </Table>
   );

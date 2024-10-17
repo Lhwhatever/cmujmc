@@ -3,12 +3,12 @@ import Head from 'next/head';
 import Navbar from './Navbar';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 
-type Props = {
+export type PageProps = {
   title?: string;
   children?: React.ReactNode;
 };
 
-export const Page = ({ children, title }: Props) => {
+export default function Page({ children, title }: PageProps) {
   return (
     <>
       <Head>
@@ -16,11 +16,11 @@ export const Page = ({ children, title }: Props) => {
         <meta name="description" content="CMU Japanese Mahjong Club" />
       </Head>
       <div>
-        <header>
+        <header className="fixed inset-x-0 top-0 z-40 h-16">
           <Navbar />
         </header>
       </div>
-      <main className="container mx-auto p-2">
+      <main className="container mx-auto px-2 py-4 mt-16">
         {children}
         {process.env.NODE_ENV !== 'production' && (
           <div className="md:block">
@@ -30,4 +30,4 @@ export const Page = ({ children, title }: Props) => {
       </main>
     </>
   );
-};
+}

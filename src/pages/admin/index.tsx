@@ -1,11 +1,12 @@
 import React from 'react';
-import { Page } from '../../components/Page';
+import Page from '../../components/Page';
 import { useSession } from 'next-auth/react';
 import UserOverview from '../../components/admin/UserOverview';
 import Loading from '../../components/Loading';
 import RulesetOverview from '../../components/admin/RulesetOverview';
 import LeagueControlPanel from '../../components/admin/LeagueControlPanel';
 import Heading from '../../components/Heading';
+import { useRouter } from 'next/router';
 
 const Contents = () => {
   return (
@@ -31,6 +32,7 @@ const Contents = () => {
 
 export default function AdminPage() {
   const { status, data: session } = useSession({ required: true });
+  const router = useRouter();
   if (status === 'loading') {
     return (
       <Page>
@@ -40,6 +42,7 @@ export default function AdminPage() {
   }
 
   if (session?.user.role !== 'admin') {
+    router.push('/');
     return (
       <Page>
         <div>Unauthorized</div>

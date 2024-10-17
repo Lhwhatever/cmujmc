@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import Table from '../Table';
+import Table, { TableCell, TableHeading, TableRow } from '../Table';
 import { RouterOutputs, trpc } from '../../utils/trpc';
 import Loading from '../Loading';
 import Button from '../Button';
@@ -19,17 +19,75 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import ComboboxField from '../form/ComboboxField';
 import Fuse, { FuseResult } from 'fuse.js';
 import TextareaField from '../form/TextareaField';
+import { useRouter } from 'next/router';
+
+type DateRangeCellProps = {
+  startDate?: Date | null;
+  endDate?: Date | null;
+};
+
+const DateRangeCell = ({ startDate, endDate }: DateRangeCellProps) => {
+  if (startDate) {
+    if (endDate) {
+      return (
+        <TableCell className="flex flex-row">
+          <div>{startDate.toLocaleDateString()} to</div>
+          <div>{endDate.toLocaleDateString()}</div>
+        </TableCell>
+      );
+    } else {
+      return <TableCell>Starts {startDate.toLocaleDateString()}</TableCell>;
+    }
+  } else {
+    if (endDate) {
+      return <TableCell>Ends {endDate.toLocaleDateString()}</TableCell>;
+    } else {
+      return <TableCell>No start/end</TableCell>;
+    }
+  }
+};
 
 type LeagueTableProps = {
   data: RouterOutputs['leagues']['list']['leagues'];
 };
 
 const LeagueTable = ({ data }: LeagueTableProps) => {
+  const router = useRouter();
   if (data.length === 0) {
     return <div>No entries.</div>;
   }
 
-  return <Table></Table>;
+  return (
+    <Table
+      head={
+        <TableRow>
+          <TableHeading scope="col">Name</TableHeading>
+          <TableHeading scope="col">Dates</TableHeading>
+          <TableHeading scope="col">Ruleset</TableHeading>
+        </TableRow>
+      }
+    >
+      {data.map((league) => (
+        <TableRow
+          key={league.id}
+          className="cursor-pointer hover:bg-green-100"
+          onClick={() => router.push(`/league/${league.id}`)}
+        >
+          <TableHeading scope="row" className="flex flex-col">
+            <div className="underline decoration-dotted">{league.name}</div>
+            {league.invitational && (
+              <div className="text-xs italic">Invite-only</div>
+            )}
+          </TableHeading>
+          <DateRangeCell
+            startDate={league.startDate}
+            endDate={league.endDate}
+          />
+          <TableCell>{league.defaultRuleset.name}</TableCell>
+        </TableRow>
+      ))}
+    </Table>
+  );
 };
 
 type LeagueCreationDialogProps = {
@@ -49,30 +107,38 @@ const filterRulesets = (
   return fuse.search(query).map((r: FuseResult<Ruleset>) => r.item);
 };
 
+const leagueCreationSchema = z.object({
+  name: z.string().min(1),
+  description: z.string(),
+  startingPoints: z
+    .number({
+      required_error: 'Starting rating is required',
+      invalid_type_error: 'Starting rating must be a number',
+    })
+    .step(0.1, 'Starting rating must be a multiple of 0.1'),
+  startDate: z.date().optional(),
+  endDate: z.date().optional(),
+});
+
+type LeagueCreationParams = z.infer<typeof leagueCreationSchema>;
+
+const defaultLeagueCreationParamValues: LeagueCreationParams = {
+  name: '',
+  startingPoints: 500.0,
+  description: '',
+  startDate: undefined,
+  endDate: undefined,
+};
+
 const LeagueCreationDialog = ({ open, onClose }: LeagueCreationDialogProps) => {
   const [invitational, setInvitational] = useState(false);
   const [ruleset, setRuleset] = useState<Ruleset | null>(null);
   const [rulesetQuery, setRulesetQuery] = useState('');
 
-  const schema = z.object({
-    name: z.string().min(1),
-    description: z.string().optional(),
-    startingPts: z
-      .number({
-        required_error: 'Starting points is required',
-        invalid_type_error: 'Starting points must be a number',
-      })
-      .step(0.1, 'Starting points must be a multiple of 0.1'),
-  });
-
   const { register, formState, handleSubmit } = useForm({
     mode: 'onChange',
-    resolver: zodResolver(schema),
-    defaultValues: {
-      name: '',
-      startingPts: 500.0,
-      description: '',
-    },
+    resolver: zodResolver(leagueCreationSchema),
+    defaultValues: defaultLeagueCreationParamValues,
   });
 
   const allRulesets = trpc.rulesets.list.useQuery();
@@ -82,8 +148,20 @@ const LeagueCreationDialog = ({ open, onClose }: LeagueCreationDialogProps) => {
   );
   const displayRuleset = (ruleset: Ruleset | null) => ruleset?.name ?? '';
 
-  const onSubmit = (data) => {
-    console.log(data);
+  const createLeague = trpc.leagues.create.useMutation().mutateAsync;
+
+  const onSubmit = async (data: LeagueCreationParams) => {
+    if (ruleset === null) return;
+    try {
+      await createLeague({
+        ...data,
+        invitational,
+        defaultRulesetId: ruleset.id,
+      });
+      onClose();
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   return (
@@ -101,15 +179,17 @@ const LeagueCreationDialog = ({ open, onClose }: LeagueCreationDialogProps) => {
                 label="League/Tournament Name"
                 register={register}
                 errors={formState.errors}
+                type="text"
                 required
               />
               <InputField
-                name="startingPts"
-                label="Starting Points"
+                name="startingPoints"
+                label="Starting Rating"
                 register={register}
                 errors={formState.errors}
                 required
-                valueAsNumber
+                type="number"
+                step={0.1}
               />
               <ComboboxField
                 required
@@ -120,6 +200,20 @@ const LeagueCreationDialog = ({ open, onClose }: LeagueCreationDialogProps) => {
                 onChange={setRuleset}
                 displayValue={displayRuleset}
                 options={filteredRulesets}
+              />
+              <InputField
+                name="startDate"
+                label="Starts..."
+                type="datetime-local"
+                register={register}
+                errors={formState.errors}
+              />
+              <InputField
+                name="endDate"
+                label="Ends..."
+                type="datetime-local"
+                register={register}
+                errors={formState.errors}
               />
               <CheckboxField
                 label="Invite-only"

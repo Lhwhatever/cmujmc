@@ -1,5 +1,5 @@
 import React from 'react';
-import Table from '../Table';
+import Table, { TableCell, TableHeading, TableRow } from '../Table';
 import { RouterOutputs, trpc } from '../../utils/trpc';
 import Loading from '../Loading';
 
@@ -11,33 +11,33 @@ const RulesetTable = ({ data }: RulesetTableProps) => {
   return (
     <Table
       head={
-        <Table.Row>
-          <Table.Heading scope="col">Name</Table.Heading>
-          <Table.Heading scope="col">Start / Return</Table.Heading>
-          <Table.Heading scope="col">Oka + Uma</Table.Heading>
-        </Table.Row>
+        <TableRow>
+          <TableHeading scope="col">Name</TableHeading>
+          <TableHeading scope="col">Start / Return</TableHeading>
+          <TableHeading scope="col">Oka + Uma</TableHeading>
+        </TableRow>
       }
     >
       {data.map((ruleset) => {
         return (
-          <Table.Row key={ruleset.id} className="text-xs">
-            <Table.Heading scope="col">
+          <TableRow key={ruleset.id} className="text-xs">
+            <TableHeading scope="col">
               <div className="flex flex-col">
                 <div>{ruleset.name}</div>
                 <div className="italic font-normal">{ruleset.gameMode}</div>
               </div>
-            </Table.Heading>
-            <Table.Cell>
+            </TableHeading>
+            <TableCell>
               {ruleset.startPts.toLocaleString()} /{' '}
               {ruleset.returnPts.toLocaleString()}
-            </Table.Cell>
-            <Table.Cell>
+            </TableCell>
+            <TableCell>
               {ruleset.uma
                 .toSorted((a, b) => a.position - b.position)
                 .map((uma) => uma.value)
                 .join(' / ')}
-            </Table.Cell>
-          </Table.Row>
+            </TableCell>
+          </TableRow>
         );
       })}
     </Table>

@@ -5,12 +5,46 @@ import { IFieldProps } from './baseTypes';
 import clsx from 'clsx';
 import FieldLabel from './FieldLabel';
 
+type VariantText = {
+  type?: 'text';
+};
+
+type VariantNumber = {
+  type: 'number';
+  step?: number;
+};
+
+type VariantDatetime = {
+  type: 'datetime-local';
+  min?: Date;
+  max?: Date;
+};
+
+type Variants = VariantText | VariantNumber | VariantDatetime;
+
+const dispatchVariants = (v: Variants) => {
+  switch (v.type) {
+    case undefined:
+    case 'text':
+      return [{ type: 'text' }, {}];
+    case 'number':
+      return [v, { valueAsNumber: true }];
+    case 'datetime-local':
+      return [
+        {
+          type: 'datetime-local',
+          min: v.min?.toISOString(),
+          max: v.max?.toISOString(),
+        },
+        { valueAsDate: true },
+      ];
+  }
+};
+
 export type InputFieldProps<
   TFieldValues extends FieldValues = FieldValues,
   TFieldName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
-> = IFieldProps<TFieldValues, TFieldName> & {
-  valueAsNumber?: true;
-};
+> = IFieldProps<TFieldValues, TFieldName> & Variants;
 
 export default function InputField<
   TFieldValues extends FieldValues = FieldValues,
@@ -21,7 +55,7 @@ export default function InputField<
   register,
   name,
   errors,
-  valueAsNumber,
+  ...variant
 }: InputFieldProps<TFieldValues, TFieldName>) {
   const error = errors[name]?.message;
 
@@ -30,15 +64,15 @@ export default function InputField<
     error ? 'border-red-500 text-red-500' : 'border-gray-300 text-gray-900',
   );
 
+  const [props, options] = dispatchVariants(variant);
+
   return (
     <Field>
       <FieldLabel label={label} required={required} />
       <Input
         className={inputClass}
-        {...register(name, {
-          required,
-          valueAsNumber,
-        })}
+        {...props}
+        {...register(name, { required, ...options })}
       />
       {error && <div className="text-red-500 text-xs">{error as string}</div>}
     </Field>

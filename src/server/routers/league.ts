@@ -1,10 +1,17 @@
 import { adminProcedure, publicProcedure, router } from '../trpc';
 import { prisma } from '../prisma';
 import { z } from 'zod';
+import * as Schema from '../../protocol/league';
 
 const leagueRouter = router({
   list: publicProcedure.query(async () => {
-    const leagues = await prisma.league.findMany();
+    const leagues = await prisma.league.findMany({
+      include: {
+        defaultRuleset: {
+          select: { name: true },
+        },
+      },
+    });
     return { leagues };
   }),
 
@@ -16,6 +23,8 @@ const leagueRouter = router({
         invitational: z.boolean(),
         defaultRulesetId: z.number().int(),
         startingPoints: z.number().step(0.1),
+        startDate: z.date().optional(),
+        endDate: z.date().optional(),
       }),
     )
     .mutation(async (opts) =>
@@ -28,9 +37,19 @@ const leagueRouter = router({
             connect: { id: opts.input.defaultRulesetId },
           },
           startingPoints: opts.input.startingPoints,
+          startDate: opts.input.startDate,
+          endDate: opts.input.endDate,
         },
       }),
     ),
+
+  get: publicProcedure.input(Schema.get).query(async (opts) => {
+    const league = await prisma.league.findUniqueOrThrow({
+      where: { id: opts.input },
+      include: { defaultRuleset: true },
+    });
+    return { league };
+  }),
 });
 
 export default leagueRouter;
