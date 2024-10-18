@@ -1,3 +1,6 @@
+const createNextIntlPlugin = require('next-intl/plugin');
+
+const withNextIntl = createNextIntlPlugin();
 /**
  * @link https://nextjs.org/docs/api-reference/next.config.js/introduction
  */
@@ -16,4 +19,4 @@ const config = {
   eslint: { ignoreDuringBuilds: !!process.env.CI },
 };
 
-module.exports = config;
+module.exports = withNextIntl(config);

@@ -1,8 +1,9 @@
 import { adminProcedure, publicProcedure, router } from '../trpc';
 import { prisma } from '../prisma';
-import { z } from 'zod';
-import * as Schema from '../../protocol/league';
 import { TRPCError } from '@trpc/server';
+import schema from '../../protocol/schema';
+import { computeClosingDate } from './events';
+import { isBefore } from 'date-fns';
 
 const leagueRouter = router({
   list: publicProcedure.query(async () => {
@@ -16,35 +17,52 @@ const leagueRouter = router({
     return { leagues };
   }),
 
-  create: adminProcedure
-    .input(
-      z.object({
-        name: z.string(),
-        description: z.string(),
-        invitational: z.boolean(),
-        defaultRulesetId: z.number().int(),
-        startingPoints: z.number().step(0.1),
-        startDate: z.date().optional(),
-        endDate: z.date().optional(),
-      }),
-    )
-    .mutation(async (opts) =>
-      prisma.league.create({
-        data: {
-          name: opts.input.name,
-          description: opts.input.description,
-          invitational: opts.input.invitational,
-          defaultRuleset: {
-            connect: { id: opts.input.defaultRulesetId },
-          },
-          startingPoints: opts.input.startingPoints,
-          startDate: opts.input.startDate,
-          endDate: opts.input.endDate,
-        },
-      }),
-    ),
+  create: adminProcedure.input(schema.league.create).mutation(async (opts) => {
+    const {
+      startDate,
+      endDate,
+      name,
+      description,
+      invitational,
+      defaultRulesetId,
+      startingPoints,
+      singleEvent,
+    } = opts.input;
 
-  get: publicProcedure.input(Schema.get).query(async (opts) => {
+    if (startDate && endDate && !isBefore(startDate, endDate)) {
+      throw new TRPCError({
+        code: 'BAD_REQUEST',
+        message: `startDate ${startDate.toISOString()} must be strictly before endDate ${endDate.toISOString()} `,
+      });
+    }
+
+    return prisma.league.create({
+      data: {
+        name,
+        description,
+        invitational,
+        defaultRuleset: {
+          connect: { id: defaultRulesetId },
+        },
+        startingPoints,
+        startDate,
+        endDate,
+        events: singleEvent
+          ? {
+              create: [
+                {
+                  startDate,
+                  endDate,
+                  closingDate: computeClosingDate(endDate),
+                },
+              ],
+            }
+          : undefined,
+      },
+    });
+  }),
+
+  get: publicProcedure.input(schema.league.get).query(async (opts) => {
     const id = opts.input;
     const league = await prisma.league.findUnique({
       where: { id },

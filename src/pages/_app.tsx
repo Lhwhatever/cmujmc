@@ -3,6 +3,7 @@ import type { Session } from 'next-auth';
 import { getSession, SessionProvider } from 'next-auth/react';
 import type { AppType } from 'next/app';
 import { trpc } from 'utils/trpc';
+import { NextIntlClientProvider } from 'next-intl';
 
 const MyApp: AppType<{ session: Session | null }> = ({
   Component,
@@ -10,7 +11,9 @@ const MyApp: AppType<{ session: Session | null }> = ({
 }) => {
   return (
     <SessionProvider session={pageProps.session}>
-      <Component {...pageProps} />
+      <NextIntlClientProvider locale="en">
+        <Component {...pageProps} />
+      </NextIntlClientProvider>
     </SessionProvider>
   );
 };

@@ -1,17 +1,18 @@
+export const dateFmt = new Intl.DateTimeFormat();
+
 export const formatDateRange = (
   startDate?: Date | null,
   endDate?: Date | null,
 ) => {
-  const fmt = new Intl.DateTimeFormat();
   if (startDate) {
     if (endDate) {
-      return fmt.formatRange(startDate, endDate);
+      return dateFmt.formatRange(startDate, endDate);
     } else {
-      return `Starts ${fmt.format(startDate)}`;
+      return `Starts ${dateFmt.format(startDate)}`;
     }
   } else {
     if (endDate) {
-      return `Ends ${fmt.format(endDate)}`;
+      return `Ends ${dateFmt.format(endDate)}`;
     } else {
       return null;
     }

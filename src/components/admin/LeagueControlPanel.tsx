@@ -21,11 +21,8 @@ import Fuse, { FuseResult } from 'fuse.js';
 import TextareaField from '../form/TextareaField';
 import { useRouter } from 'next/router';
 import { formatDateRange } from '../../utils/dates';
-
-type DateRangeCellProps = {
-  startDate?: Date | null;
-  endDate?: Date | null;
-};
+import schema from '../../protocol/schema';
+import DateTimeRange from '../DateTimeRange';
 
 type LeagueTableProps = {
   data: RouterOutputs['leagues']['list']['leagues'];
@@ -60,8 +57,10 @@ const LeagueTable = ({ data }: LeagueTableProps) => {
             )}
           </TableHeading>
           <TableCell className="text-wrap">
-            {formatDateRange(league.startDate, league.endDate) ??
-              'No start/end'}
+            <DateTimeRange
+              startDate={league.startDate}
+              endDate={league.endDate}
+            />
           </TableCell>
           <TableCell>{league.defaultRuleset.name}</TableCell>
         </TableRow>
@@ -87,17 +86,9 @@ const filterRulesets = (
   return fuse.search(query).map((r: FuseResult<Ruleset>) => r.item);
 };
 
-const leagueCreationSchema = z.object({
-  name: z.string().min(1),
-  description: z.string(),
-  startingPoints: z
-    .number({
-      required_error: 'Starting rating is required',
-      invalid_type_error: 'Starting rating must be a number',
-    })
-    .step(0.1, 'Starting rating must be a multiple of 0.1'),
-  startDate: z.date().optional(),
-  endDate: z.date().optional(),
+const leagueCreationSchema = schema.league.create.omit({
+  invitational: true,
+  defaultRulesetId: true,
 });
 
 type LeagueCreationParams = z.infer<typeof leagueCreationSchema>;
@@ -112,6 +103,7 @@ const defaultLeagueCreationParamValues: LeagueCreationParams = {
 
 const LeagueCreationDialog = ({ open, onClose }: LeagueCreationDialogProps) => {
   const [invitational, setInvitational] = useState(false);
+  const [singleEvent, setSingleEvent] = useState(false);
   const [ruleset, setRuleset] = useState<Ruleset | null>(null);
   const [rulesetQuery, setRulesetQuery] = useState('');
 
@@ -136,10 +128,12 @@ const LeagueCreationDialog = ({ open, onClose }: LeagueCreationDialogProps) => {
       await createLeague({
         ...data,
         invitational,
+        singleEvent,
         defaultRulesetId: ruleset.id,
       });
       onClose();
     } catch (e) {
+      // TODO
       console.error(e);
     }
   };
@@ -199,6 +193,11 @@ const LeagueCreationDialog = ({ open, onClose }: LeagueCreationDialogProps) => {
                 label="Invite-only"
                 checked={invitational}
                 onChange={setInvitational}
+              />
+              <CheckboxField
+                label="Single-event league"
+                checked={singleEvent}
+                onChange={setSingleEvent}
               />
               <TextareaField
                 name="description"
