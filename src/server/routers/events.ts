@@ -4,6 +4,8 @@ import { prisma } from '../prisma';
 import { Prisma } from '@prisma/client';
 import { TRPCError } from '@trpc/server';
 import { addMinutes, isAfter, isBefore } from 'date-fns';
+import AdminUserError from '../../protocol/errors';
+import { z } from 'zod';
 
 const defaultSubmissionBufferMins = 30;
 
@@ -17,6 +19,8 @@ const leagueOrderBys = {
   'start-asc': { startDate: 'asc' } as Prisma.EventOrderByWithRelationInput,
   'start-desc': { startDate: 'desc' } as Prisma.EventOrderByWithRelationInput,
 };
+
+type CreateEvent = z.infer<typeof schema.event.create>;
 
 export const eventRouter = router({
   create: adminProcedure.input(schema.event.create).mutation(async (opts) => {
@@ -38,9 +42,9 @@ export const eventRouter = router({
       parent.startDate !== null &&
       (startDate === undefined || isBefore(startDate, parent.startDate))
     ) {
-      throw new TRPCError({
-        code: 'BAD_REQUEST',
-        message: `startDate cannot be before league startDate ${parent.startDate.toISOString()}`,
+      throw new AdminUserError<CreateEvent>({
+        field: 'startDate',
+        message: `Cannot be before league startDate ${parent.startDate.toISOString()}`,
       });
     }
 
@@ -48,9 +52,9 @@ export const eventRouter = router({
       parent.endDate !== null &&
       (endDate === undefined || isAfter(endDate, parent.endDate))
     ) {
-      throw new TRPCError({
-        code: 'BAD_REQUEST',
-        message: `endDate must be before league endDate ${parent.endDate.toISOString()}`,
+      throw new AdminUserError<CreateEvent>({
+        field: 'endDate',
+        message: `Cannot be after league endDate ${parent.endDate.toISOString()}`,
       });
     }
 
@@ -82,4 +86,19 @@ export const eventRouter = router({
       });
       return { events };
     }),
+
+  list: publicProcedure.input(schema.event.list).query(async (opts) => {
+    const { limit, sortDirection, filters } = opts.input;
+
+    const events = await prisma.event.findMany({
+      where: {
+        AND: filters?.map(({ lhs, op, rhs }) => ({ [lhs]: { [op]: rhs } })),
+      },
+      orderBy: leagueOrderBys[sortDirection ?? 'start-asc'],
+      take: limit,
+      include: { parent: true },
+    });
+
+    return { events };
+  }),
 });

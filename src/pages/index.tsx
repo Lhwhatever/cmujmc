@@ -1,10 +1,95 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Page from '../components/Page';
+import Heading from '../components/Heading';
+import { trpc } from '../utils/trpc';
+import Loading from '../components/Loading';
+import { useFormatter } from 'next-intl';
+import Link from 'next/link';
+import DateTime from '../components/DateTime';
+import { isSameDay } from 'date-fns';
+
+const EventsSection = () => {
+  const [checkDate, setCheckDate] = useState(new Date(0));
+  const formatter = useFormatter();
+  useEffect(() => {
+    setCheckDate(new Date());
+  }, [setCheckDate]);
+
+  const query = trpc.events.list.useQuery({
+    limit: 3,
+    sortDirection: 'start-asc',
+    filters: [{ lhs: 'closingDate', op: 'gt', rhs: checkDate }],
+  });
+
+  if (!query.data) {
+    return <Loading />;
+  }
+
+  return (
+    <div className="flex flex-col space-y-4">
+      {query.data.events.map(({ startDate, endDate, id, parent }) => {
+        const date = startDate ?? checkDate;
+        const month = formatter.dateTime(date, { month: 'short' });
+        return (
+          <div
+            key={id}
+            className="flex flex-row bg-gray-200 border rounded-lg border-gray-200 p-2 space-x-3 mt-2"
+          >
+            <div className="flex flex-col space-y-0 items-center w-8">
+              <div className="text-sm">{month.toUpperCase()}</div>
+              <div className="text-2xl font-bold">
+                {formatter.dateTime(date, { month: 'numeric' })}
+              </div>
+            </div>
+            <div className="flex flex-col text-xs">
+              <div className="mb-1">
+                <Link
+                  href={`/league/${parent.id}`}
+                  className="text-gray-600 underline"
+                >
+                  {parent.name}
+                </Link>
+              </div>
+              {startDate && (
+                <div>
+                  Starts at{' '}
+                  <DateTime date={startDate} format={{ timeStyle: 'short' }} />{' '}
+                  (<DateTime date={startDate} relative />)
+                </div>
+              )}
+              {endDate && (
+                <div>
+                  Ends at{' '}
+                  <DateTime
+                    date={endDate}
+                    format={{
+                      timeStyle: 'short',
+                      dateStyle:
+                        startDate && isSameDay(startDate, endDate)
+                          ? undefined
+                          : 'short',
+                    }}
+                  />{' '}
+                  (<DateTime date={endDate} relative />)
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
 
 export default function IndexPage() {
   return (
     <Page>
-      <div className="flex h-screen flex-col md:flex-row">Test</div>
+      <div className="flex h-screen flex-col md:flex-row">
+        <div>
+          <Heading level="h2">Club Events</Heading>
+          <EventsSection />
+        </div>
+      </div>
     </Page>
   );
 }

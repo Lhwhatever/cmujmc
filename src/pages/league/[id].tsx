@@ -1,18 +1,24 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Page from '../../components/Page';
 import Heading from '../../components/Heading';
 import { useRouter } from 'next/router';
 import { RouterOutputs, trpc } from '../../utils/trpc';
 import Loading from '../../components/Loading';
 import Text from '../../components/Text';
-import { DisclosurePanel } from '@headlessui/react';
 import DateTimeRange from '../../components/DateTimeRange';
 import DateTime from '../../components/DateTime';
 import Accordion, { AccordionSegment } from '../../components/Accordion';
-
-type EventsSectionProps = {
-  leagueId: number;
-};
+import { useSession } from 'next-auth/react';
+import Button from '../../components/Button';
+import { PlusIcon } from '@heroicons/react/16/solid';
+import Dialog from '../../components/Dialog';
+import { Fieldset } from '@headlessui/react';
+import InputField from '../../components/form/InputField';
+import schema from '../../protocol/schema';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import AdminUserError from '../../protocol/errors';
 
 type Event = RouterOutputs['events']['getByLeague']['events'][number];
 
@@ -34,6 +40,115 @@ const partitionEvents = (refTime: number, events: Event[]) => {
   return [closed, ongoing, future];
 };
 
+type EventCreatorProps = { leagueId: number };
+
+const eventCreationSchema = schema.event.create.omit({ leagueId: true });
+type EventCreationParams = z.infer<typeof eventCreationSchema>;
+
+const eventCreationDefaultValues: EventCreationParams = {
+  startDate: undefined,
+  endDate: undefined,
+  submissionBufferMinutes: 30,
+};
+
+const EventCreator = ({ leagueId }: EventCreatorProps) => {
+  const utils = trpc.useUtils();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const { register, formState, setError, clearErrors, handleSubmit } = useForm({
+    mode: 'onChange',
+    resolver: zodResolver(eventCreationSchema),
+    defaultValues: eventCreationDefaultValues,
+  });
+
+  const createEventMutation = trpc.events.create.useMutation({
+    async onSuccess() {
+      clearErrors();
+      setDialogOpen(false);
+      await utils.events.getByLeague.invalidate({ leagueId });
+    },
+    onError(e) {
+      const parsed = AdminUserError.parse<EventCreationParams>(e.message);
+      if (parsed) {
+        setError(
+          parsed.field,
+          {
+            type: 'value',
+            message: parsed.message,
+          },
+          { shouldFocus: true },
+        );
+      }
+    },
+  });
+
+  const onSubmit = (values: EventCreationParams) =>
+    createEventMutation.mutateAsync({ ...values, leagueId });
+
+  return (
+    <>
+      <Button
+        color="green"
+        fill="filled"
+        leftIcon={<PlusIcon className="size-4" />}
+        onClick={() => setDialogOpen(true)}
+      >
+        Create
+      </Button>
+      <Dialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        title="Create Event"
+      >
+        <Fieldset className="space-y-6">
+          <InputField
+            name="startDate"
+            label="Starts..."
+            type="datetime-local"
+            register={register}
+            errors={formState.errors}
+          />
+          <InputField
+            name="endDate"
+            label="Ends..."
+            type="datetime-local"
+            register={register}
+            errors={formState.errors}
+          />
+          <InputField
+            name="submissionBufferMinutes"
+            label="Number of minutes to submit results"
+            type="number"
+            step={5}
+            min={0}
+            register={register}
+            errors={formState.errors}
+          />
+          <div className="flex flex-row">
+            <Button
+              color="green"
+              fill="filled"
+              onClick={handleSubmit(onSubmit)}
+            >
+              Submit
+            </Button>
+            <Button
+              color="red"
+              fill="filled"
+              onClick={() => setDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+          </div>
+        </Fieldset>
+      </Dialog>
+    </>
+  );
+};
+
+type EventsSectionProps = {
+  leagueId: number;
+};
+
 const EventsSection = ({ leagueId }: EventsSectionProps) => {
   const query = trpc.events.getByLeague.useQuery({ leagueId });
 
@@ -51,65 +166,70 @@ const EventsSection = ({ leagueId }: EventsSectionProps) => {
   }
 
   return (
-    <Accordion>
-      {ongoing.length > 0 && (
-        <AccordionSegment
-          heading={<Heading level="h4">Current Events</Heading>}
-          defaultOpen={true}
-        >
-          {ongoing.map((event) => (
-            <div key={event.id}>
-              <Heading level="h5">
-                <DateTimeRange
-                  startDate={event.startDate}
-                  endDate={event.endDate}
-                />
-              </Heading>
-              <p>
-                Ends <DateTime date={event.endDate!} relative />
-              </p>
-            </div>
-          ))}
-        </AccordionSegment>
-      )}
-      {future.length > 0 && (
-        <AccordionSegment
-          heading={<Heading level="h4">Future Events</Heading>}
-          defaultOpen={ongoing.length === 0}
-        >
-          {future.map((event) => (
-            <div key={event.id}>
-              <Heading level="h5">
-                <DateTimeRange
-                  startDate={event.startDate}
-                  endDate={event.endDate}
-                />
-              </Heading>
-              <p>
-                Starts <DateTime date={event.startDate!} relative />
-              </p>
-            </div>
-          ))}
-        </AccordionSegment>
-      )}
-      {closed.length > 0 && (
-        <AccordionSegment heading={<Heading level="h4">Past Events</Heading>}>
-          {future.map((event) => (
-            <div key={event.id}>
-              <Heading level="h5">
-                <DateTimeRange
-                  startDate={event.startDate}
-                  endDate={event.endDate}
-                />
-              </Heading>
-              <p>
-                Starts <DateTime date={event.startDate!} relative />
-              </p>
-            </div>
-          ))}
-        </AccordionSegment>
-      )}
-    </Accordion>
+    <>
+      <Accordion>
+        {ongoing.length > 0 && (
+          <AccordionSegment
+            heading={<Heading level="h4">Current Events</Heading>}
+            defaultOpen={true}
+          >
+            {ongoing.map((event) => (
+              <div key={event.id}>
+                <Heading level="h5">
+                  <DateTimeRange
+                    startDate={event.startDate}
+                    endDate={event.endDate}
+                  />
+                </Heading>
+                <p>
+                  Ends <DateTime date={event.endDate!} relative />
+                </p>
+              </div>
+            ))}
+          </AccordionSegment>
+        )}
+        {future.length > 0 && (
+          <AccordionSegment
+            heading={<Heading level="h4">Future Events</Heading>}
+            defaultOpen={ongoing.length === 0}
+          >
+            {future.map((event) => (
+              <div key={event.id}>
+                <Heading level="h5">
+                  <DateTimeRange
+                    startDate={event.startDate}
+                    endDate={event.endDate}
+                  />
+                </Heading>
+                <p>
+                  Starts <DateTime date={event.startDate!} relative />
+                </p>
+              </div>
+            ))}
+          </AccordionSegment>
+        )}
+        {closed.length > 0 && (
+          <AccordionSegment
+            heading={<Heading level="h4">Past Events</Heading>}
+            defaultOpen={ongoing.length === 0 && future.length === 0}
+          >
+            {closed.map((event) => (
+              <div key={event.id}>
+                <Heading level="h5">
+                  <DateTimeRange
+                    startDate={event.startDate}
+                    endDate={event.endDate}
+                  />
+                </Heading>
+                <p>
+                  Ended <DateTime date={event.endDate!} relative />
+                </p>
+              </div>
+            ))}
+          </AccordionSegment>
+        )}
+      </Accordion>
+    </>
   );
 };
 
@@ -117,6 +237,8 @@ export default function League() {
   const router = useRouter();
   const id = parseInt(router.query.id as string);
   const query = trpc.leagues.get.useQuery(id, { retry: 3 });
+
+  const session = useSession();
 
   if (query.isError) {
     router.push('/');
@@ -156,6 +278,9 @@ export default function League() {
         </div>
         <div>
           <Heading level="h3">Events</Heading>
+          {session.data?.user.role === 'admin' && (
+            <EventCreator leagueId={id} />
+          )}
           <EventsSection leagueId={id} />
         </div>
       </div>

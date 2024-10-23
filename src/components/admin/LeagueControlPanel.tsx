@@ -1,16 +1,8 @@
 import React, { useState } from 'react';
 import Table, { TableCell, TableHeading, TableRow } from '../Table';
 import { RouterOutputs, trpc } from '../../utils/trpc';
-import Loading from '../Loading';
 import Button from '../Button';
-import { PlusIcon } from '@heroicons/react/16/solid';
-import {
-  Dialog,
-  DialogBackdrop,
-  DialogPanel,
-  DialogTitle,
-  Fieldset,
-} from '@headlessui/react';
+import { Fieldset } from '@headlessui/react';
 import { useForm } from 'react-hook-form';
 import InputField from '../form/InputField';
 import { z } from 'zod';
@@ -20,9 +12,11 @@ import ComboboxField from '../form/ComboboxField';
 import Fuse, { FuseResult } from 'fuse.js';
 import TextareaField from '../form/TextareaField';
 import { useRouter } from 'next/router';
-import { formatDateRange } from '../../utils/dates';
 import schema from '../../protocol/schema';
 import DateTimeRange from '../DateTimeRange';
+import Dialog from '../Dialog';
+import { PlusIcon } from '@heroicons/react/16/solid';
+import Loading from '../Loading';
 
 type LeagueTableProps = {
   data: RouterOutputs['leagues']['list']['leagues'];
@@ -139,88 +133,74 @@ const LeagueCreationDialog = ({ open, onClose }: LeagueCreationDialogProps) => {
   };
 
   return (
-    <Dialog open={open} onClose={onClose} className="relative z-50">
-      <DialogBackdrop className="fixed inset-0 bg-black/30" />
-      <div className="fixed inset-0 flex w-screen items-center justify-center p-4 overflow-y-auto">
-        <div className="flex min-h-full items-center justify-center">
-          <DialogPanel className="max-w-lg space-y-4 bg-white p-12">
-            <DialogTitle className="font-bold">
-              Create League/Tournament
-            </DialogTitle>
-            <Fieldset className="space-y-6">
-              <InputField
-                name="name"
-                label="League/Tournament Name"
-                register={register}
-                errors={formState.errors}
-                type="text"
-                required
-              />
-              <InputField
-                name="startingPoints"
-                label="Starting Rating"
-                register={register}
-                errors={formState.errors}
-                required
-                type="number"
-                step={0.1}
-              />
-              <ComboboxField
-                required
-                label="Ruleset"
-                value={ruleset}
-                query={rulesetQuery}
-                onQueryChange={setRulesetQuery}
-                onChange={setRuleset}
-                displayValue={displayRuleset}
-                options={filteredRulesets}
-              />
-              <InputField
-                name="startDate"
-                label="Starts..."
-                type="datetime-local"
-                register={register}
-                errors={formState.errors}
-              />
-              <InputField
-                name="endDate"
-                label="Ends..."
-                type="datetime-local"
-                register={register}
-                errors={formState.errors}
-              />
-              <CheckboxField
-                label="Invite-only"
-                checked={invitational}
-                onChange={setInvitational}
-              />
-              <CheckboxField
-                label="Single-event league"
-                checked={singleEvent}
-                onChange={setSingleEvent}
-              />
-              <TextareaField
-                name="description"
-                label="Description"
-                register={register}
-                errors={formState.errors}
-              />
-              <div className="flex flex-row">
-                <Button
-                  color="green"
-                  fill="filled"
-                  onClick={handleSubmit(onSubmit)}
-                >
-                  Submit
-                </Button>
-                <Button color="red" fill="filled" onClick={onClose}>
-                  Cancel
-                </Button>
-              </div>
-            </Fieldset>
-          </DialogPanel>
+    <Dialog open={open} onClose={onClose} title="Create League/Tournament">
+      <Fieldset className="space-y-6">
+        <InputField
+          name="name"
+          label="League/Tournament Name"
+          register={register}
+          errors={formState.errors}
+          type="text"
+          required
+        />
+        <InputField
+          name="startingPoints"
+          label="Starting Rating"
+          register={register}
+          errors={formState.errors}
+          required
+          type="number"
+          step={0.1}
+        />
+        <ComboboxField
+          required
+          label="Ruleset"
+          value={ruleset}
+          query={rulesetQuery}
+          onQueryChange={setRulesetQuery}
+          onChange={setRuleset}
+          displayValue={displayRuleset}
+          options={filteredRulesets}
+        />
+        <InputField
+          name="startDate"
+          label="Starts..."
+          type="datetime-local"
+          register={register}
+          errors={formState.errors}
+        />
+        <InputField
+          name="endDate"
+          label="Ends..."
+          type="datetime-local"
+          register={register}
+          errors={formState.errors}
+        />
+        <CheckboxField
+          label="Invite-only"
+          checked={invitational}
+          onChange={setInvitational}
+        />
+        <CheckboxField
+          label="Single-event league"
+          checked={singleEvent}
+          onChange={setSingleEvent}
+        />
+        <TextareaField
+          name="description"
+          label="Description"
+          register={register}
+          errors={formState.errors}
+        />
+        <div className="flex flex-row">
+          <Button color="green" fill="filled" onClick={handleSubmit(onSubmit)}>
+            Submit
+          </Button>
+          <Button color="red" fill="filled" onClick={onClose}>
+            Cancel
+          </Button>
         </div>
-      </div>
+      </Fieldset>
     </Dialog>
   );
 };

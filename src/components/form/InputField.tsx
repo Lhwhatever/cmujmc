@@ -12,6 +12,8 @@ type VariantText = {
 type VariantNumber = {
   type: 'number';
   step?: number;
+  min?: number;
+  max?: number;
 };
 
 type VariantDatetime = {
