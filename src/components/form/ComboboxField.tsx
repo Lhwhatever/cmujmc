@@ -100,7 +100,7 @@ export default function ComboboxField<T, K extends React.Key>({
         />
         <ComboboxOptions
           anchor="bottom"
-          className="border empty:invisible bg-white rounded-lg"
+          className="border mt-1 empty:invisible bg-white rounded-lg w-auto"
         >
           {options === null ? (
             <DummyEntry>Loading...</DummyEntry>

@@ -5,7 +5,7 @@ export interface IFieldError<T extends Record<string, unknown>> {
   message: string;
 }
 
-export default class AdminUserError<
+export class AdminUserError<
   T extends Record<string, unknown>,
 > extends TRPCError {
   public constructor(error: IFieldError<T>, cause?: unknown) {
@@ -25,5 +25,15 @@ export default class AdminUserError<
       console.error(message);
       return null;
     }
+  }
+}
+
+export class NotFoundError<T extends number | string> extends TRPCError {
+  public constructor(path: string, id: T, cause?: unknown) {
+    super({
+      message: JSON.stringify({ path, id }),
+      code: 'NOT_FOUND',
+      cause,
+    });
   }
 }

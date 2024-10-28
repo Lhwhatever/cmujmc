@@ -11,7 +11,7 @@ const MyApp: AppType<{ session: Session | null }> = ({
 }) => {
   return (
     <SessionProvider session={pageProps.session}>
-      <NextIntlClientProvider locale="en">
+      <NextIntlClientProvider locale="en" timeZone="America/New_York">
         <Component {...pageProps} />
       </NextIntlClientProvider>
     </SessionProvider>

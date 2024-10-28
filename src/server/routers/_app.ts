@@ -8,6 +8,7 @@ import userRouter from './user';
 import rulesetRouter from './ruleset';
 import leagueRouter from './league';
 import { eventRouter } from './events';
+import matchRouter from './match';
 
 export const appRouter = router({
   healthcheck: publicProcedure.query(() => 'yay!'),
@@ -15,6 +16,7 @@ export const appRouter = router({
   rulesets: rulesetRouter,
   leagues: leagueRouter,
   events: eventRouter,
+  matches: matchRouter,
 
   randomNumber: publicProcedure.subscription(() => {
     return observable<number>((emit) => {

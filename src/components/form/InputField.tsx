@@ -4,6 +4,7 @@ import { FieldPath, FieldValues } from 'react-hook-form';
 import { IFieldProps } from './baseTypes';
 import clsx from 'clsx';
 import FieldLabel from './FieldLabel';
+import _ from 'lodash';
 
 type VariantText = {
   type?: 'text';
@@ -14,6 +15,7 @@ type VariantNumber = {
   step?: number;
   min?: number;
   max?: number;
+  defaultValue?: number;
 };
 
 type VariantDatetime = {
@@ -59,7 +61,7 @@ export default function InputField<
   errors,
   ...variant
 }: InputFieldProps<TFieldValues, TFieldName>) {
-  const error = errors[name]?.message;
+  const error = _.get(errors, name)?.message;
 
   const inputClass = clsx(
     'block bg-gray-50 border text-sm rounded-lg w-full p-2.5',

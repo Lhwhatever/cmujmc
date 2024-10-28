@@ -90,6 +90,7 @@ type LeagueCreationParams = z.infer<typeof leagueCreationSchema>;
 const defaultLeagueCreationParamValues: LeagueCreationParams = {
   name: '',
   startingPoints: 500.0,
+  matchesRequired: 3,
   description: '',
   startDate: undefined,
   endDate: undefined,
@@ -114,12 +115,18 @@ const LeagueCreationDialog = ({ open, onClose }: LeagueCreationDialogProps) => {
   );
   const displayRuleset = (ruleset: Ruleset | null) => ruleset?.name ?? '';
 
-  const createLeague = trpc.leagues.create.useMutation().mutateAsync;
+  const utils = trpc.useUtils();
+  const mutation = trpc.leagues.create.useMutation({
+    onSuccess() {
+      onClose();
+      return utils.leagues.list.invalidate();
+    },
+  });
 
   const onSubmit = async (data: LeagueCreationParams) => {
     if (ruleset === null) return;
     try {
-      await createLeague({
+      await mutation.mutateAsync({
         ...data,
         invitational,
         singleEvent,
@@ -151,6 +158,15 @@ const LeagueCreationDialog = ({ open, onClose }: LeagueCreationDialogProps) => {
           required
           type="number"
           step={0.1}
+        />
+        <InputField
+          name="matchesRequired"
+          label="Matches required for rank"
+          register={register}
+          errors={formState.errors}
+          required
+          type="number"
+          step={1}
         />
         <ComboboxField
           required

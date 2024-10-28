@@ -5,6 +5,7 @@ export const create = z.object({
   startDate: z.date().optional(),
   endDate: z.date().optional(),
   submissionBufferMinutes: z.number().min(0).optional(),
+  rulesetOverrideId: z.number().int().min(1).optional(),
 });
 
 export const getByLeague = z.object({

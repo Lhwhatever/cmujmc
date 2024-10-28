@@ -20,6 +20,8 @@ model User {
   admin         Boolean   @default(false)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+  andrew        String?
+  discord       String?
 
   matches  UserMatch[]
   leagues  UserLeague[]
@@ -75,7 +77,7 @@ enum Status {
 
 model Match {
   id        Int      @id @default(autoincrement())
-  created   DateTime @default(now())
+  time      DateTime @default(now())
   status    Status   @default(PENDING)
   eventId   Int?
   rulesetId Int
@@ -87,15 +89,17 @@ model Match {
 
 model UserMatch {
   matchId                 Int
-  playerPosition          Int
+  playerPosition          Int // 1-indexed
   playerId                String?
   unregisteredPlaceholder String?
   rawScore                Int?
+  placementMin            Int? // 1-indexed
+  placementMax            Int? // in the event of a tie, this would differ from placementMin
   chombos                 Int?
-  adjustment              Decimal @default(0.0)
 
-  player User? @relation(fields: [playerId], references: [id])
-  match  Match @relation(fields: [matchId], references: [id])
+  player User?                   @relation(fields: [playerId], references: [id])
+  match  Match                   @relation(fields: [matchId], references: [id])
+  txns   UserLeagueTransaction[]
 
   @@id([matchId, playerPosition])
 }
@@ -106,23 +110,26 @@ model Event {
   endDate     DateTime?
   closingDate DateTime? // last time which users can enter
   matches     Match[]
+  rulesetId   Int
+  ruleset     Ruleset   @relation(fields: [rulesetId], references: [id])
   parentId    Int
   parent      League    @relation(fields: [parentId], references: [id])
 }
 
 model League {
-  id             Int       @id @default(autoincrement())
-  name           String
-  description    String?
-  invitational   Boolean
-  defaultRuleId  Int
-  startingPoints Decimal   @default(0.0)
-  startDate      DateTime? @default(now())
-  endDate        DateTime?
+  id              Int       @id @default(autoincrement())
+  name            String
+  description     String?
+  invitational    Boolean
+  defaultRuleId   Int
+  startingPoints  Decimal   @default(0.0)
+  startDate       DateTime? @default(now())
+  endDate         DateTime?
+  matchesRequired Int       @default(3)
 
-  defaultRuleset  Ruleset      @relation(fields: [defaultRuleId], references: [id])
-  events          Event[]
-  UserSeriesEntry UserLeague[]
+  defaultRuleset Ruleset      @relation(fields: [defaultRuleId], references: [id])
+  events         Event[]
+  users          UserLeague[]
 }
 
 enum GameMode {
@@ -142,6 +149,7 @@ model Ruleset {
   chomboDelta Decimal // negative
   League      League[]
   Match       Match[]
+  Event       Event[]
 }
 
 model RulesetUma {
@@ -155,12 +163,37 @@ model RulesetUma {
 }
 
 model UserLeague {
-  userId   String
-  leagueId Int
-  leniency Boolean
+  userId      String
+  leagueId    Int
+  freeChombos Int? // null if not on softer penalty
 
-  user   User   @relation(fields: [userId], references: [id])
-  league League @relation(fields: [leagueId], references: [id])
+  user   User                    @relation(fields: [userId], references: [id])
+  league League                  @relation(fields: [leagueId], references: [id])
+  txns   UserLeagueTransaction[]
 
   @@id([leagueId, userId])
+}
+
+enum TransactionType {
+  INITIAL
+  MATCH_RESULT
+  CHOMBO
+  OTHER_MOD
+}
+
+model UserLeagueTransaction {
+  id   String          @id @default(cuid())
+  type TransactionType
+
+  userId     String
+  leagueId   Int
+  userLeague UserLeague @relation(fields: [userId, leagueId], references: [userId, leagueId])
+
+  delta       Decimal
+  time        DateTime @default(now())
+  description String?
+
+  userMatchMatchId        Int?
+  userMatchPlayerPosition Int?
+  match                   UserMatch? @relation(fields: [userMatchMatchId, userMatchPlayerPosition], references: [matchId, playerPosition])
 }

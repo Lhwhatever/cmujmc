@@ -1,12 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Page from '../../components/Page';
 import Heading from '../../components/Heading';
 import { useRouter } from 'next/router';
-import { RouterOutputs, trpc } from '../../utils/trpc';
+import { trpc } from '../../utils/trpc';
 import Loading from '../../components/Loading';
 import Text from '../../components/Text';
 import DateTimeRange from '../../components/DateTimeRange';
-import DateTime from '../../components/DateTime';
 import Accordion, { AccordionSegment } from '../../components/Accordion';
 import { useSession } from 'next-auth/react';
 import Button from '../../components/Button';
@@ -18,11 +17,20 @@ import schema from '../../protocol/schema';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import AdminUserError from '../../protocol/errors';
+import { AdminUserError } from '../../protocol/errors';
+import { redirect } from 'next/navigation';
+import RankedEventDetails, {
+  RankedEvent,
+} from '../../components/display/RankedEventDetails';
+import MatchEntryDialog, {
+  RankedMatch,
+} from '../../components/display/MatchEntryDialog';
+import DateTime from '../../components/DateTime';
+import PlacementRange from '../../components/display/PlacementRange';
+import MatchPlayerName from '../../components/display/MatchPlayerName';
+import clsx from 'clsx';
 
-type Event = RouterOutputs['events']['getByLeague']['events'][number];
-
-const partitionEvents = (refTime: number, events: Event[]) => {
+const partitionEvents = (refTime: number, events: RankedEvent[]) => {
   const closed = [];
   const ongoing = [];
   const future = [];
@@ -150,6 +158,11 @@ type EventsSectionProps = {
 };
 
 const EventsSection = ({ leagueId }: EventsSectionProps) => {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => setNow(new Date()), [setNow]);
+  const [targetEvent, setTargetEvent] = useState<RankedEvent | null>(null);
+  const [targetMatch, setTargetMatch] = useState<RankedMatch | null>(null);
+
   const query = trpc.events.getByLeague.useQuery({ leagueId });
 
   if (query.isLoading) {
@@ -174,17 +187,12 @@ const EventsSection = ({ leagueId }: EventsSectionProps) => {
             defaultOpen={true}
           >
             {ongoing.map((event) => (
-              <div key={event.id}>
-                <Heading level="h5">
-                  <DateTimeRange
-                    startDate={event.startDate}
-                    endDate={event.endDate}
-                  />
-                </Heading>
-                <p>
-                  Ends <DateTime date={event.endDate!} relative />
-                </p>
-              </div>
+              <RankedEventDetails
+                event={event}
+                now={now}
+                key={event.id}
+                onRecord={setTargetEvent}
+              />
             ))}
           </AccordionSegment>
         )}
@@ -194,17 +202,12 @@ const EventsSection = ({ leagueId }: EventsSectionProps) => {
             defaultOpen={ongoing.length === 0}
           >
             {future.map((event) => (
-              <div key={event.id}>
-                <Heading level="h5">
-                  <DateTimeRange
-                    startDate={event.startDate}
-                    endDate={event.endDate}
-                  />
-                </Heading>
-                <p>
-                  Starts <DateTime date={event.startDate!} relative />
-                </p>
-              </div>
+              <RankedEventDetails
+                event={event}
+                now={now}
+                key={event.id}
+                onRecord={setTargetEvent}
+              />
             ))}
           </AccordionSegment>
         )}
@@ -214,37 +217,100 @@ const EventsSection = ({ leagueId }: EventsSectionProps) => {
             defaultOpen={ongoing.length === 0 && future.length === 0}
           >
             {closed.map((event) => (
-              <div key={event.id}>
-                <Heading level="h5">
-                  <DateTimeRange
-                    startDate={event.startDate}
-                    endDate={event.endDate}
-                  />
-                </Heading>
-                <p>
-                  Ended <DateTime date={event.endDate!} relative />
-                </p>
-              </div>
+              <RankedEventDetails
+                event={event}
+                now={now}
+                key={event.id}
+                onRecord={setTargetEvent}
+              />
             ))}
           </AccordionSegment>
         )}
       </Accordion>
+      <MatchEntryDialog
+        targetEvent={targetEvent}
+        setTargetEvent={setTargetEvent}
+        targetMatch={targetMatch}
+        setTargetMatch={setTargetMatch}
+      />
     </>
+  );
+};
+
+type MatchHistoryProps = {
+  leagueId: number;
+};
+
+const MatchHistorySection = ({ leagueId }: MatchHistoryProps) => {
+  const league = trpc.matches.getCompletedByLeague.useQuery(leagueId);
+
+  if (!league.data) {
+    return <Loading />;
+  }
+
+  if (league.data.matches.length === 0) {
+    return <div>No matches in record!</div>;
+  }
+
+  return (
+    <div className="grid grid-cols-4 md:grid-cols-7">
+      {league.data.matches.map(({ id, time, players }, index) => (
+        <div
+          key={id}
+          className={clsx(
+            'grid col-span-full grid-cols-subgrid',
+            index % 2 === 1 && 'bg-gray-200',
+          )}
+        >
+          <div className="text-xs text-gray-700 text-center row-span-4 md:row-span-2">
+            <DateTime
+              date={time}
+              format={{
+                dateStyle: 'short',
+                timeStyle: 'short',
+              }}
+            />
+          </div>
+          {players.map(
+            ({
+              playerPosition,
+              placementMin,
+              placementMax,
+              rawScore,
+              player,
+              unregisteredPlaceholder,
+            }) => (
+              <React.Fragment key={playerPosition}>
+                <PlacementRange min={placementMin!} max={placementMax!} />
+                <div>
+                  <MatchPlayerName
+                    player={player}
+                    unregisteredPlaceholder={unregisteredPlaceholder}
+                  />
+                </div>
+                <div>{rawScore}</div>
+              </React.Fragment>
+            ),
+          )}
+        </div>
+      ))}
+    </div>
   );
 };
 
 export default function League() {
   const router = useRouter();
   const id = parseInt(router.query.id as string);
+  const utils = trpc.useUtils();
   const query = trpc.leagues.get.useQuery(id, { retry: 3 });
+  const register = trpc.leagues.register.useMutation({
+    onSuccess() {
+      return utils.leagues.get.invalidate(id);
+    },
+  });
 
   const session = useSession();
-
-  if (query.isError) {
-    router.push('/');
-  }
-
-  if (!query.data) {
+  if (query.isPending) {
     return (
       <Page>
         <Loading />
@@ -252,16 +318,20 @@ export default function League() {
     );
   }
 
-  const { league } = query.data;
+  if (query.isError) {
+    redirect('/');
+  }
+
+  const { league, registered } = query.data;
 
   return (
     <Page>
-      <div className="flex flex-col space-y-4">
+      <div className="flex flex-col gap-4">
         <div>
           <Heading level="h2" className="mb-1">
             {league.name}
           </Heading>
-          {(league.startDate || league.endDate) && (
+          {(league.startDate !== null || league.endDate !== null) && (
             <p className="text-md text-gray-600">
               <DateTimeRange
                 startDate={league.startDate}
@@ -271,6 +341,17 @@ export default function League() {
           )}
           {league.invitational && <Text>Invite-only</Text>}
           <Text>{league.description}</Text>
+          {session.data && registered ? (
+            <Text>You are registered for this event!</Text>
+          ) : (
+            <Button
+              color="green"
+              fill="filled"
+              onClick={() => register.mutate({ leagueId: id })}
+            >
+              Register
+            </Button>
+          )}
         </div>
         <div>
           <Heading level="h3">Ruleset</Heading>
@@ -282,6 +363,21 @@ export default function League() {
             <EventCreator leagueId={id} />
           )}
           <EventsSection leagueId={id} />
+        </div>
+        <div>
+          <Heading level="h3">Leaderboard</Heading>
+          <p className="text-gray-700">
+            You need to play at least {league.matchesRequired} matches to have a
+            rank. New players start with{' '}
+            <span className="font-bold">
+              {league.startingPoints.toString()}
+            </span>{' '}
+            rating.
+          </p>
+        </div>
+        <div>
+          <Heading level="h3">Match History</Heading>
+          <MatchHistorySection leagueId={id} />
         </div>
       </div>
     </Page>

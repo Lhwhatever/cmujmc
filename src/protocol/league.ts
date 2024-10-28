@@ -7,6 +7,7 @@ export const create = z.object({
   description: z.string(),
   invitational: z.boolean(),
   defaultRulesetId: z.number().int(),
+  matchesRequired: z.number().min(1).optional(),
   startingPoints: z
     .number({
       required_error: 'Starting rating is required',
@@ -16,4 +17,12 @@ export const create = z.object({
   startDate: z.date().optional(),
   endDate: z.date().optional(),
   singleEvent: z.boolean().optional(),
+});
+
+export const register = z.object({
+  leagueId: z.number().int(),
+});
+
+export const leaderboard = z.object({
+  leagueId: z.number().int(),
 });

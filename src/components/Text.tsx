@@ -1,13 +1,16 @@
+import clsx from 'clsx';
+
 export type ParagraphProps = {
+  className?: string;
   children: string | undefined | null;
 };
 
-export default function Text({ children }: ParagraphProps) {
+export default function Text({ children, className }: ParagraphProps) {
   const lines = children?.split('\n');
   return (
     <>
       {lines?.map((line, idx) => (
-        <p key={idx} className="text-gray-500 mb-3">
+        <p key={idx} className={clsx('text-gray-500', className)}>
           {line}
         </p>
       ))}

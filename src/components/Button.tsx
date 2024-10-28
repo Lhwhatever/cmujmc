@@ -2,16 +2,42 @@ import React from 'react';
 import clsx from 'clsx';
 import { Button as HeadlessButton } from '@headlessui/react';
 
-const colorStyles = {
+export const buttonColorStyles = {
   outlined: {
-    green: 'text-green-400 border-green-400 data-[hover]:bg-green-500',
-    yellow: 'text-yellow-400 border-yellow-400 data-[hover]:bg-yellow-500',
-    red: 'text-red-400 border-red-400 data-[hover]:bg-red-500',
+    green: {
+      enabled: 'text-green-700 border-green-700 data-[hover]:bg-green-800',
+      disabled: 'text-gray-400 border-gray-300',
+    },
+    yellow: {
+      enabled: 'text-yellow-400 border-yellow-400 data-[hover]:bg-yellow-500',
+      disabled: 'text-gray-400 border-gray-300',
+    },
+    red: {
+      enabled: 'text-red-400 border-red-400 data-[hover]:bg-red-500',
+      disabled: 'text-gray-400 border-gray-300',
+    },
+    blue: {
+      enabled: 'text-blue-700 border-blue-700 data-[hover]:bg-blue-800',
+      disabled: 'text-gray-400 border-gray-300',
+    },
   },
   filled: {
-    green: `bg-green-600 data-[hover]:bg-green-800`,
-    yellow: 'bg-yellow-600 data-[hover]:bg-yellow-800',
-    red: 'bg-red-600 data-[hover]:bg-red-800',
+    green: {
+      enabled: `bg-green-600 data-[hover]:bg-green-800`,
+      disabled: 'bg-green-400',
+    },
+    yellow: {
+      enabled: 'bg-yellow-600 data-[hover]:bg-yellow-800',
+      disabled: 'bg-yellow-400',
+    },
+    red: {
+      enabled: 'bg-red-600 data-[hover]:bg-red-800',
+      disabled: 'bg-red-400',
+    },
+    blue: {
+      enabled: 'bg-blue-600 data-[hover]:bg-blue-800',
+      disabled: 'bg-blue-400',
+    },
   },
 };
 
@@ -19,8 +45,10 @@ export type ButtonProps = {
   onClick?: () => void;
   leftIcon?: React.ReactNode;
   children?: React.ReactNode;
-  color: 'yellow' | 'green' | 'red';
-  fill: keyof typeof colorStyles;
+  color: 'yellow' | 'green' | 'red' | 'blue';
+  fill: keyof typeof buttonColorStyles;
+  icon?: boolean;
+  disabled?: boolean;
 };
 
 export default function Button({
@@ -29,12 +57,16 @@ export default function Button({
   onClick,
   color,
   fill,
+  disabled,
+  icon,
 }: ButtonProps) {
   const className = clsx(
-    'font-medium rounded-lg text-sm px-5 py-2.5 text-center',
-    fill === 'outlined' && 'border data-[hover]:text-white',
-    fill === 'filled' && 'text-white border',
-    colorStyles[fill][color],
+    'font-medium text-sm inline-flex items-center border',
+    icon ? 'rounded-full p-1' : 'rounded-lg px-5 py-2.5',
+    fill === 'outlined' && !disabled && 'data-[hover]:text-white',
+    fill === 'filled' && !disabled && 'text-white',
+    buttonColorStyles[fill][color][disabled ? 'disabled' : 'enabled'],
+    disabled && 'cursor-not-allowed',
   );
 
   return (

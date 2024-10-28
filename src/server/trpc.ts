@@ -26,7 +26,7 @@ const t = initTRPC.context<Context>().create({
   },
 });
 
-function throwUnauthorized(): never {
+export function throwUnauthorized(): never {
   throw new TRPCError({ code: 'UNAUTHORIZED' });
 }
 
@@ -58,11 +58,11 @@ export const authedProcedure = t.procedure.use(function isAuthed(opts) {
   });
 });
 
-export const adminProcedure = t.procedure.use(async function isAdmin (opts) {
+export const adminProcedure = t.procedure.use(async function isAdmin(opts) {
   const id = opts.ctx.session?.user?.id ?? throwUnauthorized();
   const user = await prisma.user.findUnique({ where: { id } });
-  if (!(user?.admin)) throwUnauthorized();
+  if (!user?.admin) throwUnauthorized();
   return opts.next({
-    ctx: { user }
+    ctx: { user },
   });
 });

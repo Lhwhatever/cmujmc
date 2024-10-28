@@ -1,9 +1,17 @@
-import { adminProcedure, publicProcedure, router } from '../trpc';
+import {
+  adminProcedure,
+  authedProcedure,
+  publicProcedure,
+  router,
+  throwUnauthorized,
+} from '../trpc';
 import { prisma } from '../prisma';
 import { TRPCError } from '@trpc/server';
 import schema from '../../protocol/schema';
 import { computeClosingDate } from './events';
 import { isBefore } from 'date-fns';
+import { NotFoundError } from 'protocol/errors';
+import { TransactionType } from '@prisma/client';
 
 const leagueRouter = router({
   list: publicProcedure.query(async () => {
@@ -27,6 +35,7 @@ const leagueRouter = router({
       defaultRulesetId,
       startingPoints,
       singleEvent,
+      matchesRequired,
     } = opts.input;
 
     if (startDate && endDate && !isBefore(startDate, endDate)) {
@@ -44,6 +53,7 @@ const leagueRouter = router({
         defaultRuleset: {
           connect: { id: defaultRulesetId },
         },
+        matchesRequired,
         startingPoints,
         startDate,
         endDate,
@@ -54,6 +64,7 @@ const leagueRouter = router({
                   startDate,
                   endDate,
                   closingDate: computeClosingDate(endDate),
+                  ruleset: { connect: { id: defaultRulesetId } },
                 },
               ],
             }
@@ -66,16 +77,49 @@ const leagueRouter = router({
     const id = opts.input;
     const league = await prisma.league.findUnique({
       where: { id },
-      include: { defaultRuleset: true },
+      include: { defaultRuleset: true, users: true },
     });
     if (league === null) {
-      throw new TRPCError({
-        code: 'NOT_FOUND',
-        message: `No league with ID ${id}`,
-      });
+      throw new NotFoundError('league', id);
     }
-    return { league };
+
+    const user = opts.ctx.session?.user?.id;
+
+    return {
+      league,
+      registered: user && league.users.some(({ userId }) => userId === user),
+    };
   }),
+
+  register: authedProcedure
+    .input(schema.league.register)
+    .mutation(async (opts) => {
+      const { leagueId } = opts.input;
+      const league = await prisma.league.findUnique({
+        where: { id: leagueId },
+      });
+
+      if (league === null) {
+        throw new NotFoundError<number>('league', leagueId);
+      }
+
+      if (league.invitational) {
+        throwUnauthorized();
+      }
+
+      return prisma.userLeague.create({
+        data: {
+          user: { connect: { id: opts.ctx.user.id } },
+          league: { connect: { id: leagueId } },
+          txns: {
+            create: {
+              type: TransactionType.INITIAL,
+              delta: league.startingPoints,
+            },
+          },
+        },
+      });
+    }),
 });
 
 export default leagueRouter;
