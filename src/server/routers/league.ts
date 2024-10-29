@@ -11,8 +11,8 @@ import schema from '../../protocol/schema';
 import { computeClosingDate } from './events';
 import { isBefore } from 'date-fns';
 import { NotFoundError } from 'protocol/errors';
-import { Status, TransactionType } from '@prisma/client';
-import { computePlayerPt } from '../../utils/scoring';
+import { Status } from '@prisma/client';
+import { computeTransactions, umaSelector } from '../../utils/scoring';
 import {
   getUserGroups,
   User,
@@ -166,10 +166,7 @@ const leagueRouter = router({
                   select: {
                     returnPts: true,
                     chomboDelta: true,
-                    uma: {
-                      select: { value: true },
-                      orderBy: { position: 'asc' },
-                    },
+                    uma: umaSelector,
                   },
                 },
               },
@@ -177,56 +174,38 @@ const leagueRouter = router({
           },
         });
 
+        const txns = matches.flatMap(
+          ({
+            matchId,
+            playerPosition,
+            match,
+            chombos,
+            rawScore,
+            placementMin,
+            placementMax,
+          }) =>
+            computeTransactions({
+              playerId: ctx.user.id,
+              matchId,
+              playerPosition,
+              leagueId,
+              time: match.time,
+              chombos: chombos!,
+              freeChombos: null,
+              chomboDelta: match.ruleset.chomboDelta,
+              returnPts: match.ruleset.returnPts,
+              uma: match.ruleset.uma.map(({ value }) => value),
+              rawScore: rawScore!,
+              placementMin: placementMin!,
+              placementMax: placementMax!,
+            }).txns,
+        );
+
         await tx.userLeague.create({
           data: {
             user: { connect: { id: ctx.user.id } },
             league: { connect: { id: leagueId } },
-            txns: {
-              createMany: {
-                data: [
-                  {
-                    type: TransactionType.INITIAL,
-                    delta: league.startingPoints,
-                  },
-                  ...matches.flatMap(
-                    ({
-                      match,
-                      matchId,
-                      playerPosition,
-                      placementMin,
-                      placementMax,
-                      rawScore,
-                      chombos,
-                    }) => {
-                      const uma = match.ruleset.uma.map(({ value }) => value);
-                      const { time } = match;
-                      return [
-                        {
-                          type: TransactionType.MATCH_RESULT,
-                          time,
-                          delta: computePlayerPt(
-                            rawScore!,
-                            match.ruleset.returnPts,
-                            placementMin!,
-                            placementMax!,
-                            uma,
-                          ),
-                          userMatchMatchId: matchId,
-                          userMatchPlayerPosition: playerPosition,
-                        },
-                        ...new Array(chombos!).map(() => ({
-                          type: TransactionType.CHOMBO,
-                          time,
-                          delta: match.ruleset.chomboDelta,
-                          userMatchMatchId: matchId,
-                          userMatchPlayerPosition: playerPosition,
-                        })),
-                      ];
-                    },
-                  ),
-                ],
-              },
-            },
+            txns: { createMany: { data: txns } },
           },
         });
       });

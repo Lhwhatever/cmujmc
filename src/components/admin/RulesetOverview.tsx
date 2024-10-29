@@ -2,7 +2,6 @@ import React from 'react';
 import Table, { TableCell, TableHeading, TableRow } from '../Table';
 import { RouterOutputs, trpc } from '../../utils/trpc';
 import Loading from '../Loading';
-import Decimal from 'decimal.js';
 
 type RulesetTableProps = {
   data: RouterOutputs['rulesets']['list']['rulesets'];
@@ -32,11 +31,7 @@ const RulesetTable = ({ data }: RulesetTableProps) => {
               {ruleset.startPts.toLocaleString()} /{' '}
               {ruleset.returnPts.toLocaleString()}
             </TableCell>
-            <TableCell>
-              {ruleset.uma
-                .map((uma) => new Decimal(uma.value).toString())
-                .join(' / ')}
-            </TableCell>
+            <TableCell>{ruleset.uma.join(' / ')}</TableCell>
           </TableRow>
         );
       })}

@@ -7,11 +7,16 @@ import {
 import schema from '../../protocol/schema';
 import { prisma } from '../prisma';
 import { NotFoundError } from '../../protocol/errors';
-import { GameMode, Prisma, Status, TransactionType } from '@prisma/client';
+import { GameMode, Prisma, Status } from '@prisma/client';
 import { TRPCError } from '@trpc/server';
 import { getNumPlayers } from '../../utils/gameModes';
 import { z } from 'zod';
-import { computeTablePts, sumTableScores } from '../../utils/scoring';
+import {
+  computePlacements,
+  computeTransactions,
+  sumTableScores,
+  umaSelector,
+} from '../../utils/scoring';
 import { invalidateLeaderboardCache } from './league';
 import {
   coalesceNames,
@@ -76,7 +81,7 @@ const matchSelectorInRecord = Prisma.validator<Prisma.MatchSelect>()({
       startPts: true,
       returnPts: true,
       chomboDelta: true,
-      uma: { select: { value: true }, orderBy: { position: 'asc' } },
+      uma: umaSelector,
     },
   },
 });
@@ -240,22 +245,23 @@ const matchRouter = router({
 
         // compute and update match results
         const time = input.time ?? new Date();
+        const placements = computePlacements(scores);
+
         const uma = match.ruleset.uma.map(({ value }) => value);
-        const results = computeTablePts(scores, match.ruleset.returnPts, uma);
 
         await tx.match.update({
           where: { id: matchId },
           data: { status: Status.COMPLETE, time },
         });
 
-        for (let i = 0; i < results.length; ++i) {
-          const { pt: _, ...data } = results[i];
+        for (let i = 0; i < scores.length; ++i) {
           await tx.userMatch.update({
             where: {
               matchId_playerPosition: { matchId, playerPosition: i + 1 },
             },
             data: {
-              ...data,
+              ...placements[i],
+              rawScore: scores[i],
               chombos: players[i].chombos.length,
             },
           });
@@ -283,7 +289,7 @@ const matchRouter = router({
           where: { userMatchMatchId: matchId },
         });
 
-        for (let i = 0; i < results.length; ++i) {
+        for (let i = 0; i < match.players.length; ++i) {
           const { playerId } = match.players[i];
 
           // only for registered players
@@ -293,39 +299,30 @@ const matchRouter = router({
           );
           if (userLeague === undefined) continue;
 
-          await tx.userLeagueTransaction.create({
-            data: {
-              type: TransactionType.MATCH_RESULT,
-              userId: playerId,
-              leagueId,
-              delta: results[i].pt,
-              time,
-              userMatchMatchId: matchId,
-              userMatchPlayerPosition: i + 1,
-            },
-          });
-
-          const { chombos } = players[i];
           const { freeChombos } = userLeague;
 
-          await tx.userLeagueTransaction.createMany({
-            data: chombos.map((description, index) => ({
-              type: TransactionType.CHOMBO,
-              userId: playerId,
-              leagueId,
-              delta: index < (freeChombos ?? 0) ? 0 : chomboDelta,
-              time,
-              description,
-              userMatchMatchId: matchId,
-              userMatchPlayerPosition: i + 1,
-            })),
+          const { txns, chombos } = computeTransactions({
+            playerId,
+            matchId,
+            playerPosition: i + 1,
+            leagueId,
+            time,
+            chombos: players[i].chombos,
+            freeChombos,
+            chomboDelta,
+            rawScore: scores[i],
+            returnPts: match.ruleset.returnPts,
+            uma,
+            ...placements[i],
           });
 
-          if (freeChombos && freeChombos > 0 && chombos.length > 0) {
+          await tx.userLeagueTransaction.createMany({ data: txns });
+
+          if (freeChombos && freeChombos > 0 && chombos > 0) {
             await tx.userLeague.update({
               where: { leagueId_userId: { leagueId, userId: playerId } },
               data: {
-                freeChombos: Math.max(0, freeChombos - chombos.length),
+                freeChombos: Math.max(0, freeChombos - chombos),
               },
             });
           }

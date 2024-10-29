@@ -1,6 +1,7 @@
 import { publicProcedure, router } from '../trpc';
 import { prisma } from '../prisma';
 import { z } from 'zod';
+import { umaSelector, umaSerializer } from '../../utils/scoring';
 
 const rulesetRouter = router({
   list: publicProcedure.input(z.string().optional()).query(async (opts) => {
@@ -8,13 +9,15 @@ const rulesetRouter = router({
     const rulesets = await prisma.ruleset.findMany({
       where,
       include: {
-        uma: {
-          select: { position: true, value: true },
-          orderBy: { position: 'asc' },
-        },
+        uma: umaSelector,
       },
     });
-    return { rulesets };
+    return {
+      rulesets: rulesets.map(({ uma, ...rest }) => ({
+        ...rest,
+        uma: umaSerializer(uma),
+      })),
+    };
   }),
 });
 
