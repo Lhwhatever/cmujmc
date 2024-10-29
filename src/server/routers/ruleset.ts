@@ -7,7 +7,12 @@ const rulesetRouter = router({
     const where = opts.input ? undefined : { name: { contains: opts.input } };
     const rulesets = await prisma.ruleset.findMany({
       where,
-      include: { uma: { select: { position: true, value: true } } },
+      include: {
+        uma: {
+          select: { position: true, value: true },
+          orderBy: { position: 'asc' },
+        },
+      },
     });
     return { rulesets };
   }),

@@ -16,13 +16,18 @@ import { invalidateLeaderboardCache } from './league';
 import {
   coalesceNames,
   getUserGroups,
-  getUserSelector,
-  NameCoalesced,
+  IMatchPlayer,
+  maskNames,
+  MatchPlayerNameCoalesced,
   User,
   UserGroups,
-} from '../../utils/maskNames';
+  userSelector,
+} from '../../utils/usernames';
+import Decimal from 'decimal.js';
 
-const validatePlayers = async (
+//==================== for create ====================
+
+const validateCreateMatchPlayers = async (
   players: z.infer<typeof schema.match.create>['players'],
   gameMode: GameMode,
   requesterRole: 'admin' | 'user',
@@ -64,7 +69,9 @@ const validatePlayers = async (
   }
 };
 
-const matchSelector = Prisma.validator<Prisma.MatchSelect>()({
+//==================== for record ====================
+
+const matchSelectorInRecord = Prisma.validator<Prisma.MatchSelect>()({
   status: true,
   players: { select: { playerId: true, txns: true } },
   parent: { select: { parent: { select: { id: true } } } },
@@ -78,38 +85,8 @@ const matchSelector = Prisma.validator<Prisma.MatchSelect>()({
   },
 });
 
-interface MatchPlayer {
-  player: User | null;
-  unregisteredPlaceholder: string | null;
-}
-
-interface MatchWithPlayers<T extends MatchPlayer> {
-  players: T[];
-}
-
-type MatchWithCoalescedNames<
-  S extends MatchPlayer,
-  T extends MatchWithPlayers<S>,
-> = Omit<T, 'players'> & {
-  players: (Omit<S, 'player'> & { player: NameCoalesced<User> | null })[];
-};
-
-const coalescePlayerNames = <
-  S extends MatchPlayer,
-  T extends MatchWithPlayers<S>,
->({
-  players,
-  ...rest
-}: T): MatchWithCoalescedNames<S, T> => ({
-  ...rest,
-  players: players.map(({ player, ...rest }) => ({
-    ...rest,
-    player: player && coalesceNames(player),
-  })),
-});
-
 const validateInRecord = (
-  match: Prisma.MatchGetPayload<{ select: typeof matchSelector }>,
+  match: Prisma.MatchGetPayload<{ select: typeof matchSelectorInRecord }>,
   input: z.infer<typeof schema.match.record>,
   requesterId: string,
   requesterRole: 'admin' | 'user',
@@ -143,25 +120,40 @@ const validateInRecord = (
   return scores;
 };
 
-const makeInclude = (userGroups: UserGroups) =>
-  Prisma.validator<Prisma.MatchDefaultArgs>()({
-    include: {
-      players: {
-        select: {
-          playerPosition: true,
-          placementMin: true,
-          placementMax: true,
-          rawScore: true,
-          unregisteredPlaceholder: true,
-          player: getUserSelector(userGroups),
-        },
-        orderBy: { playerPosition: 'asc' },
-      },
-      ruleset: true,
-    },
-  });
+//==================== for the rest ====================
 
-type Match = Prisma.MatchGetPayload<ReturnType<typeof makeInclude>>;
+const matchIncludes = Prisma.validator<Prisma.MatchInclude>()({
+  players: {
+    select: {
+      playerPosition: true,
+      placementMin: true,
+      placementMax: true,
+      rawScore: true,
+      unregisteredPlaceholder: true,
+      player: userSelector,
+    },
+    orderBy: { playerPosition: 'asc' },
+  },
+  ruleset: true,
+});
+
+type Match = Prisma.MatchGetPayload<{ include: typeof matchIncludes }>;
+
+const transformMatchPlayer = (
+  { player, ...rest }: Match['players'][number],
+  userGroups: UserGroups,
+) => ({
+  player: player && maskNames(coalesceNames(player), userGroups),
+  ...rest,
+});
+
+const transformMatch = (
+  { players, ...rest }: Match,
+  userGroups: UserGroups,
+) => ({
+  ...rest,
+  players: players.map((player) => transformMatchPlayer(player, userGroups)),
+});
 
 const matchRouter = router({
   create: authedProcedure
@@ -177,7 +169,7 @@ const matchRouter = router({
         throw new NotFoundError('event', input.eventId);
       }
 
-      await validatePlayers(
+      await validateCreateMatchPlayers(
         input.players,
         event.ruleset.gameMode,
         ctx.user.role,
@@ -208,10 +200,10 @@ const matchRouter = router({
             },
           },
         },
-        ...makeInclude(userGroups),
+        include: matchIncludes,
       });
 
-      return { match: coalescePlayerNames(match) };
+      return { match: transformMatch(match, userGroups) };
     }),
 
   getById: publicProcedure
@@ -219,13 +211,13 @@ const matchRouter = router({
     .query(async ({ input: id, ctx }) => {
       const userGroups = await getUserGroups(ctx.session?.user?.id);
       const match: Match | null = await prisma.match.findUnique({
-        ...makeInclude(userGroups),
+        include: matchIncludes,
         where: { id },
       });
       if (match === null) {
         throw new NotFoundError('match', id);
       }
-      return { match: coalescePlayerNames(match) };
+      return { match: transformMatch(match, userGroups) };
     }),
 
   record: authedProcedure
@@ -235,7 +227,7 @@ const matchRouter = router({
         const { matchId, players } = input;
         const match = await tx.match.findUnique({
           where: { id: matchId },
-          select: matchSelector,
+          select: matchSelectorInRecord,
         });
 
         if (match === null) {
@@ -354,7 +346,7 @@ const matchRouter = router({
     .query(async ({ input: leagueId, ctx }) => {
       const userGroups = await getUserGroups(ctx.session?.user?.id);
       const matches = await prisma.match.findMany({
-        ...makeInclude(userGroups),
+        include: matchIncludes,
         where: {
           parent: { parentId: leagueId },
           status: Status.COMPLETE,
@@ -362,7 +354,7 @@ const matchRouter = router({
         orderBy: { time: 'desc' },
       });
       return {
-        matches: matches.map((match) => coalescePlayerNames(match)),
+        matches: matches.map((match) => transformMatch(match, userGroups)),
       };
     }),
 
@@ -371,12 +363,12 @@ const matchRouter = router({
     .query(async ({ input: eventId, ctx }) => {
       const userGroups = await getUserGroups(ctx.session?.user?.id);
       const matches: Match[] = await prisma.match.findMany({
-        ...makeInclude(userGroups),
+        include: matchIncludes,
         where: { eventId, status: Status.PENDING },
         orderBy: { time: 'desc' },
       });
       return {
-        matches: matches.map((match) => coalescePlayerNames(match)),
+        matches: matches.map((match) => transformMatch(match, userGroups)),
       };
     }),
 });

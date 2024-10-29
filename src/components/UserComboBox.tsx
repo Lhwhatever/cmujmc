@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import ComboboxField from './form/ComboboxField';
 import { RouterOutputs } from '../utils/trpc';
 import Fuse from 'fuse.js';
-import { renderAliases } from '../utils/maskNames';
+import { renderAliases } from '../utils/usernames';
 
 export type User = RouterOutputs['user']['listAll']['users'][number];
 

@@ -34,7 +34,6 @@ const RulesetTable = ({ data }: RulesetTableProps) => {
             </TableCell>
             <TableCell>
               {ruleset.uma
-                .toSorted((a, b) => a.position - b.position)
                 .map((uma) => new Decimal(uma.value).toString())
                 .join(' / ')}
             </TableCell>

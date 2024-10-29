@@ -3,8 +3,8 @@
   "compilerOptions": {
     "module": "commonjs",
     "outDir": "dist",
-    "target": "ES2019",
-    "lib": ["ES2019", "DOM"],
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM"],
     "isolatedModules": false,
     "noEmit": false
   },

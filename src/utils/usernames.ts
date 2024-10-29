@@ -21,19 +21,18 @@ export const getUserGroups = async (
   };
 };
 
-export const getUserSelector = ({ cmu, discord }: UserGroups) =>
-  Prisma.validator<Prisma.UserDefaultArgs>()({
-    select: {
-      id: true,
-      displayName: true,
-      name: true,
-      admin: true,
-      andrew: cmu,
-      discord,
-    },
-  });
+export const userSelector = Prisma.validator<Prisma.UserDefaultArgs>()({
+  select: {
+    id: true,
+    displayName: true,
+    name: true,
+    admin: true,
+    andrew: true,
+    discord: true,
+  },
+});
 
-export type User = Prisma.UserGetPayload<ReturnType<typeof getUserSelector>>;
+export type User = Prisma.UserGetPayload<typeof userSelector>;
 
 export interface INames {
   id: string;
@@ -60,6 +59,16 @@ export const coalesceNames = <T extends INames>({
   ...rest,
 });
 
+export interface IMatchPlayer {
+  player: User | null;
+  unregisteredPlaceholder: string | null;
+}
+
+export type MatchPlayerNameCoalesced<T extends IMatchPlayer> = Omit<
+  T,
+  'player'
+> & { player: NameCoalesced<NonNullable<T['player']>> | null };
+
 export interface IAliases {
   andrew: string | null;
   discord: string | null;
@@ -68,11 +77,12 @@ export interface IAliases {
 export const maskNames = <T extends IAliases>(
   { andrew, discord, ...rest }: T,
   userGroups: UserGroups,
-): Omit<T, keyof IAliases> & IAliases => ({
-  andrew: userGroups.cmu ? andrew : null,
-  discord: userGroups.discord ? discord : null,
-  ...rest,
-});
+): T =>
+  ({
+    ...rest,
+    andrew: userGroups.cmu ? andrew : null,
+    discord: userGroups.discord ? discord : null,
+  } as T);
 
 export const renderAliases = (name: string, aliases: IAliases) => {
   const transformed = [aliases.andrew?.toLowerCase(), aliases.discord].filter(
@@ -85,12 +95,8 @@ export const renderAliases = (name: string, aliases: IAliases) => {
   }
 };
 
-export interface IMatchPlayer {
-  player: NameCoalesced<User> | null;
-  unregisteredPlaceholder: string | null;
-}
-
 export const renderPlayerName = ({
   player,
   unregisteredPlaceholder,
-}: IMatchPlayer) => player?.name ?? `Guest '${unregisteredPlaceholder}'`;
+}: MatchPlayerNameCoalesced<IMatchPlayer>) =>
+  player?.name ?? `Guest '${unregisteredPlaceholder}'`;

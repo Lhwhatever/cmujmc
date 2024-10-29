@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "es5",
+    "target": "es2023",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
@@ -15,7 +15,7 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "baseUrl": "./src",
-    "incremental": true
+    "incremental": true,
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", "tailwind.config.js"],
   "exclude": ["node_modules"],

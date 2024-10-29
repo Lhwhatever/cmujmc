@@ -18,7 +18,7 @@ import Text from '../Text';
 import { TrashIcon } from '@heroicons/react/24/solid';
 import { sumTableScores } from '../../utils/scoring';
 import MatchPlayerName from './MatchPlayerName';
-import { renderPlayerName } from '../../utils/maskNames';
+import { renderPlayerName } from '../../utils/usernames';
 
 type MatchCreationResult = RouterOutputs['matches']['create'];
 export type RankedMatch = NonNullable<

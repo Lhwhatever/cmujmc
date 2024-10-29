@@ -15,15 +15,16 @@ import { Status, TransactionType } from '@prisma/client';
 import { computePlayerPt } from '../../utils/scoring';
 import {
   getUserGroups,
-  getUserSelector,
   User,
   maskNames,
   coalesceNames,
   NameCoalesced,
-} from '../../utils/maskNames';
+  userSelector,
+} from '../../utils/usernames';
 import {
   aggregateTxns,
   orderUnrankedUsers,
+  Ranked,
   rankUsers,
   TxnAggregate,
   txnsSelector,
@@ -242,7 +243,7 @@ const leagueRouter = router({
           const users = await prisma.userLeague.findMany({
             where: { leagueId },
             include: {
-              user: getUserSelector({ cmu: true, discord: true }),
+              user: userSelector,
               txns: txnsSelector,
               league: {
                 select: {
@@ -279,14 +280,18 @@ const leagueRouter = router({
 
       const userGroups = await getUserGroups(ctx.session?.user?.id);
       return {
-        rankedUsers: rankedUsers.map(({ user, ...rest }) => ({
-          user: maskNames(user, userGroups),
-          ...rest,
-        })),
-        unrankedUsers: unrankedUsers.map(({ user, ...rest }) => ({
-          user: maskNames(user, userGroups),
-          ...rest,
-        })),
+        rankedUsers: rankedUsers.map(
+          ({ user, ...rest }: Ranked<UserLeagueRecord>) => ({
+            user: maskNames(user, userGroups),
+            ...rest,
+          }),
+        ),
+        unrankedUsers: unrankedUsers.map(
+          ({ user, ...rest }: UserLeagueRecord) => ({
+            user: maskNames(user, userGroups),
+            ...rest,
+          }),
+        ),
       };
     }),
 });
