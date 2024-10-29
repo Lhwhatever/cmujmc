@@ -10,6 +10,8 @@ export default getRequestConfig(async () => {
   return {
     locale,
     timeZone,
+    now: new Date(),
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-unsafe-assignment
     messages: (await import(`../../messages/${locale}.json`)).default,
   };
 });

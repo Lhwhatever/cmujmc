@@ -12,6 +12,6 @@ export default function MatchPlayerName({
   player,
   unregisteredPlaceholder,
 }: MatchPlayerNameProps) {
-  if (player !== null) return <span>{player.displayName ?? player.name}</span>;
+  if (player !== null) return <span>{player.name}</span>;
   else return <span>Guest &lsquo;{unregisteredPlaceholder}&rsquo;</span>;
 }

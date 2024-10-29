@@ -18,12 +18,12 @@ import Text from '../Text';
 import { TrashIcon } from '@heroicons/react/24/solid';
 import { sumTableScores } from '../../utils/scoring';
 import MatchPlayerName from './MatchPlayerName';
+import { renderPlayerName } from '../../utils/maskNames';
 
 type MatchCreationResult = RouterOutputs['matches']['create'];
 export type RankedMatch = NonNullable<
   RouterOutputs['matches']['getById']['match']
 >;
-type RankedMatchPlayer = RankedMatch['players'][number];
 
 type MatchCreationFormProps = {
   eventId: number;
@@ -70,6 +70,7 @@ const MatchCreationForm = ({
             {
               onError(error) {
                 try {
+                  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument,@typescript-eslint/no-unsafe-member-access
                   setErrors(JSON.parse(error.message)[0].message);
                 } catch (e) {
                   console.error(e);
@@ -115,12 +116,6 @@ const MatchCreationForm = ({
     </div>
   );
 };
-
-const renderPlayerName = ({
-  player,
-  unregisteredPlaceholder,
-}: RankedMatchPlayer) =>
-  player?.displayName ?? player?.name ?? `Guest '${unregisteredPlaceholder}'`;
 
 const chomboFormSchema = z.object({
   description: z.string(),
@@ -265,8 +260,9 @@ const ScoreEntryForm = ({
   });
 
   const record = trpc.matches.record.useMutation({
-    onSuccess() {
+    async onSuccess() {
       onClose();
+      await utils.matches.getIncompleteByEvent.invalidate();
       return utils.matches.getCompletedByLeague.invalidate(leagueId);
     },
     onError(e) {
@@ -378,6 +374,13 @@ export default function MatchEntryDialog({
     setTargetMatch(null);
   };
 
+  const handleSuccess = ({ match }: MatchCreationResult) => {
+    setTargetMatch(match);
+    if (targetEvent) {
+      utils.matches.getIncompleteByEvent.invalidate(targetEvent.id);
+    }
+  };
+
   return (
     <Dialog
       open={targetEvent !== null}
@@ -393,9 +396,7 @@ export default function MatchEntryDialog({
             onRefresh={() => utils.user.listAll.invalidate()}
             onClose={handleClose}
             users={users.data?.users ?? null}
-            onSuccess={({ match }: MatchCreationResult) =>
-              setTargetMatch(match)
-            }
+            onSuccess={handleSuccess}
           />
           {targetMatch && (
             <ScoreEntryForm

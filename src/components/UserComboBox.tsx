@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import ComboboxField from './form/ComboboxField';
 import { RouterOutputs } from '../utils/trpc';
 import Fuse from 'fuse.js';
+import { renderAliases } from '../utils/maskNames';
 
 export type User = RouterOutputs['user']['listAll']['users'][number];
 
@@ -20,20 +21,7 @@ export type UserComboBoxProps = {
 const displayUser = (user: UserOption | null): string => {
   if (user === null) return '';
   if (user.type === 'unregistered') return `Guest '${user.payload}'`;
-
-  const aliases = [
-    user.payload.andrew?.toLowerCase(),
-    user.payload.discord,
-  ].filter((value) => !!value);
-  const primaryName =
-    user.payload.displayName ??
-    user.payload.name ??
-    `User ${user.payload.id.slice(-5).toLowerCase()}`;
-  if (aliases.length > 0) {
-    return `${primaryName} (${aliases.join(', ')})`;
-  } else {
-    return primaryName;
-  }
+  return renderAliases(user.payload.name, user.payload);
 };
 
 const getResults = (

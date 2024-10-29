@@ -15,7 +15,7 @@ export type PlacementProps = {
 
 export const Placement = ({ placement }: PlacementProps) => {
   const styles = clsx(
-    'text-sm rounded-full w-4 h-4 flex justify-center items-center',
+    'text-sm rounded-full w-4 h-4 flex justify-center items-center text-black',
     placementColors[placement],
   );
   return <div className={styles}>{placement}</div>;

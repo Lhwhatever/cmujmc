@@ -2,6 +2,7 @@ import React from 'react';
 import { RouterOutputs, trpc } from '../../utils/trpc';
 import Table, { TableCell, TableHeading, TableRow } from '../Table';
 import Loading from '../Loading';
+import { renderAliases } from '../../utils/maskNames';
 
 type UserTableProps = {
   users: RouterOutputs['user']['listAll']['users'];
@@ -19,7 +20,9 @@ const UserTable = ({ users }: UserTableProps) => {
     >
       {users.map((user) => (
         <TableRow key={user.id}>
-          <TableHeading scope="row">{user.displayName}</TableHeading>
+          <TableHeading scope="row">
+            {renderAliases(user.name, user)}
+          </TableHeading>
           <TableCell>{user.admin ? 'Admin' : 'User'}</TableCell>
         </TableRow>
       ))}

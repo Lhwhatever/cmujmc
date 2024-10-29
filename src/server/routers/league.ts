@@ -11,7 +11,37 @@ import schema from '../../protocol/schema';
 import { computeClosingDate } from './events';
 import { isBefore } from 'date-fns';
 import { NotFoundError } from 'protocol/errors';
-import { TransactionType } from '@prisma/client';
+import { Status, TransactionType } from '@prisma/client';
+import { computePlayerPt } from '../../utils/scoring';
+import {
+  getUserGroups,
+  getUserSelector,
+  User,
+  maskNames,
+  coalesceNames,
+  NameCoalesced,
+} from '../../utils/maskNames';
+import {
+  aggregateTxns,
+  orderUnrankedUsers,
+  rankUsers,
+  TxnAggregate,
+  txnsSelector,
+} from '../../utils/ranking';
+import { createCache } from 'cache-manager';
+
+type UserLeagueRecord = {
+  user: NameCoalesced<User>;
+  agg: TxnAggregate;
+  softPenalty: boolean;
+};
+
+const leaderboardCache = createCache();
+
+const getCacheKey = (leagueId: number) => `league.${leagueId}`;
+
+export const invalidateLeaderboardCache = (leagueId: number) =>
+  leaderboardCache.del(getCacheKey(leagueId));
 
 const leagueRouter = router({
   list: publicProcedure.query(async () => {
@@ -87,38 +117,177 @@ const leagueRouter = router({
 
     return {
       league,
-      registered: user && league.users.some(({ userId }) => userId === user),
+      registered:
+        user !== undefined
+          ? league.users.some(({ userId }) => userId === user)
+          : false,
     };
   }),
 
   register: authedProcedure
     .input(schema.league.register)
-    .mutation(async (opts) => {
-      const { leagueId } = opts.input;
-      const league = await prisma.league.findUnique({
-        where: { id: leagueId },
-      });
+    .mutation(({ input, ctx }) => {
+      const { leagueId } = input;
+      return prisma.$transaction(async (tx) => {
+        const league = await tx.league.findUnique({
+          where: { id: leagueId },
+          include: { users: { where: { userId: ctx.user.id }, take: 1 } },
+        });
 
-      if (league === null) {
-        throw new NotFoundError<number>('league', leagueId);
-      }
+        if (league === null) {
+          throw new NotFoundError<number>('league', leagueId);
+        }
 
-      if (league.invitational) {
-        throwUnauthorized();
-      }
+        if (league.users.length > 0) {
+          throw new TRPCError({
+            message: 'Already registered',
+            code: 'BAD_REQUEST',
+          });
+        }
 
-      return prisma.userLeague.create({
-        data: {
-          user: { connect: { id: opts.ctx.user.id } },
-          league: { connect: { id: leagueId } },
-          txns: {
-            create: {
-              type: TransactionType.INITIAL,
-              delta: league.startingPoints,
+        if (league.invitational) {
+          throwUnauthorized();
+        }
+
+        const matches = await tx.userMatch.findMany({
+          where: {
+            playerId: ctx.user.id,
+            match: {
+              parent: { parentId: leagueId },
+              status: Status.COMPLETE,
             },
           },
-        },
+          include: {
+            match: {
+              select: {
+                time: true,
+                ruleset: {
+                  select: {
+                    returnPts: true,
+                    chomboDelta: true,
+                    uma: {
+                      select: { value: true },
+                      orderBy: { position: 'asc' },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        await tx.userLeague.create({
+          data: {
+            user: { connect: { id: ctx.user.id } },
+            league: { connect: { id: leagueId } },
+            txns: {
+              createMany: {
+                data: [
+                  {
+                    type: TransactionType.INITIAL,
+                    delta: league.startingPoints,
+                  },
+                  ...matches.flatMap(
+                    ({
+                      match,
+                      matchId,
+                      playerPosition,
+                      placementMin,
+                      placementMax,
+                      rawScore,
+                      chombos,
+                    }) => {
+                      const uma = match.ruleset.uma.map(({ value }) => value);
+                      const { time } = match;
+                      return [
+                        {
+                          type: TransactionType.MATCH_RESULT,
+                          time,
+                          delta: computePlayerPt(
+                            rawScore!,
+                            match.ruleset.returnPts,
+                            placementMin!,
+                            placementMax!,
+                            uma,
+                          ),
+                          userMatchMatchId: matchId,
+                          userMatchPlayerPosition: playerPosition,
+                        },
+                        ...new Array(chombos!).map(() => ({
+                          type: TransactionType.CHOMBO,
+                          time,
+                          delta: match.ruleset.chomboDelta,
+                          userMatchMatchId: matchId,
+                          userMatchPlayerPosition: playerPosition,
+                        })),
+                      ];
+                    },
+                  ),
+                ],
+              },
+            },
+          },
+        });
       });
+    }),
+
+  leaderboard: publicProcedure
+    .input(schema.league.leaderboard)
+    .query(async ({ input, ctx }) => {
+      const { leagueId } = input;
+
+      const { rankedUsers, unrankedUsers } = await leaderboardCache.wrap(
+        getCacheKey(leagueId),
+        async () => {
+          const users = await prisma.userLeague.findMany({
+            where: { leagueId },
+            include: {
+              user: getUserSelector({ cmu: true, discord: true }),
+              txns: txnsSelector,
+              league: {
+                select: {
+                  matchesRequired: true,
+                },
+              },
+            },
+          });
+
+          const rankedUsers: UserLeagueRecord[] = [];
+          const unrankedUsers: UserLeagueRecord[] = [];
+
+          for (const { user, txns, league, freeChombos } of users) {
+            const agg = aggregateTxns(txns);
+            const record = {
+              user: coalesceNames(user),
+              agg,
+              softPenalty: freeChombos !== null,
+            };
+            if (agg.numMatches >= league.matchesRequired) {
+              rankedUsers.push(record);
+            } else {
+              unrankedUsers.push(record);
+            }
+          }
+
+          return {
+            rankedUsers: rankUsers(leagueId, rankedUsers),
+            unrankedUsers: orderUnrankedUsers(unrankedUsers),
+          };
+        },
+        600,
+      );
+
+      const userGroups = await getUserGroups(ctx.session?.user?.id);
+      return {
+        rankedUsers: rankedUsers.map(({ user, ...rest }) => ({
+          user: maskNames(user, userGroups),
+          ...rest,
+        })),
+        unrankedUsers: unrankedUsers.map(({ user, ...rest }) => ({
+          user: maskNames(user, userGroups),
+          ...rest,
+        })),
+      };
     }),
 });
 

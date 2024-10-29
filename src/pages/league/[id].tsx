@@ -29,6 +29,7 @@ import DateTime from '../../components/DateTime';
 import PlacementRange from '../../components/display/PlacementRange';
 import MatchPlayerName from '../../components/display/MatchPlayerName';
 import clsx from 'clsx';
+import Leaderboard from '../../components/display/Leaderboad';
 
 const partitionEvents = (refTime: number, events: RankedEvent[]) => {
   const closed = [];
@@ -155,9 +156,10 @@ const EventCreator = ({ leagueId }: EventCreatorProps) => {
 
 type EventsSectionProps = {
   leagueId: number;
+  registered: boolean;
 };
 
-const EventsSection = ({ leagueId }: EventsSectionProps) => {
+const EventsSection = ({ leagueId, registered }: EventsSectionProps) => {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => setNow(new Date()), [setNow]);
   const [targetEvent, setTargetEvent] = useState<RankedEvent | null>(null);
@@ -178,6 +180,11 @@ const EventsSection = ({ leagueId }: EventsSectionProps) => {
     return <p>No events planned.</p>;
   }
 
+  const handleUpdate = (e: RankedEvent, m: RankedMatch) => {
+    setTargetEvent(e);
+    setTargetMatch(m);
+  };
+
   return (
     <>
       <Accordion>
@@ -192,6 +199,8 @@ const EventsSection = ({ leagueId }: EventsSectionProps) => {
                 now={now}
                 key={event.id}
                 onRecord={setTargetEvent}
+                registered={registered}
+                onUpdate={handleUpdate}
               />
             ))}
           </AccordionSegment>
@@ -207,6 +216,8 @@ const EventsSection = ({ leagueId }: EventsSectionProps) => {
                 now={now}
                 key={event.id}
                 onRecord={setTargetEvent}
+                registered={registered}
+                onUpdate={handleUpdate}
               />
             ))}
           </AccordionSegment>
@@ -222,6 +233,8 @@ const EventsSection = ({ leagueId }: EventsSectionProps) => {
                 now={now}
                 key={event.id}
                 onRecord={setTargetEvent}
+                registered={registered}
+                onUpdate={handleUpdate}
               />
             ))}
           </AccordionSegment>
@@ -362,10 +375,11 @@ export default function League() {
           {session.data?.user.role === 'admin' && (
             <EventCreator leagueId={id} />
           )}
-          <EventsSection leagueId={id} />
+          <EventsSection leagueId={id} registered={registered} />
         </div>
         <div>
           <Heading level="h3">Leaderboard</Heading>
+          <Leaderboard leagueId={id} />
           <p className="text-gray-700">
             You need to play at least {league.matchesRequired} matches to have a
             rank. New players start with{' '}

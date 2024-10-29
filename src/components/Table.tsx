@@ -48,7 +48,7 @@ export type TableProps = {
 export default function Table({ head, children, className }: TableProps) {
   return (
     <div className={clsx('relative overflow-x-auto', className)}>
-      <table className="w-full text-sm text-left rtl:text-right text-gray-500">
+      <table className="w-full text-sm text-left rtl:text-right text-gray-500 table-fixed">
         <thead className="text-xs text-gray-700 uppercase bg-gray-100">
           {head}
         </thead>

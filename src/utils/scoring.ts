@@ -7,7 +7,22 @@ export const sumTableScores = (
 
 const THOUSAND = new Decimal(1000);
 
-export const computePts = (
+export const computePlayerPt = (
+  rawScore: number,
+  returnPts: number,
+  placementMin: number,
+  placementMax: number,
+  uma: Decimal[],
+) => {
+  const delta = new Decimal(rawScore - returnPts).div(THOUSAND);
+  const adjustment = uma
+    .slice(placementMin - 1, placementMax)
+    .reduce((prev, curr) => prev.add(curr))
+    .div(new Decimal(placementMax - placementMin + 1));
+  return delta.plus(adjustment);
+};
+
+export const computeTablePts = (
   playerScores: number[],
   returnPts: number,
   uma: Decimal[],
@@ -16,22 +31,17 @@ export const computePts = (
     throw new Error('Number of player scores does not match uma length');
   }
 
-  const sorted = playerScores.toSorted();
+  // sort in desc order
+  const sorted = playerScores.toSorted((a, b) => b - a);
   return playerScores.map((rawScore) => {
     const placementMin = 1 + sorted.indexOf(rawScore);
     const placementMax = 1 + sorted.lastIndexOf(rawScore);
-
-    const delta = new Decimal(rawScore - returnPts).div(THOUSAND);
-    const adjustment = uma
-      .slice(placementMin - 1, placementMax)
-      .reduce((prev, curr) => prev.add(curr))
-      .div(new Decimal(placementMax - placementMin + 1));
 
     return {
       rawScore,
       placementMin,
       placementMax,
-      pt: delta.plus(adjustment),
+      pt: computePlayerPt(rawScore, returnPts, placementMin, placementMax, uma),
     };
   });
 };
