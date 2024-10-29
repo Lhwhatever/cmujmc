@@ -5,6 +5,14 @@
       <excludeFolder url="file://$MODULE_DIR$/.tmp" />
       <excludeFolder url="file://$MODULE_DIR$/temp" />
       <excludeFolder url="file://$MODULE_DIR$/tmp" />
+      <excludeFolder url="file://$MODULE_DIR$/dist" />
+      <excludeFolder url="file://$MODULE_DIR$/dist/auth" />
+      <excludeFolder url="file://$MODULE_DIR$/dist/components" />
+      <excludeFolder url="file://$MODULE_DIR$/dist/i18n" />
+      <excludeFolder url="file://$MODULE_DIR$/dist/pages" />
+      <excludeFolder url="file://$MODULE_DIR$/dist/protocol" />
+      <excludeFolder url="file://$MODULE_DIR$/dist/server" />
+      <excludeFolder url="file://$MODULE_DIR$/dist/utils" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
