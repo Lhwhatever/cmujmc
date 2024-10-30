@@ -47,6 +47,23 @@ const rulesets: Prisma.RulesetCreateInput[] = [
     },
     chomboDelta: -30.0,
   },
+  {
+    gameMode: GameMode.YONMA,
+    name: 'Club League v2',
+    description: 'Rules used in Club League',
+    payload: { akadora: 3 },
+    startPts: 25000,
+    returnPts: 25000,
+    uma: {
+      create: [
+        { position: 1, value: +30 },
+        { position: 2, value: +10 },
+        { position: 3, value: -10 },
+        { position: 4, value: -30 },
+      ],
+    },
+    chomboDelta: -20.0,
+  },
 ];
 
 async function seedRulesets() {
