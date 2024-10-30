@@ -55,34 +55,36 @@ const MatchCreationForm = ({
 
   const createMatch = trpc.matches.create.useMutation();
 
-  const handleSubmit = async () => {
-    if (players.every((p) => p !== null)) {
-      try {
-        onSuccess(
-          await createMatch.mutateAsync(
-            {
-              eventId,
-              players: players.map(({ type, payload }) => ({
-                type,
-                payload: type === 'registered' ? payload.id : payload,
-              })),
-            },
-            {
-              onError(error) {
-                try {
-                  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument,@typescript-eslint/no-unsafe-member-access
-                  setErrors(JSON.parse(error.message)[0].message);
-                } catch (e) {
-                  console.error(e);
-                }
+  const handleSubmit = () => {
+    void (async () => {
+      if (players.every((p) => p !== null)) {
+        try {
+          onSuccess(
+            await createMatch.mutateAsync(
+              {
+                eventId,
+                players: players.map(({ type, payload }) => ({
+                  type,
+                  payload: type === 'registered' ? payload.id : payload,
+                })),
               },
-            },
-          ),
-        );
-      } catch (e) {}
-    } else {
-      setErrors('');
-    }
+              {
+                onError(error) {
+                  try {
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument,@typescript-eslint/no-unsafe-member-access
+                    setErrors(JSON.parse(error.message)[0].message);
+                  } catch (e) {
+                    console.error(e);
+                  }
+                },
+              },
+            ),
+          );
+        } catch (e) {}
+      } else {
+        setErrors('');
+      }
+    })();
   };
 
   const outerClass = hidden ? 'hidden' : '';
@@ -255,9 +257,11 @@ const ScoreEntryForm = ({
   const leftoverBets = watch('leftoverBets');
   const sum = sumTableScores(players, leftoverBets);
   const sumCorrect = sum === expectedTotal;
-  const handleContinue = handleSubmit(() => {
-    if (sumCorrect) setChomboEntryStage(true);
-  });
+  const handleContinue = () => {
+    void handleSubmit(() => {
+      if (sumCorrect) setChomboEntryStage(true);
+    })();
+  };
 
   const record = trpc.matches.record.useMutation({
     onSuccess() {
@@ -377,6 +381,8 @@ export default function MatchEntryDialog({
     setTargetMatch(null);
   };
 
+  const handleRefresh = () => void utils.user.listAll.invalidate();
+
   const handleSuccess = ({ match }: MatchCreationResult) => {
     setTargetMatch(match);
     if (targetEvent) {
@@ -396,7 +402,7 @@ export default function MatchEntryDialog({
             hidden={targetMatch !== null}
             eventId={targetEvent.id}
             gameMode={targetEvent.ruleset.gameMode}
-            onRefresh={() => utils.user.listAll.invalidate()}
+            onRefresh={handleRefresh}
             onClose={handleClose}
             users={users.data?.users ?? null}
             onSuccess={handleSuccess}
