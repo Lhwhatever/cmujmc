@@ -128,7 +128,7 @@ const leagueRouter = router({
       }
 
       const { users, ...rest } = league;
-      return { league: rest, userInfo: users ? users[0] : null };
+      return { league: rest, userInfo: users?.[0] ?? null };
     }),
 
   register: authedProcedure
