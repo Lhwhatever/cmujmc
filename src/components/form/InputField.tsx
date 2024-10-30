@@ -1,4 +1,4 @@
-import { Input, Field } from '@headlessui/react';
+import { Input, Field, Description } from '@headlessui/react';
 import React from 'react';
 import { FieldPath, FieldValues } from 'react-hook-form';
 import { IFieldProps } from './baseTypes';
@@ -59,6 +59,7 @@ export default function InputField<
   register,
   name,
   errors,
+  description,
   ...variant
 }: InputFieldProps<TFieldValues, TFieldName>) {
   const error = _.get(errors, name)?.message;
@@ -73,6 +74,11 @@ export default function InputField<
   return (
     <Field>
       <FieldLabel label={label} required={required} />
+      {description && (
+        <Description className="text-sm text-gray-600">
+          {description}
+        </Description>
+      )}
       <Input
         className={inputClass}
         {...props}

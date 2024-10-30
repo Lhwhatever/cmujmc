@@ -3,6 +3,10 @@ import { PrismaAdapter } from '@auth/prisma-adapter';
 import { prisma } from '../server/prisma';
 import GoogleProvider from 'next-auth/providers/google';
 import { Adapter, AdapterAccount } from 'next-auth/adapters';
+import { createCache } from 'cache-manager';
+import { User } from '../utils/usernames';
+
+const newUserDataCache = createCache({ ttl: 180000 });
 
 export const adapter: Adapter = {
   ...PrismaAdapter(prisma),
@@ -21,6 +25,13 @@ export const adapter: Adapter = {
     }),
   linkAccount: async (data) => {
     await prisma.account.create({ data });
+    const value = await newUserDataCache.get<Partial<User>>(data.userId);
+    if (value !== null) {
+      await prisma.user.update({
+        where: { id: data.userId },
+        data: value,
+      });
+    }
     return data;
   },
   unlinkAccount: async (provider_providerAccountId) => {
@@ -40,7 +51,7 @@ declare module 'next-auth' {
   }
 }
 
-const andrewPattern = new RegExp('[A-Za-z0-9]+@andrew.cmu.edu');
+const andrewPattern = new RegExp('([A-Za-z0-9]+)@andrew.cmu.edu');
 
 export const authOptions: AuthOptions = {
   adapter,
@@ -57,10 +68,14 @@ export const authOptions: AuthOptions = {
           const match = profile?.email?.match(andrewPattern);
           if (match) {
             const andrew = match[1];
-            await prisma.user.update({
-              where: { id: user.id },
-              data: { andrew },
-            });
+            try {
+              await prisma.user.update({
+                where: { id: user.id },
+                data: { andrew },
+              });
+            } catch (e) {
+              await newUserDataCache.set(user.id, { andrew });
+            }
           }
         }
       }
@@ -68,14 +83,18 @@ export const authOptions: AuthOptions = {
       return true;
     },
     async session({ session, user }) {
-      const { admin } = await prisma.user.findFirstOrThrow({
+      const { admin, name, displayName } = await prisma.user.findFirstOrThrow({
         where: { id: user.id },
-        select: { admin: true },
+        select: { admin: true, name: true, displayName: true },
       });
       session.user.id = user.id;
       session.user.role = admin ? 'admin' : 'user';
+      session.user.name = displayName ?? name ?? session.user.name;
       return session;
     },
+  },
+  pages: {
+    newUser: '/profile/edit',
   },
 };
 

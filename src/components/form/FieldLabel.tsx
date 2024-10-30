@@ -2,7 +2,7 @@ import React from 'react';
 import { Label } from '@headlessui/react';
 
 export type FieldLabelProps = {
-  label?: string;
+  label?: React.ReactNode;
   required?: boolean;
 };
 

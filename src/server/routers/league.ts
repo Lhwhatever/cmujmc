@@ -39,7 +39,7 @@ type UserLeagueRecord = {
   softPenalty: boolean;
 };
 
-const leaderboardCache = createCache();
+const leaderboardCache = createCache({ ttl: 600000 });
 
 const getCacheKey = (leagueId: number) => `league.${leagueId}`;
 
@@ -261,7 +261,6 @@ const leagueRouter = router({
             unrankedUsers: orderUnrankedUsers(unrankedUsers),
           };
         },
-        600,
       );
 
       const userGroups = await getUserGroups(ctx.session?.user?.id);
