@@ -15,6 +15,7 @@ const app = next({ dev });
 const handle = app.getRequestHandler();
 
 void app.prepare().then(() => {
+  console.log('NEXTAUTH_URL', process.env.NEXTAUTH_URL);
   const server = createServer((req, res) => {
     if (!req.url) return;
     const parsedUrl = parse(req.url, true);

@@ -8,9 +8,9 @@ import {
 import { prisma } from '../prisma';
 import { TRPCError } from '@trpc/server';
 import schema from '../../protocol/schema';
+import { NotFoundError } from '../../protocol/errors';
 import { computeClosingDate } from './events';
 import { isBefore } from 'date-fns';
-import { NotFoundError } from 'protocol/errors';
 import { Prisma, Status, TransactionType } from '@prisma/client';
 import { computeTransactions, umaSelector } from '../../utils/scoring';
 import {
@@ -181,6 +181,14 @@ const leagueRouter = router({
           },
         });
 
+        const initialTxn: Prisma.UserLeagueTransactionCreateManyInput = {
+          type: TransactionType.INITIAL,
+          userId: ctx.user.id,
+          leagueId,
+          delta: league.startingPoints,
+          time: new Date(),
+        };
+
         const txns = matches.flatMap(
           ({
             matchId,
@@ -212,7 +220,7 @@ const leagueRouter = router({
           data: {
             user: { connect: { id: ctx.user.id } },
             league: { connect: { id: leagueId } },
-            txns: { createMany: { data: txns } },
+            txns: { createMany: { data: [initialTxn, ...txns] } },
           },
         });
       });

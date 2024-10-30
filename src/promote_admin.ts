@@ -7,8 +7,12 @@ import { AbortSignal } from 'next/dist/compiled/@edge-runtime/primitives';
 const prisma = new PrismaClient();
 
 async function main() {
-  if ((await prisma.user.findFirst({ where: { admin: true } })) !== null)
+  console.log('Running script to promote admin...');
+  if ((await prisma.user.findFirst({ where: { admin: true } })) !== null) {
+    console.log('There already is an admin!');
     return;
+  }
+
   const users = await prisma.user.findMany();
   if (users.length === 0) {
     console.warn('No users in database, could not promote one to admin.');
