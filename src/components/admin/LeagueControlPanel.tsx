@@ -42,7 +42,7 @@ const LeagueTable = ({ data }: LeagueTableProps) => {
         <TableRow
           key={league.id}
           className="cursor-pointer hover:bg-green-100"
-          onClick={() => router.push(`/league/${league.id}`)}
+          onClick={() => void router.push(`/league/${league.id}`)}
         >
           <TableHeading scope="row" className="flex flex-col space-y-0">
             <div className="underline decoration-dotted m-0">{league.name}</div>
@@ -209,7 +209,11 @@ const LeagueCreationDialog = ({ open, onClose }: LeagueCreationDialogProps) => {
           errors={formState.errors}
         />
         <div className="flex flex-row">
-          <Button color="green" fill="filled" onClick={handleSubmit(onSubmit)}>
+          <Button
+            color="green"
+            fill="filled"
+            onClick={() => void handleSubmit(onSubmit)()}
+          >
             Submit
           </Button>
           <Button color="red" fill="filled" onClick={onClose}>

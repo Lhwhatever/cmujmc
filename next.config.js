@@ -7,6 +7,7 @@ const withNextIntl = createNextIntlPlugin();
 
 /** @type {import("next").NextConfig} */
 const config = {
+  output: 'standalone',
   serverRuntimeConfig: {
     // Will only be available on the server side
   },

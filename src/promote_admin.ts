@@ -7,15 +7,19 @@ import { AbortSignal } from 'next/dist/compiled/@edge-runtime/primitives';
 const prisma = new PrismaClient();
 
 async function main() {
-  if (await prisma.user.findFirst({ where: { admin: true }}) !== null) return;
+  if ((await prisma.user.findFirst({ where: { admin: true } })) !== null)
+    return;
   const users = await prisma.user.findMany();
   if (users.length === 0) {
-    console.warn("No users in database, could not promote one to admin.");
+    console.warn('No users in database, could not promote one to admin.');
     return;
   }
 
-  console.log("Promote a user to admin:");
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  console.log('Promote a user to admin:');
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
 
   const pageSize = 5;
   let page = 0;
@@ -26,18 +30,26 @@ async function main() {
 
     const signal = AbortSignal.timeout(10_000);
 
-    const result = await rl.question([
-      'Select one of the following choices:',
-      ...users.slice(start, end).map((data, index) =>
-        `[${index + 1}] ${data.displayName} (${data.name})`
-      ),
+    const result = await rl.question(
       [
-        page == 0 && '[p] - previous',
-        end >= users.length && '[n] - next',
-        '[q] - quit',
-      ].filter(x => !!x).join(', '),
-      ''
-    ].join('\n'), { signal });
+        'Select one of the following choices:',
+        ...users
+          .slice(start, end)
+          .map(
+            (data, index) =>
+              `[${index + 1}] ${data.displayName} (${data.name})`,
+          ),
+        [
+          page == 0 && '[p] - previous',
+          end >= users.length && '[n] - next',
+          '[q] - quit',
+        ]
+          .filter((x) => !!x)
+          .join(', '),
+        '',
+      ].join('\n'),
+      { signal },
+    );
 
     const trimmed = result.trim().toLowerCase();
     console.log(`Got: ${trimmed}`);
@@ -45,7 +57,7 @@ async function main() {
       if (page > 0) {
         --page;
       } else {
-        console.error("Cannot return to previous page, try again.");
+        console.error('Cannot return to previous page, try again.');
       }
       continue;
     }
@@ -54,7 +66,7 @@ async function main() {
       if (end < users.length) {
         ++page;
       } else {
-        console.error("Cannot go to next page, try again.");
+        console.error('Cannot go to next page, try again.');
       }
       continue;
     }
@@ -65,7 +77,7 @@ async function main() {
 
     const pageIdx = parseInt(trimmed);
     if (Number.isNaN(pageIdx)) {
-      console.error("Unknown input, try again");
+      console.error('Unknown input, try again');
       continue;
     }
 
@@ -75,18 +87,18 @@ async function main() {
       break;
     }
 
-    console.error("Bad input, try again");
+    console.error('Bad input, try again');
   }
   rl.close();
 
   if (promotee === undefined) {
-    console.log("Not promoting anyone to admin.");
+    console.log('Not promoting anyone to admin.');
     return;
   }
 
   const user = await prisma.user.update({
     where: { id: users[promotee].id },
-    data: { admin: true }
+    data: { admin: true },
   });
 
   console.log(`Promoted ${user.name} to admin.`);
@@ -97,6 +109,6 @@ main()
     console.error(e);
     process.exit(1);
   })
-  .finally(async () => {
-    await prisma.$disconnect();
+  .finally(() => {
+    void prisma.$disconnect();
   });

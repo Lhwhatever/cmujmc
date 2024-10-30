@@ -9,16 +9,16 @@ import { applyWSSHandler } from '@trpc/server/adapters/ws';
 import { appRouter } from './routers/_app';
 import { createContext } from './context';
 
-const port = parseInt(process.env.PORT || '3000', 10);
+const port = parseInt(process.env.PORT ?? '3000', 10);
 const dev = process.env.NODE_ENV !== 'production';
 const app = next({ dev });
 const handle = app.getRequestHandler();
 
-void app.prepare().then(async () => {
-  const server = createServer(async (req, res) => {
+void app.prepare().then(() => {
+  const server = createServer((req, res) => {
     if (!req.url) return;
     const parsedUrl = parse(req.url, true);
-    await handle(req, res, parsedUrl);
+    void handle(req, res, parsedUrl);
   });
   const wss = new WebSocketServer({ server });
   const handler = applyWSSHandler({ wss, router: appRouter, createContext });

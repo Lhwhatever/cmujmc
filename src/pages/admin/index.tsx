@@ -42,7 +42,7 @@ export default function AdminPage() {
   }
 
   if (session?.user.role !== 'admin') {
-    router.push('/');
+    void (async () => router.push('/'))();
     return (
       <Page>
         <div>Unauthorized</div>

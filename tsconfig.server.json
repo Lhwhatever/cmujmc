@@ -4,7 +4,7 @@
     "module": "commonjs",
     "outDir": "dist",
     "target": "ES2023",
-    "lib": ["ES2023", "DOM"],
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "isolatedModules": false,
     "noEmit": false
   },

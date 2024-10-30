@@ -386,7 +386,8 @@ export default function MatchEntryDialog({
   const handleSuccess = ({ match }: MatchCreationResult) => {
     setTargetMatch(match);
     if (targetEvent) {
-      utils.matches.getIncompleteByEvent.invalidate(targetEvent.id);
+      void (async () =>
+        await utils.matches.getIncompleteByEvent.invalidate(targetEvent.id))();
     }
   };
 

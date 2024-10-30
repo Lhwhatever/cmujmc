@@ -9,7 +9,7 @@ import Link from 'next/link';
 const LoginButton = () => {
   return (
     <div className="mr-3">
-      <Button color="yellow" fill="outlined" onClick={() => signIn()}>
+      <Button color="yellow" fill="outlined" onClick={() => void signIn()}>
         Login
       </Button>
     </div>

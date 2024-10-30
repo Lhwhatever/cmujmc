@@ -16,8 +16,10 @@ import superjson from 'superjson';
 // ℹ️ Type-only import:
 // https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-8.html#type-only-imports-and-export
 
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 const { publicRuntimeConfig } = getConfig();
 
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 const { APP_URL, WS_URL } = publicRuntimeConfig;
 
 function getEndingLink(ctx: NextPageContext | undefined): TRPCLink<AppRouter> {
@@ -41,6 +43,7 @@ function getEndingLink(ctx: NextPageContext | undefined): TRPCLink<AppRouter> {
     });
   }
   const client = createWSClient({
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     url: WS_URL,
   });
   return wsLink({

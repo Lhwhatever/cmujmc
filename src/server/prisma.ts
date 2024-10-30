@@ -9,7 +9,7 @@ const prismaGlobal = globalThis as typeof globalThis & {
 };
 
 export const prisma: PrismaClient =
-  prismaGlobal.prisma ||
+  prismaGlobal.prisma ??
   new PrismaClient({
     log:
       process.env.NODE_ENV === 'development'
