@@ -126,6 +126,8 @@ export default function RankedEventDetails({
     (!event.startDate || isBefore(event.startDate, now)) &&
     (!event.closingDate || isBefore(now, event.closingDate));
 
+  const session = useSession();
+
   return (
     <div>
       <Heading level="h5">
@@ -136,7 +138,7 @@ export default function RankedEventDetails({
         startDate={event.startDate}
         endDate={event.endDate}
       />
-      {registered && matchOpen && (
+      {((registered && matchOpen) || session.data?.user?.role === 'admin') && (
         <Button color="green" fill="outlined" onClick={() => onRecord(event)}>
           Record
         </Button>

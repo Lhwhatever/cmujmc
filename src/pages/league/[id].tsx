@@ -317,11 +317,16 @@ const MatchHistorySection = ({ leagueId }: MatchHistoryProps) => {
 export default function League() {
   const router = useRouter();
   const id = parseInt(router.query.id as string);
+
   const utils = trpc.useUtils();
   const query = trpc.leagues.get.useQuery(id, { retry: 3 });
   const register = trpc.leagues.register.useMutation({
     onSuccess() {
-      return utils.leagues.get.invalidate(id);
+      return Promise.all([
+        utils.leagues.get.invalidate(id),
+        utils.leagues.scoreHistory.invalidate(id),
+        utils.leagues.leaderboard.invalidate({ leagueId: id }),
+      ]);
     },
   });
 
@@ -401,7 +406,8 @@ export default function League() {
             <span className="font-bold">
               {league.startingPoints.toString()}
             </span>{' '}
-            rating.
+            rating. It may take a few minutes before the result of recent
+            matches are shown.
           </p>
         </div>
         <div>

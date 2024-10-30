@@ -134,9 +134,9 @@ const leagueRouter = router({
 
   register: authedProcedure
     .input(schema.league.register)
-    .mutation(({ input, ctx }) => {
+    .mutation(async ({ input, ctx }) => {
       const { leagueId } = input;
-      return prisma.$transaction(async (tx) => {
+      await prisma.$transaction(async (tx) => {
         const league = await tx.league.findUnique({
           where: { id: leagueId },
           include: { users: { where: { userId: ctx.user.id }, take: 1 } },
@@ -220,10 +220,14 @@ const leagueRouter = router({
           data: {
             user: { connect: { id: ctx.user.id } },
             league: { connect: { id: leagueId } },
-            txns: { createMany: { data: [initialTxn, ...txns] } },
           },
         });
+
+        await tx.userLeagueTransaction.createMany({
+          data: [initialTxn, ...txns],
+        });
       });
+      await invalidateLeaderboardCache(leagueId);
     }),
 
   leaderboard: publicProcedure
@@ -231,9 +235,9 @@ const leagueRouter = router({
     .query(async ({ input, ctx }) => {
       const { leagueId } = input;
 
-      const { rankedUsers, unrankedUsers } = await leaderboardCache.wrap(
-        getCacheKey(leagueId),
-        async () => {
+      const { lastUpdated, rankedUsers, unrankedUsers } =
+        await leaderboardCache.wrap(getCacheKey(leagueId), async () => {
+          const lastUpdated = new Date();
           const users = await prisma.userLeague.findMany({
             where: { leagueId },
             include: {
@@ -265,14 +269,15 @@ const leagueRouter = router({
           }
 
           return {
+            lastUpdated,
             rankedUsers: rankUsers(leagueId, rankedUsers),
             unrankedUsers: orderUnrankedUsers(unrankedUsers),
           };
-        },
-      );
+        });
 
       const userGroups = await getUserGroups(ctx.session?.user?.id);
       return {
+        lastUpdated: lastUpdated.toISOString(),
         rankedUsers: rankedUsers.map(
           ({ user, ...rest }: Ranked<UserLeagueRecord>) => ({
             user: maskNames(user, userGroups),
@@ -290,10 +295,10 @@ const leagueRouter = router({
 
   softerPenalty: authedProcedure
     .input(schema.league.softenPenalty)
-    .mutation(({ input, ctx }) => {
+    .mutation(async ({ input, ctx }) => {
       const { leagueId } = input;
       const { id: userId } = ctx.user;
-      return prisma.$transaction(async (tx) => {
+      await prisma.$transaction(async (tx) => {
         const userLeague = await tx.userLeague.findUnique({
           where: { leagueId_userId: { leagueId, userId } },
           include: {
@@ -348,6 +353,7 @@ const leagueRouter = router({
           },
         });
       });
+      await invalidateLeaderboardCache(leagueId);
     }),
 
   scoreHistory: authedProcedure

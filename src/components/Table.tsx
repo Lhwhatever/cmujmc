@@ -27,10 +27,25 @@ export function TableHeading({
 export type TableCellProps = {
   children?: React.ReactNode;
   className?: string;
+  colSpan?: number;
+  rowSpan?: number;
 };
 
-export function TableCell({ children, className }: TableCellProps) {
-  return <td className={clsx('px-6 py-4', className)}>{children}</td>;
+export function TableCell({
+  children,
+  className,
+  colSpan,
+  rowSpan,
+}: TableCellProps) {
+  return (
+    <td
+      className={clsx('px-6 py-4', className)}
+      colSpan={colSpan}
+      rowSpan={rowSpan}
+    >
+      {children}
+    </td>
+  );
 }
 
 export type TableRowProps = React.HTMLAttributes<HTMLTableRowElement>;
@@ -41,18 +56,24 @@ export function TableRow({ children, ...props }: TableRowProps) {
 
 export type TableProps = {
   head?: React.ReactNode;
+  foot?: React.ReactNode;
   children?: React.ReactNode;
   className?: React.ReactNode;
 };
 
-export default function Table({ head, children, className }: TableProps) {
+export default function Table({ head, children, className, foot }: TableProps) {
   return (
     <div className={clsx('relative overflow-x-auto', className)}>
       <table className="w-full text-sm text-left rtl:text-right text-gray-500 table-fixed">
-        <thead className="text-xs text-gray-700 uppercase bg-gray-100">
-          {head}
-        </thead>
+        {head && (
+          <thead className="text-xs text-gray-700 uppercase bg-gray-100">
+            {head}
+          </thead>
+        )}
         <tbody>{children}</tbody>
+        {foot && (
+          <tfoot className="text-xs text-gray-700 bg-gray-100">{foot}</tfoot>
+        )}
       </table>
     </div>
   );

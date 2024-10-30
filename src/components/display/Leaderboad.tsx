@@ -4,6 +4,7 @@ import Loading from '../Loading';
 import Table, { TableCell, TableHeading, TableRow } from '../Table';
 import { Placement } from './PlacementRange';
 import Decimal from 'decimal.js';
+import DateTime from '../DateTime';
 
 export type LeaderboardProps = {
   leagueId: number;
@@ -11,7 +12,7 @@ export type LeaderboardProps = {
 
 export default function Leaderboard({ leagueId }: LeaderboardProps) {
   const query = trpc.leagues.leaderboard.useQuery({ leagueId });
-  if (query.isLoading) {
+  if (query.isLoading || query.data === undefined) {
     return <Loading />;
   }
 
@@ -25,8 +26,19 @@ export default function Leaderboard({ leagueId }: LeaderboardProps) {
           <TableHeading scope="col">Matches</TableHeading>
         </TableRow>
       }
+      foot={
+        <TableRow>
+          <TableCell colSpan={4}>
+            Last updated:{' '}
+            <DateTime
+              date={new Date(query.data.lastUpdated)}
+              format={{ timeStyle: 'medium' }}
+            />
+          </TableCell>
+        </TableRow>
+      }
     >
-      {query.data?.rankedUsers?.map(({ user, rank, agg }) => (
+      {query.data.rankedUsers.map(({ user, rank, agg }) => (
         <TableRow key={user.id}>
           <TableCell>
             <Placement placement={rank} />
@@ -36,7 +48,7 @@ export default function Leaderboard({ leagueId }: LeaderboardProps) {
           <TableCell>{agg.numMatches}</TableCell>
         </TableRow>
       ))}
-      {query.data?.unrankedUsers?.map(({ user, agg }) => (
+      {query.data.unrankedUsers.map(({ user, agg }) => (
         <TableRow key={user.id}>
           <TableCell>&mdash;</TableCell>
           <TableCell>{user.name}</TableCell>

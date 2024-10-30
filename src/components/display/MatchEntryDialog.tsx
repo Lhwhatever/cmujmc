@@ -140,7 +140,7 @@ const ChomboEntryForm = ({
   onSubmit,
   hidden,
 }: ChomboEntryFormProps) => {
-  const { register, formState, getValues } = useForm({
+  const { register, formState, getValues, setValue, watch } = useForm({
     mode: 'onBlur',
     resolver: zodResolver(chomboFormSchema),
     defaultValues: { description: '' },
@@ -151,6 +151,15 @@ const ChomboEntryForm = ({
   const handleRecordChombo = () => {
     const description = getValues('description');
     onChange([...chombos, [selectedPlayer, description]]);
+    setValue('description', '');
+  };
+
+  const chomboPending = watch('description').length > 0;
+
+  const handleSubmit = () => {
+    if (!chomboPending) {
+      onSubmit();
+    }
   };
 
   return (
@@ -202,9 +211,16 @@ const ChomboEntryForm = ({
           register={register}
           errors={formState.errors}
         />
-        <div>
+        <div className="flex flex-row gap-2">
+          <Button
+            color="red"
+            fill="outlined"
+            onClick={() => setValue('description', '')}
+          >
+            Clear
+          </Button>
           <Button color="blue" fill="outlined" onClick={handleRecordChombo}>
-            Record Chombo
+            Record
           </Button>
         </div>
       </Fieldset>
@@ -213,7 +229,12 @@ const ChomboEntryForm = ({
         <Button color="red" fill="outlined" onClick={onBack}>
           Back
         </Button>
-        <Button color="green" fill="filled" onClick={onSubmit}>
+        <Button
+          color="green"
+          fill="filled"
+          onClick={handleSubmit}
+          disabled={chomboPending}
+        >
           Submit
         </Button>
       </div>

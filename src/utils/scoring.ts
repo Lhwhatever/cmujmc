@@ -83,7 +83,7 @@ export const computeTransactions = ({
 
   const chomboDescriptions: (string | null)[] = Array.isArray(chombos)
     ? chombos
-    : new Array(chombos).map(() => null);
+    : new Array<string | null>(chombos).fill(null);
 
   const chomboTxns = chomboDescriptions.map((description, index) => ({
     type: TransactionType.CHOMBO,
@@ -95,6 +95,8 @@ export const computeTransactions = ({
     userMatchMatchId: matchId,
     userMatchPlayerPosition: playerPosition,
   }));
+
+  console.log('chomboTxns', chomboTxns);
 
   return {
     txns: [matchResultTxn, ...chomboTxns],
