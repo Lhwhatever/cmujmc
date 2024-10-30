@@ -260,10 +260,13 @@ const ScoreEntryForm = ({
   });
 
   const record = trpc.matches.record.useMutation({
-    async onSuccess() {
+    onSuccess() {
       onClose();
-      await utils.matches.getIncompleteByEvent.invalidate();
-      return utils.matches.getCompletedByLeague.invalidate(leagueId);
+      return Promise.all([
+        utils.matches.getIncompleteByEvent.invalidate(),
+        utils.matches.getCompletedByLeague.invalidate(leagueId),
+        utils.leagues.invalidate(),
+      ]);
     },
     onError(e) {
       console.error(e);

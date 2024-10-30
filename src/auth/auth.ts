@@ -57,7 +57,7 @@ export const authOptions: AuthOptions = {
           const match = profile?.email?.match(andrewPattern);
           if (match) {
             const andrew = match[1];
-            prisma.user.update({
+            await prisma.user.update({
               where: { id: user.id },
               data: { andrew },
             });
@@ -65,7 +65,6 @@ export const authOptions: AuthOptions = {
         }
       }
 
-      console.log(profile);
       return true;
     },
     async session({ session, user }) {

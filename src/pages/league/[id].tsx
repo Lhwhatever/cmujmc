@@ -30,6 +30,7 @@ import PlacementRange from '../../components/display/PlacementRange';
 import MatchPlayerName from '../../components/display/MatchPlayerName';
 import clsx from 'clsx';
 import Leaderboard from '../../components/display/Leaderboad';
+import SofterPenaltyInfo from '../../components/display/SofterPenaltyInfo';
 
 const partitionEvents = (refTime: number, events: RankedEvent[]) => {
   const closed = [];
@@ -136,7 +137,9 @@ const EventCreator = ({ leagueId }: EventCreatorProps) => {
             <Button
               color="green"
               fill="filled"
-              onClick={handleSubmit(onSubmit)}
+              onClick={() => {
+                void handleSubmit(onSubmit)();
+              }}
             >
               Submit
             </Button>
@@ -335,11 +338,11 @@ export default function League() {
     redirect('/');
   }
 
-  const { league, registered } = query.data;
+  const { league, userInfo } = query.data;
 
   return (
     <Page>
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-8">
         <div>
           <Heading level="h2" className="mb-1">
             {league.name}
@@ -354,7 +357,7 @@ export default function League() {
           )}
           {league.invitational && <Text>Invite-only</Text>}
           <Text>{league.description}</Text>
-          {session.data && registered ? (
+          {session.data && userInfo ? (
             <Text>You are registered for this event!</Text>
           ) : (
             <Button
@@ -375,8 +378,20 @@ export default function League() {
           {session.data?.user.role === 'admin' && (
             <EventCreator leagueId={id} />
           )}
-          <EventsSection leagueId={id} registered={registered} />
+          <EventsSection leagueId={id} registered={!!userInfo} />
         </div>
+        {userInfo && (
+          <div>
+            <Heading level="h3">
+              {session.data?.user?.name}&apos;s Stats
+            </Heading>
+            <SofterPenaltyInfo
+              leagueId={id}
+              freeChombos={userInfo.freeChombos}
+              matchesRequired={league.matchesRequired}
+            />
+          </div>
+        )}
         <div>
           <Heading level="h3">Leaderboard</Heading>
           <Leaderboard leagueId={id} />

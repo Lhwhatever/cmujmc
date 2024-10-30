@@ -26,3 +26,7 @@ export const register = z.object({
 export const leaderboard = z.object({
   leagueId: z.number().int(),
 });
+
+export const softenPenalty = z.object({
+  leagueId: z.number().int(),
+});

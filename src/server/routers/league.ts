@@ -11,7 +11,7 @@ import schema from '../../protocol/schema';
 import { computeClosingDate } from './events';
 import { isBefore } from 'date-fns';
 import { NotFoundError } from 'protocol/errors';
-import { Status } from '@prisma/client';
+import { Prisma, Status, TransactionType } from '@prisma/client';
 import { computeTransactions, umaSelector } from '../../utils/scoring';
 import {
   getUserGroups,
@@ -30,6 +30,8 @@ import {
   txnsSelector,
 } from '../../utils/ranking';
 import { createCache } from 'cache-manager';
+import Decimal from 'decimal.js';
+import { z } from 'zod';
 
 type UserLeagueRecord = {
   user: NameCoalesced<User>;
@@ -104,26 +106,30 @@ const leagueRouter = router({
     });
   }),
 
-  get: publicProcedure.input(schema.league.get).query(async (opts) => {
-    const id = opts.input;
-    const league = await prisma.league.findUnique({
-      where: { id },
-      include: { defaultRuleset: true, users: true },
-    });
-    if (league === null) {
-      throw new NotFoundError('league', id);
-    }
+  get: publicProcedure
+    .input(schema.league.get)
+    .query(async ({ input: id, ctx }) => {
+      const userFilter = ctx.session
+        ? Prisma.validator<Prisma.League$usersArgs>()({
+            where: { userId: ctx.session.user.id },
+          })
+        : undefined;
 
-    const user = opts.ctx.session?.user?.id;
+      const league = await prisma.league.findUnique({
+        where: { id },
+        include: {
+          defaultRuleset: true,
+          users: userFilter,
+        },
+      });
 
-    return {
-      league,
-      registered:
-        user !== undefined
-          ? league.users.some(({ userId }) => userId === user)
-          : false,
-    };
-  }),
+      if (league === null) {
+        throw new NotFoundError('league', id);
+      }
+
+      const { users, ...rest } = league;
+      return { league: rest, userInfo: users ? users[0] : null };
+    }),
 
   register: authedProcedure
     .input(schema.league.register)
@@ -271,6 +277,83 @@ const leagueRouter = router({
             ...rest,
           }),
         ),
+      };
+    }),
+
+  softerPenalty: authedProcedure
+    .input(schema.league.softenPenalty)
+    .mutation(({ input, ctx }) => {
+      const { leagueId } = input;
+      const { id: userId } = ctx.user;
+      return prisma.$transaction(async (tx) => {
+        const userLeague = await tx.userLeague.findUnique({
+          where: { leagueId_userId: { leagueId, userId } },
+          include: {
+            league: { select: { matchesRequired: true } },
+            txns: { orderBy: { time: 'asc' } },
+          },
+        });
+
+        if (userLeague === null) {
+          throw new NotFoundError('userLeague', `${userId}:${leagueId}`);
+        }
+
+        if (userLeague.freeChombos !== null) {
+          throw new TRPCError({
+            message: 'Already softer penalty',
+            code: 'BAD_REQUEST',
+          });
+        }
+
+        const numMatches = userLeague.txns.reduce(
+          (count, { type }) =>
+            count + (type === TransactionType.MATCH_RESULT ? 1 : 0),
+          0,
+        );
+
+        if (numMatches >= userLeague.league.matchesRequired) {
+          throw new TRPCError({
+            message: 'Played too many games to apply softer penalty',
+            code: 'BAD_REQUEST',
+          });
+        }
+
+        const chombosFreed: string[] = [];
+        let chomboAllowance = 3;
+        for (const { id, type } of userLeague.txns) {
+          if (type === TransactionType.CHOMBO) {
+            chombosFreed.push(id);
+            if (--chomboAllowance == 0) break;
+          }
+        }
+
+        await tx.userLeague.update({
+          where: { leagueId_userId: { leagueId, userId } },
+          data: {
+            freeChombos: chomboAllowance,
+            txns: {
+              updateMany: {
+                where: { id: { in: chombosFreed } },
+                data: { delta: new Decimal(0) },
+              },
+            },
+          },
+        });
+      });
+    }),
+
+  scoreHistory: authedProcedure
+    .input(z.number())
+    .query(async ({ input: leagueId, ctx }) => {
+      const { id: userId } = ctx.user;
+      const txns = await prisma.userLeagueTransaction.findMany({
+        where: { leagueId, userId },
+      });
+      return {
+        txns: txns.map(({ delta, ...other }) => ({
+          ...other,
+          delta: delta.toString(),
+        })),
       };
     }),
 });
