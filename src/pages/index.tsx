@@ -35,13 +35,13 @@ const EventsSection = () => {
             key={id}
             className="flex flex-row bg-gray-200 border rounded-lg border-gray-200 p-2 space-x-3 mt-2"
           >
-            <div className="flex flex-col space-y-0 items-center w-8">
-              <div className="text-sm">{month.toUpperCase()}</div>
-              <div className="text-2xl font-bold">
-                {formatter.dateTime(date, { month: 'numeric' })}
+            <div className="flex flex-col space-y-0 items-center">
+              <div className="text-md">{month.toUpperCase()}</div>
+              <div className="text-3xl font-bold">
+                {formatter.dateTime(date, { day: '2-digit' })}
               </div>
             </div>
-            <div className="flex flex-col text-xs">
+            <div className="flex flex-col text-sm">
               <div className="mb-1">
                 <Link
                   href={`/league/${parent.id}`}
@@ -84,8 +84,8 @@ const EventsSection = () => {
 export default function IndexPage() {
   return (
     <Page>
-      <div className="flex h-screen flex-col md:flex-row">
-        <div>
+      <div className="flex h-screen flex-col items-stretch">
+        <div className="flex flex-col items-stretch">
           <Heading level="h2">Club Events</Heading>
           <EventsSection />
         </div>
