@@ -96,8 +96,6 @@ export const computeTransactions = ({
     userMatchPlayerPosition: playerPosition,
   }));
 
-  console.log('chomboTxns', chomboTxns);
-
   return {
     txns: [matchResultTxn, ...chomboTxns],
     chombos: chomboTxns.length,
