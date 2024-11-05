@@ -58,10 +58,6 @@ const saltedHash = (id: BinaryLike, salt: BinaryLike) => {
   return md5sum.digest('hex');
 };
 
-const computeAvgPt = (score: Decimal, numHanchans: number) => {
-  return score.div(new Decimal(numHanchans));
-};
-
 const compareUsers =
   (hashTiebreakerSalt: BinaryLike) =>
   (a: IRankableUser, b: IRankableUser): number => {
@@ -72,12 +68,6 @@ const compareUsers =
     // Penalty System
     const c2 = (a.softPenalty ? 1 : 0) - (b.softPenalty ? 1 : 0);
     if (c2 !== 0) return c2;
-
-    // Score per Hanchan: Higher is better
-    const c3 = computeAvgPt(b.agg.score, b.agg.numMatches).cmp(
-      computeAvgPt(a.agg.score, a.agg.numMatches),
-    );
-    if (c3 !== 0) return c3;
 
     // 1sts: Higher is better
     const c4 = (b.agg.placements[1] ?? 0) - (a.agg.placements[1] ?? 0);
