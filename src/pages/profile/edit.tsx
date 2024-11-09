@@ -17,6 +17,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import schema from '../../protocol/schema';
 import Button from '../../components/Button';
 import { useRouter } from 'next/router';
+import Link from 'next/link';
 
 type ProfileFormProps = {
   name: string | null;
@@ -78,6 +79,14 @@ export default function EditProfilePage() {
     return (
       <Page>
         <Heading level="h2">Update Profile</Heading>
+        <p>
+          This page may take some time to load. If you don&apos;t need to update
+          your profile, click{' '}
+          <Link href="/" className="text-green-700 underline">
+            here
+          </Link>
+          to skip this step.
+        </p>
         <Loading />
       </Page>
     );

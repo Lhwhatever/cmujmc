@@ -7,7 +7,7 @@ import Loading from '../../components/Loading';
 import Text from '../../components/Text';
 import DateTimeRange from '../../components/DateTimeRange';
 import Accordion, { AccordionSegment } from '../../components/Accordion';
-import { useSession } from 'next-auth/react';
+import { signIn, useSession } from 'next-auth/react';
 import Button from '../../components/Button';
 import { PlusIcon } from '@heroicons/react/16/solid';
 import Dialog from '../../components/Dialog';
@@ -345,6 +345,12 @@ export default function League() {
 
   const { league, userInfo } = query.data;
 
+  const handleLogIn = () => {
+    void signIn();
+  };
+
+  const handleJoinScoreboard = () => register.mutate({ leagueId: id });
+
   return (
     <Page>
       <div className="flex flex-col gap-8">
@@ -362,15 +368,17 @@ export default function League() {
           )}
           {league.invitational && <Text>Invite-only</Text>}
           <Text>{league.description}</Text>
-          {session.data && userInfo ? (
-            <Text>You are registered for this event!</Text>
-          ) : (
-            <Button
-              color="green"
-              fill="filled"
-              onClick={() => register.mutate({ leagueId: id })}
-            >
-              Register
+          {session.data && userInfo && (
+            <Text>You are on the scoreboard for this event!</Text>
+          )}
+          {session.data && !userInfo && (
+            <Button color="green" fill="filled" onClick={handleJoinScoreboard}>
+              Join Scoreboard
+            </Button>
+          )}
+          {!session.data && (
+            <Button color="green" fill="filled" onClick={handleLogIn}>
+              Login
             </Button>
           )}
         </div>
@@ -385,16 +393,28 @@ export default function League() {
           )}
           <EventsSection leagueId={id} registered={!!userInfo} />
         </div>
-        {userInfo && (
+        {session.data && (
           <div>
-            <Heading level="h3">
-              {session.data?.user?.name}&apos;s Stats
-            </Heading>
-            <SofterPenaltyInfo
-              leagueId={id}
-              freeChombos={userInfo.freeChombos}
-              matchesRequired={league.matchesRequired}
-            />
+            <Heading level="h3">{session.data.user?.name}&apos;s Stats</Heading>
+            {userInfo && (
+              <SofterPenaltyInfo
+                leagueId={id}
+                freeChombos={userInfo.freeChombos}
+                matchesRequired={league.matchesRequired}
+              />
+            )}
+            {!userInfo && (
+              <>
+                <p>Join the scoreboard to see your personal stats!</p>
+                <Button
+                  color="green"
+                  fill="filled"
+                  onClick={handleJoinScoreboard}
+                >
+                  Join Scoreboard
+                </Button>
+              </>
+            )}
           </div>
         )}
         <div>
