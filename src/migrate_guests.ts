@@ -27,6 +27,7 @@ async function queryUser<T>(
 
 async function main() {
   console.log('Finding users.');
+
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -105,6 +106,8 @@ async function main() {
     ({ unregisteredPlaceholder }) => unregisteredPlaceholder === guest,
   );
 
+  console.log('Matches played', matches);
+
   let freeChombos = userLeague.freeChombos;
   const allTxns = [];
 
@@ -169,6 +172,7 @@ async function main() {
   ]);
 
   console.log('Done!');
+
   rl.close();
 }
 

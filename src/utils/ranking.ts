@@ -111,5 +111,8 @@ export const orderUnrankedUsers = <T extends IRankableUser>(users: T[]) =>
     const c1 = b.agg.numMatches - a.agg.numMatches;
     if (c1 !== 0) return c1;
 
+    const c2 = a.agg.score.cmp(b.agg.score);
+    if (c2 !== 0) return c2;
+
     return a.user.name.localeCompare(b.user.name);
   });

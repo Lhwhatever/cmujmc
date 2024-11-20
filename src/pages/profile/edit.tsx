@@ -84,7 +84,7 @@ export default function EditProfilePage() {
           your profile, click{' '}
           <Link href="/" className="text-green-700 underline">
             here
-          </Link>
+          </Link>{' '}
           to skip this step.
         </p>
         <Loading />

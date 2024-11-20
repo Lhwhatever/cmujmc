@@ -8,10 +8,6 @@ const prisma = new PrismaClient();
 
 async function main() {
   console.log('Running script to promote admin...');
-  if ((await prisma.user.findFirst({ where: { admin: true } })) !== null) {
-    console.log('There already is an admin!');
-    return;
-  }
 
   const users = await prisma.user.findMany();
   if (users.length === 0) {

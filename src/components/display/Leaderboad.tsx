@@ -20,23 +20,34 @@ export default function Leaderboard({ leagueId }: LeaderboardProps) {
     <Table
       head={
         <TableRow>
-          <TableHeading scope="col">Rank</TableHeading>
+          <TableHeading scope="col" className="w-16">
+            Rank
+          </TableHeading>
           <TableHeading scope="col">Name</TableHeading>
-          <TableHeading scope="col">PT</TableHeading>
-          <TableHeading scope="col">Matches</TableHeading>
+          <TableHeading scope="col" className="w-16 sm:w-auto">
+            PT
+          </TableHeading>
+          <TableHeading scope="col" className="w-20 sm:w-auto">
+            Matches
+          </TableHeading>
+          <TableHeading scope="col" className="hidden sm:table-cell">
+            Firsts
+          </TableHeading>
+          <TableHeading scope="col" className="hidden sm:table-cell">
+            High Score
+          </TableHeading>
         </TableRow>
       }
-      foot={
-        <TableRow>
-          <TableCell colSpan={4}>
-            Last updated:{' '}
-            <DateTime
-              date={new Date(query.data.lastUpdated)}
-              format={{ timeStyle: 'medium' }}
-            />
-          </TableCell>
-        </TableRow>
+      caption={
+        <span>
+          Last updated{' '}
+          <DateTime
+            date={new Date(query.data.lastUpdated)}
+            format={{ dateStyle: 'short', timeStyle: 'medium' }}
+          />
+        </span>
       }
+      className="mb-4"
     >
       {query.data.rankedUsers.map(({ user, rank, agg }) => (
         <TableRow key={user.id}>
@@ -46,6 +57,12 @@ export default function Leaderboard({ leagueId }: LeaderboardProps) {
           <TableCell>{user.name}</TableCell>
           <TableCell>{new Decimal(agg.score).toFixed(1)}</TableCell>
           <TableCell>{agg.numMatches}</TableCell>
+          <TableCell className="hidden sm:table-cell">
+            {agg.placements[1] ?? 0}
+          </TableCell>
+          <TableCell className="hidden sm:table-cell">
+            {agg.highscore ?? '\u2014'}
+          </TableCell>
         </TableRow>
       ))}
       {query.data.unrankedUsers.map(({ user, agg }) => (
@@ -54,6 +71,12 @@ export default function Leaderboard({ leagueId }: LeaderboardProps) {
           <TableCell>{user.name}</TableCell>
           <TableCell>{new Decimal(agg.score).toFixed(1)}</TableCell>
           <TableCell>{agg.numMatches}</TableCell>
+          <TableCell className="hidden sm:table-cell">
+            {agg.placements[1] ?? 0}
+          </TableCell>
+          <TableCell className="hidden sm:table-cell">
+            {agg.highscore ?? '\u2014'}
+          </TableCell>
         </TableRow>
       ))}
     </Table>

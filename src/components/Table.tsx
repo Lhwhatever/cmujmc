@@ -13,7 +13,7 @@ export function TableHeading({
   className,
 }: TableHeadingProps) {
   const classes = clsx(
-    'px-6 py-3',
+    'px-3 py-3',
     scope == 'row' && 'font-medium text-gray-900 whitespace-nowrap',
     className,
   );
@@ -39,7 +39,7 @@ export function TableCell({
 }: TableCellProps) {
   return (
     <td
-      className={clsx('px-6 py-4', className)}
+      className={clsx('px-3 py-4', className)}
       colSpan={colSpan}
       rowSpan={rowSpan}
     >
@@ -59,9 +59,16 @@ export type TableProps = {
   foot?: React.ReactNode;
   children?: React.ReactNode;
   className?: React.ReactNode;
+  caption?: React.ReactNode;
 };
 
-export default function Table({ head, children, className, foot }: TableProps) {
+export default function Table({
+  head,
+  children,
+  className,
+  foot,
+  caption,
+}: TableProps) {
   return (
     <div className={clsx('relative overflow-x-auto', className)}>
       <table className="w-full text-sm text-left rtl:text-right text-gray-500 table-fixed">
@@ -74,6 +81,7 @@ export default function Table({ head, children, className, foot }: TableProps) {
         {foot && (
           <tfoot className="text-xs text-gray-700 bg-gray-100">{foot}</tfoot>
         )}
+        {caption && <caption className="caption-bottom">{caption}</caption>}
       </table>
     </div>
   );

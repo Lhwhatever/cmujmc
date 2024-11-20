@@ -17,7 +17,6 @@ import {
   sumTableScores,
   umaSelector,
 } from '../../utils/scoring';
-import { invalidateLeaderboardCache } from './league';
 import {
   coalesceNames,
   getUserGroups,
@@ -25,6 +24,7 @@ import {
   UserGroups,
   userSelector,
 } from '../../utils/usernames';
+import { markStale } from '../leaderboard/worker';
 
 //==================== for create ====================
 
@@ -331,7 +331,7 @@ const matchRouter = router({
         return leagueId;
       });
 
-      if (leagueId !== undefined) await invalidateLeaderboardCache(leagueId);
+      if (leagueId !== undefined) markStale(leagueId);
     }),
 
   getCompletedByLeague: publicProcedure

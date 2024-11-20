@@ -32,6 +32,8 @@ import {
 import { createCache } from 'cache-manager';
 import Decimal from 'decimal.js';
 import { z } from 'zod';
+import { getLeaderboard } from '../leaderboard/leaderboard';
+import { markStale } from '../leaderboard/worker';
 
 type UserLeagueRecord = {
   user: NameCoalesced<User>;
@@ -227,53 +229,16 @@ const leagueRouter = router({
           data: [initialTxn, ...txns],
         });
       });
-      await invalidateLeaderboardCache(leagueId);
+      markStale(leagueId);
     }),
 
   leaderboard: publicProcedure
     .input(schema.league.leaderboard)
     .query(async ({ input, ctx }) => {
       const { leagueId } = input;
-
-      const { lastUpdated, rankedUsers, unrankedUsers } =
-        await leaderboardCache.wrap(getCacheKey(leagueId), async () => {
-          const lastUpdated = new Date();
-          const users = await prisma.userLeague.findMany({
-            where: { leagueId },
-            include: {
-              user: userSelector,
-              txns: txnsSelector,
-              league: {
-                select: {
-                  matchesRequired: true,
-                },
-              },
-            },
-          });
-
-          const rankedUsers: UserLeagueRecord[] = [];
-          const unrankedUsers: UserLeagueRecord[] = [];
-
-          for (const { user, txns, league, freeChombos } of users) {
-            const agg = aggregateTxns(txns);
-            const record = {
-              user: coalesceNames(user),
-              agg,
-              softPenalty: freeChombos !== null,
-            };
-            if (agg.numMatches >= league.matchesRequired) {
-              rankedUsers.push(record);
-            } else {
-              unrankedUsers.push(record);
-            }
-          }
-
-          return {
-            lastUpdated,
-            rankedUsers: rankUsers(leagueId, rankedUsers),
-            unrankedUsers: orderUnrankedUsers(unrankedUsers),
-          };
-        });
+      const { lastUpdated, rankedUsers, unrankedUsers } = await getLeaderboard(
+        leagueId,
+      );
 
       const userGroups = await getUserGroups(ctx.session?.user?.id);
       return {
@@ -353,7 +318,7 @@ const leagueRouter = router({
           },
         });
       });
-      await invalidateLeaderboardCache(leagueId);
+      markStale(leagueId);
     }),
 
   scoreHistory: authedProcedure
