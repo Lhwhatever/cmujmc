@@ -20,7 +20,6 @@ import {
   NameCoalesced,
 } from '../../utils/usernames';
 import { Ranked, TxnAggregate } from '../../utils/ranking';
-import { createCache } from 'cache-manager';
 import Decimal from 'decimal.js';
 import { z } from 'zod';
 import { getLeaderboard } from '../leaderboard/leaderboard';
@@ -31,13 +30,6 @@ type UserLeagueRecord = {
   agg: TxnAggregate;
   softPenalty: boolean;
 };
-
-const leaderboardCache = createCache({ ttl: 600000 });
-
-const getCacheKey = (leagueId: number) => `league.${leagueId}`;
-
-export const invalidateLeaderboardCache = (leagueId: number) =>
-  leaderboardCache.del(getCacheKey(leagueId));
 
 const leagueRouter = router({
   list: publicProcedure.query(async () => {
