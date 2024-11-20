@@ -32,6 +32,7 @@ import clsx from 'clsx';
 import Leaderboard from '../../components/display/Leaderboad';
 import SofterPenaltyInfo from '../../components/display/SofterPenaltyInfo';
 import { useFormatter } from 'next-intl';
+import { PersonalStats } from '../../components/display/PersonalStats';
 
 const partitionEvents = (refTime: number, events: RankedEvent[]) => {
   const closed = [];
@@ -401,9 +402,10 @@ export default function League() {
               <SofterPenaltyInfo
                 leagueId={id}
                 freeChombos={userInfo.freeChombos}
-                matchesRequired={league.matchesRequired}
+                softPenaltyCutoff={league.softPenaltyCutoff}
               />
             )}
+            {userInfo && <PersonalStats leagueId={id} />}
             {!userInfo && (
               <>
                 <p>Join the scoreboard to see your personal stats!</p>

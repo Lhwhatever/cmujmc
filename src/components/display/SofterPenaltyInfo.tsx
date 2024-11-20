@@ -110,46 +110,41 @@ const SofterPenaltyApplicationDialog = ({
 };
 
 export type SofterPenaltyProps = {
-  matchesRequired: number;
+  softPenaltyCutoff: number;
   freeChombos: number | null;
   leagueId: number;
 };
 
 export default function SofterPenaltyInfo({
   leagueId,
-  matchesRequired,
+  softPenaltyCutoff,
   freeChombos,
 }: SofterPenaltyProps) {
   const query = trpc.leagues.scoreHistory.useQuery(leagueId);
   if (!query.data) return <></>;
 
-  const { numMatches, numChombos } = computeMatchStats(query.data.txns);
+  const { numMatches } = computeMatchStats(query.data.txns);
 
   return (
-    <div className="border bg-yellow-100 rounded-lg outline-yellow-800 p-2 m-2">
-      <p>
-        You have played <span className="font-bold">{numMatches}</span>{' '}
-        match(es) and committed <span className="font-bold">{numChombos}</span>{' '}
-        chombo(s).
-      </p>
-      {freeChombos === null && numMatches < 3 && (
-        <>
+    <>
+      {freeChombos === null && numMatches < softPenaltyCutoff && (
+        <div className="border bg-yellow-100 rounded-lg outline-yellow-800 p-2 m-2">
           <p>
-            Before completing {matchesRequired} match(es), you can opt in to
+            Before completing {softPenaltyCutoff} match(es), you can opt in to
             Softer Penalty. That would make your first 3 chombos incur no
             penalty, but you will be ineligible from the top prize of the
             league.
           </p>
           <SofterPenaltyApplicationDialog leagueId={leagueId} />
-        </>
+        </div>
       )}
       {freeChombos !== null && (
-        <div>
+        <div className="border bg-yellow-100 rounded-lg outline-yellow-800 p-2 m-2">
           You are under the softer penalty system. Your next{' '}
           <span className="font-bold">{freeChombos}</span> chombo(s) incur no
           penalty.
         </div>
       )}
-    </div>
+    </>
   );
 }

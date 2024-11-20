@@ -91,6 +91,7 @@ const defaultLeagueCreationParamValues: LeagueCreationParams = {
   name: '',
   startingPoints: 500.0,
   matchesRequired: 3,
+  softPenaltyCutoff: 3,
   description: '',
   startDate: undefined,
   endDate: undefined,
@@ -162,6 +163,15 @@ const LeagueCreationDialog = ({ open, onClose }: LeagueCreationDialogProps) => {
         <InputField
           name="matchesRequired"
           label="Matches required for rank"
+          register={register}
+          errors={formState.errors}
+          required
+          type="number"
+          step={1}
+        />
+        <InputField
+          name="softPenaltyCutoff"
+          label="Cutoff for soft penalty"
           register={register}
           errors={formState.errors}
           required

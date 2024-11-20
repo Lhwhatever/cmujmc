@@ -118,15 +118,16 @@ model Event {
 }
 
 model League {
-  id              Int       @id @default(autoincrement())
-  name            String
-  description     String?
-  invitational    Boolean
-  defaultRuleId   Int
-  startingPoints  Decimal   @default(0.0)
-  startDate       DateTime? @default(now())
-  endDate         DateTime?
-  matchesRequired Int       @default(3)
+  id                Int       @id @default(autoincrement())
+  name              String
+  description       String?
+  invitational      Boolean
+  defaultRuleId     Int
+  startingPoints    Decimal   @default(0.0)
+  startDate         DateTime? @default(now())
+  endDate           DateTime?
+  matchesRequired   Int       @default(3)
+  softPenaltyCutoff Int       @default(3)
 
   defaultRuleset Ruleset      @relation(fields: [defaultRuleId], references: [id])
   events         Event[]

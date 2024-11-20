@@ -54,6 +54,7 @@ const leagueRouter = router({
       startingPoints,
       singleEvent,
       matchesRequired,
+      softPenaltyCutoff,
     } = opts.input;
 
     if (startDate && endDate && !isBefore(startDate, endDate)) {
@@ -72,6 +73,7 @@ const leagueRouter = router({
           connect: { id: defaultRulesetId },
         },
         matchesRequired,
+        softPenaltyCutoff,
         startingPoints,
         startDate,
         endDate,
@@ -250,7 +252,7 @@ const leagueRouter = router({
         const userLeague = await tx.userLeague.findUnique({
           where: { leagueId_userId: { leagueId, userId } },
           include: {
-            league: { select: { matchesRequired: true } },
+            league: { select: { softPenaltyCutoff: true } },
             txns: { orderBy: { time: 'asc' } },
           },
         });
@@ -272,7 +274,7 @@ const leagueRouter = router({
           0,
         );
 
-        if (numMatches >= userLeague.league.matchesRequired) {
+        if (numMatches >= userLeague.league.softPenaltyCutoff) {
           throw new TRPCError({
             message: 'Played too many games to apply softer penalty',
             code: 'BAD_REQUEST',
@@ -310,6 +312,9 @@ const leagueRouter = router({
       const { id: userId } = ctx.user;
       const txns = await prisma.userLeagueTransaction.findMany({
         where: { leagueId, userId },
+        include: {
+          match: true,
+        },
       });
       return {
         txns: txns.map(({ delta, ...other }) => ({
