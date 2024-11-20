@@ -17,18 +17,9 @@ import {
   getUserGroups,
   User,
   maskNames,
-  coalesceNames,
   NameCoalesced,
-  userSelector,
 } from '../../utils/usernames';
-import {
-  aggregateTxns,
-  orderUnrankedUsers,
-  Ranked,
-  rankUsers,
-  TxnAggregate,
-  txnsSelector,
-} from '../../utils/ranking';
+import { Ranked, TxnAggregate } from '../../utils/ranking';
 import { createCache } from 'cache-manager';
 import Decimal from 'decimal.js';
 import { z } from 'zod';
