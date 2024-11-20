@@ -31,6 +31,7 @@ import MatchPlayerName from '../../components/display/MatchPlayerName';
 import clsx from 'clsx';
 import Leaderboard from '../../components/display/Leaderboad';
 import SofterPenaltyInfo from '../../components/display/SofterPenaltyInfo';
+import { useFormatter } from 'next-intl';
 
 const partitionEvents = (refTime: number, events: RankedEvent[]) => {
   const closed = [];
@@ -259,6 +260,7 @@ type MatchHistoryProps = {
 
 const MatchHistorySection = ({ leagueId }: MatchHistoryProps) => {
   const league = trpc.matches.getCompletedByLeague.useQuery(leagueId);
+  const format = useFormatter();
 
   if (!league.data) {
     return <Loading />;
@@ -269,14 +271,11 @@ const MatchHistorySection = ({ leagueId }: MatchHistoryProps) => {
   }
 
   return (
-    <div className="grid grid-cols-4 md:grid-cols-7">
-      {league.data.matches.map(({ id, time, players }, index) => (
+    <div className="grid grid-cols-[4rem_6rem_1fr_6rem] md:grid-cols-7">
+      {league.data.matches.map(({ id, time, players }) => (
         <div
           key={id}
-          className={clsx(
-            'grid col-span-full grid-cols-subgrid',
-            index % 2 === 1 && 'bg-gray-200',
-          )}
+          className="grid col-span-full grid-cols-subgrid divide-y divide-gray-200 even:bg-gray-100"
         >
           <div className="text-xs text-gray-700 text-center row-span-4 md:row-span-2">
             <DateTime
@@ -304,7 +303,9 @@ const MatchHistorySection = ({ leagueId }: MatchHistoryProps) => {
                     unregisteredPlaceholder={unregisteredPlaceholder}
                   />
                 </div>
-                <div>{rawScore}</div>
+                <div className="text-right mr-2">
+                  {rawScore !== null ? format.number(rawScore) : '???'}
+                </div>
               </React.Fragment>
             ),
           )}
