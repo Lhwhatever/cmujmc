@@ -28,7 +28,6 @@ import MatchEntryDialog, {
 import DateTime from '../../components/DateTime';
 import PlacementRange from '../../components/display/PlacementRange';
 import MatchPlayerName from '../../components/display/MatchPlayerName';
-import clsx from 'clsx';
 import Leaderboard from '../../components/display/Leaderboad';
 import SofterPenaltyInfo from '../../components/display/SofterPenaltyInfo';
 import { useFormatter } from 'next-intl';
