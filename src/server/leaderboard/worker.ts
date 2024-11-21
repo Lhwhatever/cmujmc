@@ -5,12 +5,12 @@ import { setLeaderboard } from './leaderboard';
 export class LeaderboardWorker {
   readonly leagueId: number;
   readonly eventEmitter: EventEmitter;
-  lastUpdated: Date;
+  lastUpdated: number;
 
   constructor(leagueId: number) {
     this.leagueId = leagueId;
     this.eventEmitter = new EventEmitter();
-    this.lastUpdated = new Date();
+    this.lastUpdated = Date.now();
 
     this.eventEmitter.on('markStale', () => {
       void (async () => {

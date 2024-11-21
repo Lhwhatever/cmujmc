@@ -227,7 +227,7 @@ const leagueRouter = router({
 
       const userGroups = await getUserGroups(ctx.session?.user?.id);
       return {
-        lastUpdated: lastUpdated.toISOString(),
+        lastUpdated: new Date(lastUpdated).toISOString(),
         rankedUsers: rankedUsers.map(
           ({ user, ...rest }: Ranked<UserLeagueRecord>) => ({
             user: maskNames(user, userGroups),

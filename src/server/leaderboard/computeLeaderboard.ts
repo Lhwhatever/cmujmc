@@ -21,7 +21,7 @@ export type UserLeagueRecord = {
 };
 
 export type Leaderboard = {
-  lastUpdated: Date;
+  lastUpdated: number;
   rankedUsers: Ranked<UserLeagueRecord>[];
   unrankedUsers: UserLeagueRecord[];
 };
@@ -29,7 +29,7 @@ export type Leaderboard = {
 export default async function computeLeaderboard(
   leagueId: number,
 ): Promise<Leaderboard> {
-  const lastUpdated = new Date();
+  const lastUpdated = Date.now();
   const users = await prisma.userLeague.findMany({
     where: { leagueId },
     include: {
