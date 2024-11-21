@@ -49,6 +49,7 @@ export type ButtonProps = {
   fill: keyof typeof buttonColorStyles;
   icon?: boolean;
   disabled?: boolean;
+  roundSided?: 'right';
 };
 
 export default function Button({
@@ -59,10 +60,14 @@ export default function Button({
   fill,
   disabled,
   icon,
+  roundSided,
 }: ButtonProps) {
   const className = clsx(
     'font-medium text-sm inline-flex items-center border',
-    icon ? 'rounded-full p-1' : 'rounded-lg px-5 py-2.5',
+    icon && 'rounded-lg p-1',
+    !icon && 'px-5 py-2.5',
+    !icon && roundSided === 'right' && 'rounded-r-lg',
+    !icon && roundSided === undefined && 'rounded-lg',
     fill === 'outlined' && !disabled && 'data-[hover]:text-white',
     fill === 'filled' && !disabled && 'text-white',
     buttonColorStyles[fill][color][disabled ? 'disabled' : 'enabled'],

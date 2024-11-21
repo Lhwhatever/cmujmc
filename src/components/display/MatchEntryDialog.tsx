@@ -19,6 +19,7 @@ import { TrashIcon } from '@heroicons/react/24/solid';
 import { sumTableScores } from '../../utils/scoring';
 import MatchPlayerName from './MatchPlayerName';
 import { renderPlayerName } from '../../utils/usernames';
+import StickInput from '../StickInput';
 
 type MatchCreationResult = RouterOutputs['matches']['create'];
 export type RankedMatch = NonNullable<
@@ -261,17 +262,21 @@ const ScoreEntryForm = ({
   const numPlayers = targetMatch.players.length;
   const { startPts } = targetMatch.ruleset;
   const expectedTotal = numPlayers * startPts;
+
+  const [stickInputTarget, setStickInputTarget] = useState<number | null>(null);
+
   const [chomboEntryStage, setChomboEntryStage] = useState(false);
   const [chombos, setChombos] = useState<[number, string][]>([]);
 
-  const { register, formState, watch, handleSubmit, getValues } = useForm({
-    mode: 'onChange',
-    resolver: zodResolver(scoreEntrySchema),
-    defaultValues: {
-      players: targetMatch.players.map(() => startPts),
-      leftoverBets: 0,
-    },
-  });
+  const { register, formState, watch, handleSubmit, getValues, setValue } =
+    useForm({
+      mode: 'onChange',
+      resolver: zodResolver(scoreEntrySchema),
+      defaultValues: {
+        players: targetMatch.players.map(() => startPts),
+        leftoverBets: 0,
+      },
+    });
 
   const utils = trpc.useUtils();
   const players = watch('players');
@@ -316,7 +321,7 @@ const ScoreEntryForm = ({
       <Fieldset
         className={clsx(
           'flex flex-col space-y-4',
-          chomboEntryStage && 'hidden',
+          (chomboEntryStage || stickInputTarget !== null) && 'hidden',
         )}
       >
         {targetMatch.players.map((player, index) => (
@@ -333,6 +338,16 @@ const ScoreEntryForm = ({
               errors={formState.errors}
               defaultValue={startPts}
               required
+              rightButton={
+                <Button
+                  color="blue"
+                  fill="filled"
+                  roundSided="right"
+                  onClick={() => setStickInputTarget(index)}
+                >
+                  Sticks
+                </Button>
+              }
             />
           </div>
         ))}
@@ -370,6 +385,29 @@ const ScoreEntryForm = ({
           </Button>
         </div>
       </Fieldset>
+      {stickInputTarget !== null && (
+        <div className="flex flex-col">
+          <div className="text-md font-bold mb-4">
+            Player {stickInputTarget}:{' '}
+            <MatchPlayerName {...targetMatch.players[stickInputTarget]} />
+          </div>
+          <StickInput
+            onChange={(value) => setValue(`players.${stickInputTarget}`, value)}
+          />
+          <div className="text-md font-bold mt-4">
+            Total = {players[stickInputTarget]}
+          </div>
+          <div>
+            <Button
+              color="green"
+              fill="outlined"
+              onClick={() => setStickInputTarget(null)}
+            >
+              Done
+            </Button>
+          </div>
+        </div>
+      )}
       <ChomboEntryForm
         players={targetMatch.players}
         chombos={chombos}
