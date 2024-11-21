@@ -21,17 +21,9 @@ const userRouter = router({
   }),
 
   self: authedProcedure.query(async ({ ctx }) => {
-    const start = new Date();
-    console.log(`self query started at ${start.toISOString()}`);
     const self = await prisma.user.findUniqueOrThrow({
       where: { id: ctx.user.id },
     });
-    const end = new Date();
-    console.log(
-      `self query ended at ${end.toISOString()}, took ${
-        end.getTime() - start.getTime()
-      } ms`,
-    );
     return { self };
   }),
 
