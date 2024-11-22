@@ -1,7 +1,7 @@
 import React from 'react';
 import Page from '../components/Page';
 import Heading from '../components/Heading';
-import StickInput from '../components/StickInput';
+import StickInput from '../components/display/StickInput';
 
 export default function SticksInputPage() {
   const [total, setTotal] = React.useState(0);

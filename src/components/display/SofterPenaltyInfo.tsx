@@ -113,18 +113,15 @@ export type SofterPenaltyProps = {
   softPenaltyCutoff: number;
   freeChombos: number | null;
   leagueId: number;
+  numMatches: number;
 };
 
 export default function SofterPenaltyInfo({
   leagueId,
   softPenaltyCutoff,
   freeChombos,
+  numMatches,
 }: SofterPenaltyProps) {
-  const query = trpc.leagues.scoreHistory.useQuery(leagueId);
-  if (!query.data) return <></>;
-
-  const { numMatches } = computeMatchStats(query.data.txns);
-
   return (
     <>
       {freeChombos === null && numMatches < softPenaltyCutoff && (

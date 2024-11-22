@@ -18,6 +18,7 @@ import {
   User,
   maskNames,
   NameCoalesced,
+  userSelector,
 } from '../../utils/usernames';
 import { Ranked, TxnAggregate } from '../../utils/ranking';
 import Decimal from 'decimal.js';
@@ -313,14 +314,44 @@ const leagueRouter = router({
       const txns = await prisma.userLeagueTransaction.findMany({
         where: { leagueId, userId },
         include: {
-          match: true,
+          match: {
+            select: {
+              match: {
+                include: {
+                  players: {
+                    include: {
+                      player: userSelector,
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
       });
+
+      const userGroups = await getUserGroups(userId);
+
       return {
-        txns: txns.map(({ delta, ...other }) => ({
-          ...other,
-          delta: delta.toString(),
-        })),
+        txns: txns.map(({ delta, match: matchWrapper, ...other }) => {
+          const match = matchWrapper?.match
+            ? {
+                ...matchWrapper.match,
+                players: matchWrapper.match.players.map(
+                  ({ player, ...other }) => ({
+                    ...other,
+                    player: player ? maskNames(player, userGroups) : null,
+                  }),
+                ),
+              }
+            : null;
+
+          return {
+            ...other,
+            match,
+            delta: delta.toString(),
+          };
+        }),
       };
     }),
 });

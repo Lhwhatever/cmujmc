@@ -3,9 +3,9 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Fieldset } from '@headlessui/react';
-import InputField from './form/InputField';
-import PointStick from './PointStick';
-import FieldLabel from './form/FieldLabel';
+import InputField from '../form/InputField';
+import PointStick from '../PointStick';
+import FieldLabel from '../form/FieldLabel';
 
 export type StickInputProps = {
   onChange: (value: number) => void;

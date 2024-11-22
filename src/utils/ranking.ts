@@ -48,7 +48,7 @@ export const aggregateTxns = (
 export interface IRankableUser {
   agg: TxnAggregate;
   softPenalty: boolean;
-  user: { id: string; name: string };
+  user: { id: string; name: string | null };
 }
 
 const saltedHash = (id: BinaryLike, salt: BinaryLike) => {
@@ -114,5 +114,5 @@ export const orderUnrankedUsers = <T extends IRankableUser>(users: T[]) =>
     const c2 = a.agg.score.cmp(b.agg.score);
     if (c2 !== 0) return c2;
 
-    return a.user.name.localeCompare(b.user.name);
+    return (a.user.name ?? '').localeCompare(b.user.name ?? '');
   });

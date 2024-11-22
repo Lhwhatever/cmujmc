@@ -45,7 +45,7 @@ export type NameCoalesced<T extends INames> = Omit<
   'id' | 'name' | 'displayName'
 > & {
   id: T['id'];
-  name: string;
+  name: string | null;
 };
 
 export const coalesceNames = <T extends INames>({

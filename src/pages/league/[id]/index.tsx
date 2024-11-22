@@ -1,37 +1,38 @@
 import React, { useEffect, useState } from 'react';
-import Page from '../../components/Page';
-import Heading from '../../components/Heading';
+import Page from '../../../components/Page';
+import Heading from '../../../components/Heading';
 import { useRouter } from 'next/router';
-import { trpc } from '../../utils/trpc';
-import Loading from '../../components/Loading';
-import Text from '../../components/Text';
-import DateTimeRange from '../../components/DateTimeRange';
-import Accordion, { AccordionSegment } from '../../components/Accordion';
+import { trpc } from '../../../utils/trpc';
+import Loading from '../../../components/Loading';
+import Text from '../../../components/Text';
+import DateTimeRange from '../../../components/DateTimeRange';
+import Accordion, { AccordionSegment } from '../../../components/Accordion';
 import { signIn, useSession } from 'next-auth/react';
-import Button from '../../components/Button';
+import Button from '../../../components/Button';
 import { PlusIcon } from '@heroicons/react/16/solid';
-import Dialog from '../../components/Dialog';
+import Dialog from '../../../components/Dialog';
 import { Fieldset } from '@headlessui/react';
-import InputField from '../../components/form/InputField';
-import schema from '../../protocol/schema';
+import InputField from '../../../components/form/InputField';
+import schema from '../../../protocol/schema';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { AdminUserError } from '../../protocol/errors';
-import { redirect } from 'next/navigation';
+import { AdminUserError } from '../../../protocol/errors';
+import { redirect, usePathname } from 'next/navigation';
 import RankedEventDetails, {
   RankedEvent,
-} from '../../components/display/RankedEventDetails';
+} from '../../../components/display/RankedEventDetails';
 import MatchEntryDialog, {
   RankedMatch,
-} from '../../components/display/MatchEntryDialog';
-import DateTime from '../../components/DateTime';
-import PlacementRange from '../../components/display/PlacementRange';
-import MatchPlayerName from '../../components/display/MatchPlayerName';
-import Leaderboard from '../../components/display/Leaderboad';
-import SofterPenaltyInfo from '../../components/display/SofterPenaltyInfo';
+} from '../../../components/display/MatchEntryDialog';
+import DateTime from '../../../components/DateTime';
+import PlacementRange from '../../../components/display/PlacementRange';
+import MatchPlayerName from '../../../components/display/MatchPlayerName';
+import Leaderboard from '../../../components/display/Leaderboad';
 import { useFormatter } from 'next-intl';
-import { PersonalStats } from '../../components/display/PersonalStats';
+import { PersonalStats } from '../../../components/display/PersonalStats';
+import ScoreHistory from '../../../components/display/ScoreHistory';
+import Link from 'next/link';
 
 const partitionEvents = (refTime: number, events: RankedEvent[]) => {
   const closed = [];
@@ -254,69 +255,9 @@ const EventsSection = ({ leagueId, registered }: EventsSectionProps) => {
   );
 };
 
-type MatchHistoryProps = {
-  leagueId: number;
-};
-
-const MatchHistorySection = ({ leagueId }: MatchHistoryProps) => {
-  const league = trpc.matches.getCompletedByLeague.useQuery(leagueId);
-  const format = useFormatter();
-
-  if (!league.data) {
-    return <Loading />;
-  }
-
-  if (league.data.matches.length === 0) {
-    return <div>No matches in record!</div>;
-  }
-
-  return (
-    <div className="grid grid-cols-[4rem_6rem_1fr_6rem] md:grid-cols-7">
-      {league.data.matches.map(({ id, time, players }) => (
-        <div
-          key={id}
-          className="grid col-span-full grid-cols-subgrid divide-y divide-gray-200 even:bg-gray-100"
-        >
-          <div className="text-xs text-gray-700 text-center row-span-4 md:row-span-2">
-            <DateTime
-              date={time}
-              format={{
-                dateStyle: 'short',
-                timeStyle: 'short',
-              }}
-            />
-          </div>
-          {players.map(
-            ({
-              playerPosition,
-              placementMin,
-              placementMax,
-              rawScore,
-              player,
-              unregisteredPlaceholder,
-            }) => (
-              <React.Fragment key={playerPosition}>
-                <PlacementRange min={placementMin!} max={placementMax!} />
-                <div>
-                  <MatchPlayerName
-                    player={player}
-                    unregisteredPlaceholder={unregisteredPlaceholder}
-                  />
-                </div>
-                <div className="text-right mr-2">
-                  {rawScore !== null ? format.number(rawScore) : '???'}
-                </div>
-              </React.Fragment>
-            ),
-          )}
-        </div>
-      ))}
-    </div>
-  );
-};
-
 export default function League() {
   const router = useRouter();
+  const pathname = usePathname();
   const id = parseInt(router.query.id as string);
 
   const utils = trpc.useUtils();
@@ -398,13 +339,12 @@ export default function League() {
           <div>
             <Heading level="h3">{session.data.user?.name}&apos;s Stats</Heading>
             {userInfo && (
-              <SofterPenaltyInfo
+              <PersonalStats
                 leagueId={id}
                 freeChombos={userInfo.freeChombos}
                 softPenaltyCutoff={league.softPenaltyCutoff}
               />
             )}
-            {userInfo && <PersonalStats leagueId={id} />}
             {!userInfo && (
               <>
                 <p>Join the scoreboard to see your personal stats!</p>
@@ -432,9 +372,25 @@ export default function League() {
             matches are shown.
           </p>
         </div>
+        {session.data && (
+          <div>
+            <Heading level="h3">
+              {session.data.user?.name}&apos;s History
+            </Heading>
+            <ScoreHistory leagueId={id} />
+          </div>
+        )}
         <div>
-          <Heading level="h3">Match History</Heading>
-          <MatchHistorySection leagueId={id} />
+          <Heading level="h3">All Matches</Heading>
+          <p>
+            See a full list of matches{' '}
+            <Link
+              href={`${pathname}/matches`}
+              className="text-green-700 underline"
+            >
+              here
+            </Link>
+          </p>
         </div>
       </div>
     </Page>

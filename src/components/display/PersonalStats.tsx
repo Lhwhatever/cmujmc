@@ -3,10 +3,7 @@ import { RouterOutputs, trpc } from '../../utils/trpc';
 import { TransactionType } from '@prisma/client';
 import { NumberFormatOptions, useFormatter } from 'next-intl';
 import Decimal from 'decimal.js';
-
-export type PersonalStatsProps = {
-  leagueId: number;
-};
+import SofterPenaltyInfo from './SofterPenaltyInfo';
 
 type Txns = RouterOutputs['leagues']['scoreHistory']['txns'];
 
@@ -93,7 +90,17 @@ export const computeMatchStats = (
   };
 };
 
-export function PersonalStats({ leagueId }: PersonalStatsProps) {
+export type PersonalStatsProps = {
+  softPenaltyCutoff: number;
+  freeChombos: number | null;
+  leagueId: number;
+};
+
+export function PersonalStats({
+  leagueId,
+  freeChombos,
+  softPenaltyCutoff,
+}: PersonalStatsProps) {
   const query = trpc.leagues.scoreHistory.useQuery(leagueId);
   const formatter = useFormatter();
   if (!query.data) return <></>;
@@ -101,13 +108,21 @@ export function PersonalStats({ leagueId }: PersonalStatsProps) {
   const stats = computeMatchStats(query.data.txns, formatter);
 
   return (
-    <div className="grid gap-y-1 gap-x-8 mx-6 my-2 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
-      {Object.entries(stats).map(([key, value]) => (
-        <div className="flex flex-row justify-between" key={key}>
-          <div className="font-bold">{key}</div>
-          <div>{value}</div>
-        </div>
-      ))}
-    </div>
+    <>
+      <SofterPenaltyInfo
+        softPenaltyCutoff={softPenaltyCutoff}
+        freeChombos={freeChombos}
+        leagueId={leagueId}
+        numMatches={stats['Recorded Matches']}
+      />
+      <div className="grid gap-y-1 gap-x-8 mx-6 my-2 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+        {Object.entries(stats).map(([key, value]) => (
+          <div className="flex flex-row justify-between" key={key}>
+            <div className="font-bold">{key}</div>
+            <div>{value}</div>
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
