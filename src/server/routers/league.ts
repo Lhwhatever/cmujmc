@@ -19,6 +19,7 @@ import {
   maskNames,
   NameCoalesced,
   userSelector,
+  coalesceNames,
 } from '../../utils/usernames';
 import { Ranked, TxnAggregate } from '../../utils/ranking';
 import Decimal from 'decimal.js';
@@ -227,20 +228,17 @@ const leagueRouter = router({
       );
 
       const userGroups = await getUserGroups(ctx.session?.user?.id);
+
+      const users = [...rankedUsers, ...unrankedUsers].map(
+        ({ user, ...rest }) => ({
+          user: maskNames(user, userGroups),
+          ...rest,
+        }),
+      );
+
       return {
         lastUpdated: new Date(lastUpdated).toISOString(),
-        rankedUsers: rankedUsers.map(
-          ({ user, ...rest }: Ranked<UserLeagueRecord>) => ({
-            user: maskNames(user, userGroups),
-            ...rest,
-          }),
-        ),
-        unrankedUsers: unrankedUsers.map(
-          ({ user, ...rest }: UserLeagueRecord) => ({
-            user: maskNames(user, userGroups),
-            ...rest,
-          }),
-        ),
+        users,
       };
     }),
 
@@ -315,7 +313,7 @@ const leagueRouter = router({
         where: { leagueId, userId },
         include: {
           match: {
-            select: {
+            include: {
               match: {
                 include: {
                   players: {
@@ -337,10 +335,15 @@ const leagueRouter = router({
           const match = matchWrapper?.match
             ? {
                 ...matchWrapper.match,
+                userAt: matchWrapper.match.players.findIndex(
+                  ({ player }) => player?.id === userId,
+                ),
                 players: matchWrapper.match.players.map(
                   ({ player, ...other }) => ({
                     ...other,
-                    player: player ? maskNames(player, userGroups) : null,
+                    player: player
+                      ? maskNames(coalesceNames(player), userGroups)
+                      : null,
                   }),
                 ),
               }

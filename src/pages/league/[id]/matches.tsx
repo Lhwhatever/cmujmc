@@ -9,7 +9,6 @@ import PlacementRange from '../../../components/display/PlacementRange';
 import MatchPlayerName from '../../../components/display/MatchPlayerName';
 import { redirect } from 'next/navigation';
 import Heading from '../../../components/Heading';
-import Link from 'next/link';
 
 type ContentProps = {
   leagueId: number;

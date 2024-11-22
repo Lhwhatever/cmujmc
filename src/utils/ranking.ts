@@ -87,6 +87,10 @@ export type Ranked<T extends IRankableUser> = Omit<T, 'rank'> & {
   rank: number;
 };
 
+export type MaybeRanked<T extends IRankableUser> = Omit<T, 'rank'> & {
+  rank?: number;
+};
+
 export const rankUsers = <T extends IRankableUser>(
   leagueId: number,
   users: T[],

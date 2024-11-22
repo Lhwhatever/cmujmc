@@ -19,6 +19,7 @@ export const computeMatchStats = (
 ) => {
   let numMatches = 0;
   let numChombos = 0;
+  let chomboLoss = new Decimal(0);
   let gl = new Decimal(0);
 
   let highScore: number | null = null;
@@ -33,12 +34,13 @@ export const computeMatchStats = (
         ++numMatches;
         gl = gl.add(new Decimal(delta));
         if (match != null) {
-          scoreSum += match.rawScore ?? 0;
-          highScore = nullMax(highScore, match.rawScore);
-          if (match.placementMin !== null && match.placementMax !== null) {
-            rankSum += (match.placementMin + match.placementMax) / 2;
-            if (match.placementMin === match.placementMax) {
-              const placement = match.placementMin as keyof typeof placements;
+          const user = match.players[match.userAt];
+          scoreSum += user.rawScore ?? 0;
+          highScore = nullMax(highScore, user.rawScore);
+          if (user.placementMin !== null && user.placementMax !== null) {
+            rankSum += (user.placementMin + user.placementMax) / 2;
+            if (user.placementMin === user.placementMax) {
+              const placement = user.placementMin as keyof typeof placements;
               placements[placement] = 1 + placements[placement];
             } else {
               ++ties;
@@ -48,6 +50,7 @@ export const computeMatchStats = (
         break;
       case TransactionType.CHOMBO:
         ++numChombos;
+        chomboLoss = chomboLoss.add(delta);
         break;
     }
   }
@@ -80,11 +83,10 @@ export const computeMatchStats = (
     '4th Rate': formatter.number(placements[4] / numMatches, percentStyle),
     'Tie Rate': formatter.number(ties / numMatches, percentStyle),
     'Average rank': formatter.number(rankSum / numMatches, decimalStyle),
-    Chombos: numChombos,
-    'G/L per Match': formatter.number(
-      gl.div(numMatchesDecimal).toNumber(),
-      decimalStyle,
-    ),
+    Chombos: `${formatter.number(numChombos)} (${chomboLoss.toString()} PT)`,
+    'G/L per Match':
+      formatter.number(gl.div(numMatchesDecimal).toNumber(), decimalStyle) +
+      ' PT',
     'High Score': formatter.number(highScore!),
     'Mean Score': formatter.number(scoreSum / numMatches, decimalStyle),
   };

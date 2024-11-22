@@ -7,6 +7,7 @@ import {
 } from '../../utils/usernames';
 import {
   aggregateTxns,
+  MaybeRanked,
   orderUnrankedUsers,
   Ranked,
   rankUsers,
@@ -23,7 +24,7 @@ export type UserLeagueRecord = {
 export type Leaderboard = {
   lastUpdated: number;
   rankedUsers: Ranked<UserLeagueRecord>[];
-  unrankedUsers: UserLeagueRecord[];
+  unrankedUsers: MaybeRanked<UserLeagueRecord>[];
 };
 
 export default async function computeLeaderboard(
