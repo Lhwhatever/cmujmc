@@ -326,6 +326,9 @@ const leagueRouter = router({
             },
           },
         },
+        orderBy: {
+          time: 'desc',
+        },
       });
 
       const userGroups = await getUserGroups(userId);

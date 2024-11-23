@@ -8,6 +8,7 @@ import PlacementRange from './PlacementRange';
 import { renderPlayerName } from '../../utils/usernames';
 import { useSession } from 'next-auth/react';
 import clsx from 'clsx';
+import Decimal from 'decimal.js';
 
 type Match = NonNullable<
   RouterOutputs['leagues']['scoreHistory']['txns'][number]['match']
@@ -70,7 +71,7 @@ export default function ScoreHistory({ leagueId }: ScoreHistoryProps) {
   const { txns } = query.data;
 
   return (
-    <div className="flex flex-col-reverse gap-2">
+    <div className="flex flex-col gap-2">
       {txns.map(({ id, delta, time, match, description, type }) => {
         return (
           <div key={id} className="flex flex-col rounded-xl shadow p-4 gap-1">
@@ -87,7 +88,7 @@ export default function ScoreHistory({ leagueId }: ScoreHistoryProps) {
                   <DateTime date={time} format={timeFormat} />
                 </div>
               </div>
-              <div className="text-2xl">{delta} PT</div>
+              <div className="text-2xl">{new Decimal(delta).toFixed(1)} PT</div>
             </div>
             {type === TransactionType.MATCH_RESULT && (
               <MatchResult match={match!} />
