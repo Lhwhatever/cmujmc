@@ -21,6 +21,7 @@ export const computeMatchStats = (
   let numChombos = 0;
   let chomboLoss = new Decimal(0);
   let gl = new Decimal(0);
+  let glsq = new Decimal(0);
 
   let highScore: number | null = null;
   let scoreSum = 0;
@@ -32,7 +33,10 @@ export const computeMatchStats = (
     switch (type) {
       case TransactionType.MATCH_RESULT:
         ++numMatches;
-        gl = gl.add(new Decimal(delta));
+
+        const deltaDecimal = new Decimal(delta);
+        gl = gl.add(deltaDecimal);
+        glsq = glsq.add(deltaDecimal.mul(deltaDecimal));
         if (match != null) {
           const user = match.players[match.userAt];
           scoreSum += user.rawScore ?? 0;
@@ -74,6 +78,7 @@ export const computeMatchStats = (
   }
 
   const numMatchesDecimal = new Decimal(numMatches);
+  const stdev = glsq.minus(gl.mul(gl)).sqrt().div(numMatchesDecimal);
 
   return {
     'Recorded Matches': numMatches,
@@ -87,6 +92,7 @@ export const computeMatchStats = (
     'G/L per Match':
       formatter.number(gl.div(numMatchesDecimal).toNumber(), decimalStyle) +
       ' PT',
+    StDev: stdev.toFixed(2) + ' PT',
     'High Score': formatter.number(highScore!),
     'Mean Score': formatter.number(scoreSum / numMatches, decimalStyle),
   };

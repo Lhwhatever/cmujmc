@@ -1,30 +1,12 @@
 import React, { useState } from 'react';
-import { RouterOutputs, trpc } from '../../utils/trpc';
-import { TransactionType } from '@prisma/client';
+z;
+import { trpc } from '../../utils/trpc';
 import Button from '../Button';
 import Dialog from '../Dialog';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import InputField from '../form/InputField';
-
-type Txns = RouterOutputs['leagues']['scoreHistory']['txns'];
-
-const computeMatchStats = (txns: Txns) => {
-  let numMatches = 0;
-  let numChombos = 0;
-  for (const { type } of txns) {
-    switch (type) {
-      case TransactionType.MATCH_RESULT:
-        ++numMatches;
-        break;
-      case TransactionType.CHOMBO:
-        ++numChombos;
-        break;
-    }
-  }
-  return { numMatches, numChombos };
-};
 
 type SofterPenaltyApplicationDialogProps = {
   leagueId: number;

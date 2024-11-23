@@ -25,11 +25,7 @@ import RankedEventDetails, {
 import MatchEntryDialog, {
   RankedMatch,
 } from '../../../components/display/MatchEntryDialog';
-import DateTime from '../../../components/DateTime';
-import PlacementRange from '../../../components/display/PlacementRange';
-import MatchPlayerName from '../../../components/display/MatchPlayerName';
 import Leaderboard from '../../../components/display/Leaderboad';
-import { useFormatter } from 'next-intl';
 import { PersonalStats } from '../../../components/display/PersonalStats';
 import ScoreHistory from '../../../components/display/ScoreHistory';
 import Link from 'next/link';
@@ -372,7 +368,7 @@ export default function League() {
             matches are shown.
           </p>
         </div>
-        {session.data && (
+        {session.data && userInfo && (
           <div>
             <Heading level="h3">
               {session.data.user?.name}&apos;s History

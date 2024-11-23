@@ -15,23 +15,14 @@ import { Prisma, Status, TransactionType } from '@prisma/client';
 import { computeTransactions, umaSelector } from '../../utils/scoring';
 import {
   getUserGroups,
-  User,
   maskNames,
-  NameCoalesced,
   userSelector,
   coalesceNames,
 } from '../../utils/usernames';
-import { Ranked, TxnAggregate } from '../../utils/ranking';
 import Decimal from 'decimal.js';
 import { z } from 'zod';
 import { getLeaderboard } from '../leaderboard/leaderboard';
 import { markStale } from '../leaderboard/worker';
-
-type UserLeagueRecord = {
-  user: NameCoalesced<User>;
-  agg: TxnAggregate;
-  softPenalty: boolean;
-};
 
 const leagueRouter = router({
   list: publicProcedure.query(async () => {
