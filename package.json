@@ -54,6 +54,7 @@
     "cache-manager": "^6.1.2",
     "cacheable": "^1.8.3",
     "clsx": "^2.0.0",
+    "corepack": "^0.31.0",
     "date-fns": "^4.1.0",
     "decimal.js": "^10.4.3",
     "fuse.js": "^7.0.0",
