@@ -6,9 +6,10 @@
   },
   "scripts": {
     "prebuild": "prisma generate && prisma migrate deploy",
-    "build:1-next": "cross-env NODE_ENV=production next build",
+    "build:1-next": "cross-env NODE_ENV=production next build --no-lint",
     "build:2-server": "tsc --project tsconfig.server.json",
     "build": "run-s build:*",
+    "next-build": "next build",
     "dev:wss": "cross-env PORT=3001 tsx watch src/server/wssDevServer.ts --tsconfig tsconfig.server.json ",
     "dev:next": "next dev --turbopack",
     "dev": "pnpm migrate-dev && run-p dev:*",

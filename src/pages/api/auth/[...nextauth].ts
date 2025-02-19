@@ -1,5 +1,5 @@
 import { createCache } from 'cache-manager';
-import { Adapter, AdapterAccount } from 'next-auth/adapters';
+import { Adapter, AdapterAccount, AdapterUser } from 'next-auth/adapters';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import { prisma } from '../../../server/prisma';
 import { User } from '../../../utils/usernames';
@@ -10,7 +10,7 @@ const newUserDataCache = createCache({ ttl: 180000 });
 
 export const adapter: Adapter = {
   ...PrismaAdapter(prisma),
-  createUser: async (user) =>
+  createUser: async (user: Omit<AdapterUser, 'id'>) =>
     prisma.user.create({
       data: {
         displayName: user.name,
@@ -23,7 +23,7 @@ export const adapter: Adapter = {
       where: { id },
       data: { displayName: data.name, ...data },
     }),
-  linkAccount: async (data) => {
+  linkAccount: async (data: AdapterAccount) => {
     await prisma.account.create({ data });
     const value = await newUserDataCache.get<Partial<User>>(data.userId);
     if (value !== null) {
