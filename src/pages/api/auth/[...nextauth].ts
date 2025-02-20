@@ -2,43 +2,57 @@ import { createCache } from 'cache-manager';
 import { Adapter, AdapterAccount, AdapterUser } from 'next-auth/adapters';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import { prisma } from '../../../server/prisma';
-import { User } from '../../../utils/usernames';
 import NextAuth, { AuthOptions, DefaultSession } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
+
+const andrewPattern = new RegExp('([A-Za-z0-9]+)@(andrew|alumni).cmu.edu');
+
+const tryExtractAndrewId = (email: string) => {
+  const match = email.match(andrewPattern);
+  return match ? match[1] : null;
+};
 
 const newUserDataCache = createCache({ ttl: 180000 });
 
 export const adapter: Adapter = {
   ...PrismaAdapter(prisma),
-  createUser: async (user: Omit<AdapterUser, 'id'>) =>
-    prisma.user.create({
+  createUser: async ({ id: _, ...user }: AdapterUser) => {
+    return prisma.user.create({
       data: {
         displayName: user.name,
         name: user.name,
         email: user.email,
+        andrew: tryExtractAndrewId(user.email),
+        emailVerified: user.emailVerified,
       },
-    }),
-  updateUser: async ({ id, ...data }) =>
-    prisma.user.update({
-      where: { id },
-      data: { displayName: data.name, ...data },
-    }),
-  linkAccount: async (data: AdapterAccount) => {
-    await prisma.account.create({ data });
-    const value = await newUserDataCache.get<Partial<User>>(data.userId);
-    if (value !== null) {
-      await prisma.user.update({
-        where: { id: data.userId },
-        data: value,
-      });
+    });
+  },
+  getUserByEmail: async (email: string) => {
+    const andrew = tryExtractAndrewId(email);
+    if (andrew) {
+      return prisma.user.findFirst({ where: { andrew } });
     }
-    return data;
+    return prisma.user.findUnique({ where: { email } });
+  },
+  updateUser: async ({ id, ...data }) => {
+    const andrew = (data.email && tryExtractAndrewId(data.email)) ?? undefined;
+    return prisma.user.update({
+      where: { id },
+      data: { displayName: data.name, andrew, ...data },
+    });
+  },
+  linkAccount: async ({ type, ...data }: AdapterAccount) => {
+    await prisma.account.create({
+      data: {
+        ...data,
+        providerType: type,
+      },
+    });
   },
   unlinkAccount: async (provider_providerAccountId) => {
-    const account = await prisma.account.delete({
+    await prisma.account.delete({
       where: { provider_providerAccountId },
     });
-    return account as unknown as AdapterAccount;
   },
 };
 
@@ -50,8 +64,6 @@ declare module 'next-auth' {
     } & DefaultSession['user'];
   }
 }
-
-const andrewPattern = new RegExp('([A-Za-z0-9]+)@andrew.cmu.edu');
 
 export const authOptions: AuthOptions = {
   adapter,

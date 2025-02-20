@@ -20,6 +20,9 @@ importers:
       '@hookform/resolvers':
         specifier: ^3.9.0
         version: 3.9.0(react-hook-form@7.53.0(react@19.0.0))
+      '@next-auth/prisma-adapter':
+        specifier: ^1.0.7
+        version: 1.0.7(@prisma/client@6.4.0(prisma@6.4.0(typescript@5.6.2))(typescript@5.6.2))(next-auth@4.24.11(next@15.1.7(@playwright/test@1.47.0)(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(react-dom@19.0.0(react@19.0.0))(react@19.0.0))
       '@prisma/client':
         specifier: ^6.4.0
         version: 6.4.0(prisma@6.4.0(typescript@5.6.2))(typescript@5.6.2)
@@ -699,6 +702,12 @@ packages:
 
   '@keyv/serialize@1.0.1':
     resolution: {integrity: sha512-kKXeynfORDGPUEEl2PvTExM2zs+IldC6ZD8jPcfvI351MDNtfMlw9V9s4XZXuJNDK2qR5gbEKxRyoYx3quHUVQ==}
+
+  '@next-auth/prisma-adapter@1.0.7':
+    resolution: {integrity: sha512-Cdko4KfcmKjsyHFrWwZ//lfLUbcLqlyFqjd/nYE2m3aZ7tjMNUjpks47iw7NTCnXf+5UWz5Ypyt1dSs1EP5QJw==}
+    peerDependencies:
+      '@prisma/client': '>=2.26.0 || >=3'
+      next-auth: ^4
 
   '@next/env@15.1.7':
     resolution: {integrity: sha512-d9jnRrkuOH7Mhi+LHav2XW91HOgTAWHxjMPkXMGBc9B2b7614P7kjt8tAplRvJpbSt4nbO1lugcT/kAaWzjlLQ==}
@@ -3356,6 +3365,11 @@ snapshots:
   '@keyv/serialize@1.0.1':
     dependencies:
       buffer: 6.0.3
+
+  '@next-auth/prisma-adapter@1.0.7(@prisma/client@6.4.0(prisma@6.4.0(typescript@5.6.2))(typescript@5.6.2))(next-auth@4.24.11(next@15.1.7(@playwright/test@1.47.0)(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(react-dom@19.0.0(react@19.0.0))(react@19.0.0))':
+    dependencies:
+      '@prisma/client': 6.4.0(prisma@6.4.0(typescript@5.6.2))(typescript@5.6.2)
+      next-auth: 4.24.11(next@15.1.7(@playwright/test@1.47.0)(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
 
   '@next/env@15.1.7': {}
 
