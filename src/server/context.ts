@@ -3,6 +3,7 @@ import { CreateWSSContextFnOptions } from '@trpc/server/src/adapters/ws';
 import { auth } from '../auth/auth';
 import { GetServerSidePropsContext } from 'next';
 import { ServerResponse } from 'http';
+import * as cookie from 'cookie';
 
 function isCreateNextContextOptions(
   opts: CreateNextContextOptions | CreateWSSContextFnOptions,
@@ -19,11 +20,13 @@ export const createContext = async (
 ) => {
   if (isCreateNextContextOptions(opts)) {
     const session = await auth(opts.req, opts.res);
+    console.log('creating next context', session);
     return { session };
   }
 
+  const cookies = cookie.parse(opts.req.headers.cookie ?? '');
   const req: GetServerSidePropsContext['req'] = Object.assign(
-    { cookies: {} },
+    { cookies },
     opts.req,
   );
 
@@ -37,6 +40,9 @@ export const createContext = async (
   } as unknown as ServerResponse;
 
   const session = await auth(req, res);
+
+  //console.log('creating ws context', req, session);
+
   return { session };
 };
 

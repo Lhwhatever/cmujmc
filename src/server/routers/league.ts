@@ -1,9 +1,9 @@
 import {
   adminProcedure,
   authedProcedure,
+  AuthorizationError,
   publicProcedure,
   router,
-  throwUnauthorized,
 } from '../trpc';
 import { prisma } from '../prisma';
 import { TRPCError } from '@trpc/server';
@@ -134,7 +134,10 @@ const leagueRouter = router({
         }
 
         if (league.invitational) {
-          throwUnauthorized();
+          new AuthorizationError({
+            user: ctx.user,
+            reason: 'Cannot self-register for invitational event.',
+          }).logAndThrow();
         }
 
         const matches = await tx.userMatch.findMany({
