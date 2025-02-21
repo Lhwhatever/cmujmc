@@ -68,7 +68,7 @@
     "next-intl": "^3.26.4",
     "react": "19.0.0",
     "react-dom": "19.0.0",
-    "react-hook-form": "^7.53.0",
+    "react-hook-form": "^7.54.2",
     "superjson": "^1.12.4",
     "tailwind-merge": "^2.5.4",
     "tsx": "^4.0.0",
