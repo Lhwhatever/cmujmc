@@ -3,6 +3,8 @@
 FROM node:20-alpine AS base
 LABEL authors="lh"
 
+RUN npm i -g corepack@latest
+
 # Install dependencies only when needed
 FROM base AS deps
 
@@ -26,6 +28,8 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 RUN corepack enable pnpm
+
+ENV PRISMA_CLI_BINARY_TARGETS="linux-musl-openssl-3.0.x"
 
 RUN --mount=type=secret,id=env,target=./.env \
     pnpm run build

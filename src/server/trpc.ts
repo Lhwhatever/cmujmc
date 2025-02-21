@@ -26,8 +26,44 @@ const t = initTRPC.context<Context>().create({
   },
 });
 
-export function throwUnauthorized(): never {
-  throw new TRPCError({ code: 'UNAUTHORIZED' });
+interface AuthorizationUserParams {
+  id: string;
+  name?: string | null;
+}
+
+interface AuthorizationErrorParams {
+  reason?: string;
+  user?: AuthorizationUserParams | null;
+}
+
+const prettyUser = (user: AuthorizationUserParams) => {
+  const id = user.id.slice(-6);
+  return `user ${user.name} (id ends with ${id})`;
+};
+
+export class AuthorizationError extends TRPCError {
+  params: AuthorizationErrorParams;
+
+  constructor(params: AuthorizationErrorParams) {
+    super({ code: 'UNAUTHORIZED' });
+    this.params = params;
+  }
+
+  prettyUser() {
+    return this.params.user
+      ? prettyUser(this.params.user)
+      : 'unauthenticated user';
+  }
+
+  logAndThrow(): never {
+    console.warn(
+      `Authorization: Denied ${this.prettyUser()}. Reason: ${
+        this.params.reason
+      }.\nStack trace:`,
+      this.stack,
+    );
+    throw this;
+  }
 }
 
 /**
@@ -51,18 +87,35 @@ export const mergeRouters = t.mergeRouters;
  * Protected base procedure
  */
 export const authedProcedure = t.procedure.use(function isAuthed(opts) {
-  console.log('Running authed procedure');
-  const user = opts.ctx.session?.user;
-  if (!user?.id) throwUnauthorized();
+  const user =
+    opts.ctx.session?.user ??
+    new AuthorizationError({
+      reason: 'Procedure requires authentication',
+    }).logAndThrow();
+
+  console.debug(`Authorization passed for: ${user.name}`);
   return opts.next({
     ctx: { user },
   });
 });
 
+const adminReason = 'Procedure requires admin privileges';
+
 export const adminProcedure = t.procedure.use(async function isAdmin(opts) {
-  const id = opts.ctx.session?.user?.id ?? throwUnauthorized();
-  const user = await prisma.user.findUnique({ where: { id } });
-  if (!user?.admin) throwUnauthorized();
+  const id =
+    opts.ctx.session?.user?.id ??
+    new AuthorizationError({
+      reason: adminReason,
+    }).logAndThrow();
+
+  const user = await prisma.user.findUniqueOrThrow({ where: { id } });
+  if (!user.admin)
+    new AuthorizationError({
+      reason: adminReason,
+      user,
+    }).logAndThrow();
+
+  console.debug(`Authorization passed for admin procedure: ${user.name}`);
   return opts.next({
     ctx: { user },
   });

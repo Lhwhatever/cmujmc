@@ -21,7 +21,7 @@ void app.prepare().then(() => {
     const parsedUrl = parse(req.url, true);
     void handle(req, res, parsedUrl);
   });
-  const wss = new WebSocketServer({ server });
+  const wss = new WebSocketServer({ noServer: true });
   const handler = applyWSSHandler({ wss, router: appRouter, createContext });
 
   process.on('SIGTERM', () => {

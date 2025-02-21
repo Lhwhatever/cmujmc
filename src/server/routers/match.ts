@@ -1,8 +1,8 @@
 import {
   authedProcedure,
+  AuthorizationError,
   publicProcedure,
   router,
-  throwUnauthorized,
 } from '../trpc';
 import schema from '../../protocol/schema';
 import { prisma } from '../prisma';
@@ -25,14 +25,14 @@ import {
   userSelector,
 } from '../../utils/usernames';
 import { markStale } from '../leaderboard/worker';
+import { Session } from 'next-auth';
 
 //==================== for create ====================
 
 const validateCreateMatchPlayers = async (
   players: z.infer<typeof schema.match.create>['players'],
   gameMode: GameMode,
-  requesterRole: 'admin' | 'user',
-  requesterId: string,
+  requester: Session['user'],
 ) => {
   let hasSubmittingPlayer = false;
   let registeredPlayers = new Set();
@@ -50,13 +50,15 @@ const validateCreateMatchPlayers = async (
           throw new NotFoundError('user', id);
         }
         registeredPlayers = registeredPlayers.add(id);
-        hasSubmittingPlayer = hasSubmittingPlayer || id === requesterId;
+        hasSubmittingPlayer = hasSubmittingPlayer || id === requester.id;
         break;
     }
   }
 
-  if (requesterRole !== 'admin' && !hasSubmittingPlayer) {
-    throwUnauthorized();
+  if (requester.role !== 'admin' && !hasSubmittingPlayer) {
+    new AuthorizationError({
+      reason: 'Cannot submit on behalf of other players as non-admin',
+    }).logAndThrow();
   }
 
   if (
@@ -98,7 +100,7 @@ const validateInRecord = (
       match.status !== Status.PENDING ||
       match.players.every(({ playerId }) => playerId !== requesterId))
   ) {
-    throwUnauthorized();
+    new AuthorizationError({}).logAndThrow();
   }
 
   if (input.players.length !== match.players.length) {
@@ -173,8 +175,7 @@ const matchRouter = router({
       await validateCreateMatchPlayers(
         input.players,
         event.ruleset.gameMode,
-        ctx.user.role,
-        ctx.user.id,
+        ctx.user,
       );
 
       const match = await prisma.match.create({
