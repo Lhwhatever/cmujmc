@@ -1,4 +1,3 @@
-import React from 'react';
 import Page from '../../components/Page';
 import Heading from '../../components/Heading';
 import { useSession } from 'next-auth/react';
@@ -19,10 +18,10 @@ import Button from '../../components/Button';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 
-type ProfileFormProps = {
+interface ProfileFormProps {
   name: string | null;
   displayName: string | null;
-};
+}
 
 const ProfileForm = ({ name, displayName }: ProfileFormProps) => {
   const router = useRouter();

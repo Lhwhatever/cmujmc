@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import ComboboxField from './form/ComboboxField';
 import { RouterOutputs } from '../utils/trpc';
 import Fuse from 'fuse.js';
@@ -10,13 +10,13 @@ export type UserOption =
   | { type: 'registered'; payload: User }
   | { type: 'unregistered'; payload: string };
 
-export type UserComboBoxProps = {
+export interface UserComboBoxProps {
   label?: string;
   userList: User[] | null;
   user: UserOption | null;
-  onUserChange: (user: UserOption | null) => void;
+  onUserChange: (_user: UserOption | null) => void;
   required?: boolean;
-};
+}
 
 const displayUser = (user: UserOption | null): string => {
   if (user === null) return '';

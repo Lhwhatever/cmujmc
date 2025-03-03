@@ -10,9 +10,9 @@ import MatchPlayerName from '../../../components/display/MatchPlayerName';
 import { redirect } from 'next/navigation';
 import Heading from '../../../components/Heading';
 
-type ContentProps = {
+interface ContentProps {
   leagueId: number;
-};
+}
 
 const Content = ({ leagueId }: ContentProps) => {
   const league = trpc.matches.getCompletedByLeague.useQuery(leagueId);
@@ -52,16 +52,14 @@ const Content = ({ leagueId }: ContentProps) => {
               unregisteredPlaceholder,
             }) => (
               <React.Fragment key={playerPosition}>
-                <PlacementRange min={placementMin!} max={placementMax!} />
+                <PlacementRange min={placementMin} max={placementMax} />
                 <div>
                   <MatchPlayerName
                     player={player}
                     unregisteredPlaceholder={unregisteredPlaceholder}
                   />
                 </div>
-                <div className="text-right mr-2">
-                  {rawScore !== null ? format.number(rawScore) : '???'}
-                </div>
+                <div className="text-right mr-2">{format.number(rawScore)}</div>
               </React.Fragment>
             ),
           )}

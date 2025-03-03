@@ -23,6 +23,7 @@ import Decimal from 'decimal.js';
 import { z } from 'zod';
 import { getLeaderboard } from '../leaderboard/leaderboard';
 import { markStale } from '../leaderboard/worker';
+import assertNonNull from '../../utils/nullcheck';
 
 const leagueRouter = router({
   list: publicProcedure.query(async () => {
@@ -108,7 +109,7 @@ const leagueRouter = router({
       }
 
       const { users, ...rest } = league;
-      const userInfo = users ? (users.length > 0 ? users[0] : null) : null;
+      const userInfo = users.length > 0 ? users[0] : null;
       return { league: rest, userInfo };
     }),
 
@@ -188,14 +189,14 @@ const leagueRouter = router({
               playerPosition,
               leagueId,
               time: match.time,
-              chombos: chombos!,
+              chombos: assertNonNull(chombos, 'chombos'),
               freeChombos: null,
               chomboDelta: match.ruleset.chomboDelta,
               returnPts: match.ruleset.returnPts,
               uma: match.ruleset.uma.map(({ value }) => value),
-              rawScore: rawScore!,
-              placementMin: placementMin!,
-              placementMax: placementMax!,
+              rawScore: assertNonNull(rawScore, 'rawScore'),
+              placementMin: assertNonNull(placementMin, 'placementMin'),
+              placementMax: assertNonNull(placementMax, 'placementMax'),
             }).txns,
         );
 
@@ -303,6 +304,7 @@ const leagueRouter = router({
     .input(z.number())
     .query(async ({ input: leagueId, ctx }) => {
       const { id: userId } = ctx.user;
+
       const txns = await prisma.userLeagueTransaction.findMany({
         where: { leagueId, userId },
         include: {
@@ -328,29 +330,49 @@ const leagueRouter = router({
       const userGroups = await getUserGroups(userId);
 
       return {
-        txns: txns.map(({ delta, match: matchWrapper, ...other }) => {
-          const match = matchWrapper?.match
-            ? {
-                ...matchWrapper.match,
-                userAt: matchWrapper.match.players.findIndex(
-                  ({ player }) => player?.id === userId,
-                ),
-                players: matchWrapper.match.players.map(
-                  ({ player, ...other }) => ({
-                    ...other,
-                    player: player
-                      ? maskNames(coalesceNames(player), userGroups)
-                      : null,
-                  }),
-                ),
-              }
-            : null;
-
-          return {
-            ...other,
-            match,
+        txns: txns.map((txn) => {
+          const { type, delta, match: matchWrapper, ...txnOther } = txn;
+          const protoResult = {
             delta: delta.toString(),
+            ...txnOther,
           };
+
+          switch (type) {
+            case TransactionType.MATCH_RESULT: {
+              const { players, ...matchOther } = assertNonNull(
+                matchWrapper,
+                'match',
+              ).match;
+              return {
+                ...protoResult,
+                type,
+                match: {
+                  ...matchOther,
+                  userAt: players.findIndex(
+                    ({ player }) => player?.id === userId,
+                  ),
+                  players: players.map(
+                    ({ player, placementMin, placementMax, ...other }) => ({
+                      ...other,
+                      placementMin: assertNonNull(placementMin, 'placementMin'),
+                      placementMax: assertNonNull(placementMax, 'placementMax'),
+                      player: player
+                        ? maskNames(coalesceNames(player), userGroups)
+                        : null,
+                    }),
+                  ),
+                },
+              };
+            }
+            case TransactionType.INITIAL:
+            case TransactionType.CHOMBO:
+            case TransactionType.OTHER_MOD:
+              return {
+                ...protoResult,
+                type,
+                match: null,
+              };
+          }
         }),
       };
     }),

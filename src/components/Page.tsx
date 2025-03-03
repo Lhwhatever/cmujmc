@@ -3,10 +3,10 @@ import Head from 'next/head';
 import Navbar from './Navbar';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 
-export type PageProps = {
+export interface PageProps {
   title?: string;
   children?: React.ReactNode;
-};
+}
 
 export default function Page({ children, title }: PageProps) {
   return (

@@ -4,13 +4,14 @@ import process from 'node:process';
 import readline from 'node:readline/promises';
 import { computeTransactions, umaSelector } from './utils/scoring';
 
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 const prisma = new PrismaClient();
 
 async function queryUser<T>(
   rl: readline.Interface,
   prompt: string,
   choices: T[],
-  fmt: (t: T) => string,
+  fmt: (_: T) => string,
 ) {
   if (choices.length === 0) throw 'Empty';
   const response = await rl.question(

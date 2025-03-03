@@ -9,20 +9,20 @@ import {
 import FieldLabel from './FieldLabel';
 import clsx from 'clsx';
 
-type DummyEntryProps = {
+interface DummyEntryProps {
   children?: React.ReactNode;
-};
+}
 
 const DummyEntry = ({ children }: DummyEntryProps) => {
   return <div className="block px-4 py-2 text-gray-600">{children}</div>;
 };
 
-type OptionsProps<T, K extends React.Key> = {
-  onChange: (value: T) => void;
-  keyOf?: (value: T) => K;
+interface OptionsProps<T, K extends React.Key> {
+  onChange: (_: T) => void;
+  keyOf?: (_: T) => K;
   options: T[];
-  displayValue: (value: T) => string;
-};
+  displayValue: (_: T) => string;
+}
 
 const Options = <T, K extends React.Key>({
   options,
@@ -51,17 +51,17 @@ const Options = <T, K extends React.Key>({
   );
 };
 
-export type ComboboxFieldProps<T, K extends React.Key> = {
-  onChange: (value: T) => void;
-  keyOf?: (value: T) => K;
+export interface ComboboxFieldProps<T, K extends React.Key> {
+  onChange: (_: T) => void;
+  keyOf?: (_: T) => K;
   options: T[] | null;
-  displayValue: (value: T) => string;
+  displayValue: (_: T) => string;
   label?: string;
   required?: boolean;
   value: T;
   query: string;
-  onQueryChange: (query: string) => void;
-};
+  onQueryChange: (_: string) => void;
+}
 
 export default function ComboboxField<T, K extends React.Key>({
   label,
@@ -74,7 +74,7 @@ export default function ComboboxField<T, K extends React.Key>({
   keyOf,
 }: ComboboxFieldProps<T, K>) {
   const [isDirty, setIsDirty] = useState(false);
-  const hasErrors = (value === null && isDirty && required)!;
+  const hasErrors = value === null && isDirty && required;
 
   const inputClasses = clsx(
     'block bg-gray-50 border text-sm rounded-lg w-full p-2.5',

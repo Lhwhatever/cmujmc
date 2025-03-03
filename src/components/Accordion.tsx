@@ -6,11 +6,11 @@ import {
 } from '@headlessui/react';
 import { ChevronDownIcon } from '@heroicons/react/24/solid';
 
-export type AccordionSegmentProps = {
+export interface AccordionSegmentProps {
   heading: React.ReactNode;
   children?: React.ReactNode;
   defaultOpen?: boolean;
-};
+}
 
 export const AccordionSegment = ({
   heading,
@@ -30,9 +30,9 @@ export const AccordionSegment = ({
   );
 };
 
-export type AccordionProps = {
+export interface AccordionProps {
   children?: React.ReactNode;
-};
+}
 
 export default function Accordion({ children }: AccordionProps) {
   return (

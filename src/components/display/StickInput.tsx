@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -7,9 +7,9 @@ import InputField from '../form/InputField';
 import PointStick from '../PointStick';
 import FieldLabel from '../form/FieldLabel';
 
-export type StickInputProps = {
-  onChange: (value: number) => void;
-};
+export interface StickInputProps {
+  onChange: (_: number) => void;
+}
 
 const schema = z.object({
   '100': z.number().int().min(0),

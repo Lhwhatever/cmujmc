@@ -15,17 +15,17 @@ import {
   txnsSelector,
 } from '../../utils/ranking';
 
-export type UserLeagueRecord = {
+export interface UserLeagueRecord {
   user: NameCoalesced<User>;
   agg: TxnAggregate;
   softPenalty: boolean;
-};
+}
 
-export type Leaderboard = {
+export interface Leaderboard {
   lastUpdated: number;
   rankedUsers: Ranked<UserLeagueRecord>[];
   unrankedUsers: MaybeRanked<UserLeagueRecord>[];
-};
+}
 
 export default async function computeLeaderboard(
   leagueId: number,

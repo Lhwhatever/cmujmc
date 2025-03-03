@@ -6,12 +6,12 @@ import {
   DialogTitle,
 } from '@headlessui/react';
 
-export type DialogProps = {
+export interface DialogProps {
   open: boolean;
   onClose: () => void;
   title?: React.ReactNode;
   children?: React.ReactNode;
-};
+}
 
 export default function Dialog({
   open,

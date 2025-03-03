@@ -1,12 +1,11 @@
-import React from 'react';
 import { RouterOutputs, trpc } from '../../utils/trpc';
 import Table, { TableCell, TableHeading, TableRow } from '../Table';
 import Loading from '../Loading';
 import { renderAliases } from '../../utils/usernames';
 
-type UserTableProps = {
+interface UserTableProps {
   users: RouterOutputs['user']['listAll']['users'];
-};
+}
 
 const UserTable = ({ users }: UserTableProps) => {
   return (

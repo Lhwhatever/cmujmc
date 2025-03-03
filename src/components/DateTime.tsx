@@ -1,18 +1,17 @@
-import React from 'react';
 import {
   useFormatter,
   DateTimeFormatOptions,
   NextIntlClientProvider,
 } from 'next-intl';
 
-type RelativeVariant = {
+interface RelativeVariant {
   relative: true;
-};
+}
 
-type AbsoluteVariant = {
+interface AbsoluteVariant {
   relative?: false;
   format?: DateTimeFormatOptions;
-};
+}
 
 type Variants = RelativeVariant | AbsoluteVariant;
 

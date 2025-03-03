@@ -1,5 +1,4 @@
 import { Field, Textarea } from '@headlessui/react';
-import React from 'react';
 import { FieldPath, FieldValues } from 'react-hook-form';
 import { IFieldProps } from './baseTypes';
 import clsx from 'clsx';

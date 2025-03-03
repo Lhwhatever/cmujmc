@@ -10,11 +10,11 @@ const styles = {
   h6: 'text-lg font-bold',
 };
 
-export type HeadingProps = {
+export interface HeadingProps {
   level: keyof typeof styles;
   children?: React.ReactNode;
   className?: string;
-};
+}
 
 export default function Heading({ level, children, className }: HeadingProps) {
   return React.createElement(

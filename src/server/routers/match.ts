@@ -26,6 +26,7 @@ import {
 } from '../../utils/usernames';
 import { markStale } from '../leaderboard/worker';
 import { Session } from 'next-auth';
+import assertNonNull from '../../utils/nullcheck';
 
 //==================== for create ====================
 
@@ -43,7 +44,7 @@ const validateCreateMatchPlayers = async (
       case 'unregistered':
         unregisteredPlayers = unregisteredPlayers.add(player.payload);
         break;
-      case 'registered':
+      case 'registered': {
         const id = player.payload;
         const user = await prisma.user.findUnique({ where: { id } });
         if (user === null) {
@@ -52,6 +53,7 @@ const validateCreateMatchPlayers = async (
         registeredPlayers = registeredPlayers.add(id);
         hasSubmittingPlayer = hasSubmittingPlayer || id === requester.id;
         break;
+      }
     }
   }
 
@@ -348,7 +350,19 @@ const matchRouter = router({
         orderBy: { time: 'desc' },
       });
       return {
-        matches: matches.map((match) => transformMatch(match, userGroups)),
+        matches: matches.map(({ players, ...matchOther }) => ({
+          players: players.map((player) => {
+            const { placementMin, placementMax, rawScore, ...playerOther } =
+              transformMatchPlayer(player, userGroups);
+            return {
+              placementMin: assertNonNull(placementMin, 'placementMin'),
+              placementMax: assertNonNull(placementMax, 'placementMax'),
+              rawScore: assertNonNull(rawScore, 'rawScore'),
+              ...playerOther,
+            };
+          }),
+          ...matchOther,
+        })),
       };
     }),
 

@@ -1,4 +1,3 @@
-import React from 'react';
 import { signIn, signOut, useSession } from 'next-auth/react';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import { Session } from 'next-auth';
@@ -16,9 +15,9 @@ const LoginButton = () => {
   );
 };
 
-type ProfileButtonProps = {
+interface ProfileButtonProps {
   session: Session;
-};
+}
 
 const ProfileButton = ({ session }: ProfileButtonProps) => {
   return (

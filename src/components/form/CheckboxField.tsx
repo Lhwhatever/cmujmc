@@ -1,12 +1,11 @@
 import { Field, Label, Checkbox } from '@headlessui/react';
-import React from 'react';
 import { CheckIcon } from '@heroicons/react/16/solid';
 
-export type CheckboxFieldProps = {
+export interface CheckboxFieldProps {
   checked: boolean;
-  onChange: (checked: boolean) => void;
+  onChange: (_: boolean) => void;
   label?: string;
-};
+}
 
 export default function CheckboxField({
   label,

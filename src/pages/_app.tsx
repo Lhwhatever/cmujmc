@@ -1,14 +1,14 @@
 import '../styles/global.css';
 import type { Session } from 'next-auth';
 import { getSession, SessionProvider } from 'next-auth/react';
-import type { AppType } from 'next/app';
+import type { AppProps, AppType } from 'next/app';
 import { trpc } from 'utils/trpc';
 import { NextIntlClientProvider } from 'next-intl';
 
 const MyApp: AppType<{ session: Session | null }> = ({
   Component,
   pageProps,
-}) => {
+}: AppProps<{ session: Session | null }>) => {
   return (
     <SessionProvider session={pageProps.session}>
       <NextIntlClientProvider

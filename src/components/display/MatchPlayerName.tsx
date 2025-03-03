@@ -1,12 +1,11 @@
-import React from 'react';
 import { RankedMatch } from './MatchEntryDialog';
 
 export type RankedMatchPlayer = RankedMatch['players'][number]['player'];
 
-export type MatchPlayerNameProps = {
+export interface MatchPlayerNameProps {
   player: RankedMatchPlayer;
   unregisteredPlaceholder: string | null;
-};
+}
 
 export default function MatchPlayerName({
   player,

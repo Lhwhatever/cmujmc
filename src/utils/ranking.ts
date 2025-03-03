@@ -1,6 +1,7 @@
 import { createHash, BinaryLike } from 'crypto';
 import { Prisma, TransactionType } from '@prisma/client';
 import Decimal from 'decimal.js';
+import assertNonNull, { assertRequired } from './nullcheck';
 
 export const txnsSelector = Prisma.validator<Prisma.UserLeague$txnsArgs>()({
   select: {
@@ -17,12 +18,12 @@ export const txnsSelector = Prisma.validator<Prisma.UserLeague$txnsArgs>()({
   },
 });
 
-export type TxnAggregate = {
+export interface TxnAggregate {
   score: Decimal;
   numMatches: number;
   highscore: number | null;
   placements: Record<number, number>;
-};
+}
 
 export const aggregateTxns = (
   txns: Prisma.UserLeagueTransactionGetPayload<typeof txnsSelector>[],
@@ -35,10 +36,16 @@ export const aggregateTxns = (
     score = score.add(delta);
     if (type === TransactionType.MATCH_RESULT) {
       ++numMatches;
-      const { rawScore, placementMin, placementMax } = match!;
-      highscore = Math.max(highscore ?? Number.MIN_VALUE, rawScore!);
+
+      const { rawScore, placementMin, placementMax } = assertRequired(
+        assertNonNull(match, 'match'),
+      );
+      highscore = Math.max(
+        highscore ?? Number.MIN_VALUE,
+        assertNonNull(rawScore, 'rawScore'),
+      );
       if (placementMin === placementMax) {
-        placements[placementMin!] = 1 + (placements[placementMin!] ?? 0);
+        placements[placementMin] = 1 + (placements[placementMin] ?? 0);
       }
     }
   }
@@ -74,7 +81,9 @@ const compareUsers =
     if (c4 !== 0) return c4;
 
     // Highscore: Higher is better
-    const c5 = b.agg.highscore! - a.agg.highscore!;
+    const c5 =
+      (b.agg.highscore ?? Number.MIN_VALUE) -
+      (a.agg.highscore ?? Number.MIN_VALUE);
     if (c5 !== 0) return c5;
 
     // Final Tiebreaker
@@ -115,7 +124,7 @@ export const orderUnrankedUsers = <T extends IRankableUser>(users: T[]) =>
     const c1 = b.agg.numMatches - a.agg.numMatches;
     if (c1 !== 0) return c1;
 
-    const c2 = a.agg.score.cmp(b.agg.score);
+    const c2 = b.agg.score.cmp(a.agg.score);
     if (c2 !== 0) return c2;
 
     return (a.user.name ?? '').localeCompare(b.user.name ?? '');

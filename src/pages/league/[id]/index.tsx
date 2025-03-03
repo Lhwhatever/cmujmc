@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Page from '../../../components/Page';
 import Heading from '../../../components/Heading';
 import { useRouter } from 'next/router';
@@ -48,7 +48,9 @@ const partitionEvents = (refTime: number, events: RankedEvent[]) => {
   return [closed, ongoing, future];
 };
 
-type EventCreatorProps = { leagueId: number };
+interface EventCreatorProps {
+  leagueId: number;
+}
 
 const eventCreationSchema = schema.event.create.omit({ leagueId: true });
 type EventCreationParams = z.infer<typeof eventCreationSchema>;
@@ -155,10 +157,10 @@ const EventCreator = ({ leagueId }: EventCreatorProps) => {
   );
 };
 
-type EventsSectionProps = {
+interface EventsSectionProps {
   leagueId: number;
   registered: boolean;
-};
+}
 
 const EventsSection = ({ leagueId, registered }: EventsSectionProps) => {
   const [now, setNow] = useState(() => new Date());
@@ -168,13 +170,13 @@ const EventsSection = ({ leagueId, registered }: EventsSectionProps) => {
 
   const query = trpc.events.getByLeague.useQuery({ leagueId });
 
-  if (query.isLoading) {
+  if (query.isLoading || !query.data) {
     return <Loading />;
   }
 
   const [closed, ongoing, future] = partitionEvents(
     Date.now(),
-    query.data!.events,
+    query.data.events,
   );
 
   if (closed.length === 0 && ongoing.length === 0 && future.length === 0) {

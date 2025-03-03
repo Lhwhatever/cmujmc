@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Table, { TableCell, TableHeading, TableRow } from '../Table';
 import { RouterOutputs, trpc } from '../../utils/trpc';
 import Button from '../Button';
@@ -18,9 +18,9 @@ import Dialog from '../Dialog';
 import { PlusIcon } from '@heroicons/react/16/solid';
 import Loading from '../Loading';
 
-type LeagueTableProps = {
+interface LeagueTableProps {
   data: RouterOutputs['leagues']['list']['leagues'];
-};
+}
 
 const LeagueTable = ({ data }: LeagueTableProps) => {
   const router = useRouter();
@@ -63,10 +63,10 @@ const LeagueTable = ({ data }: LeagueTableProps) => {
   );
 };
 
-type LeagueCreationDialogProps = {
+interface LeagueCreationDialogProps {
   open: boolean;
   onClose: () => void;
-};
+}
 
 type Ruleset = RouterOutputs['rulesets']['list']['rulesets'][number];
 

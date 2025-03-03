@@ -1,11 +1,11 @@
 import React from 'react';
 import clsx from 'clsx';
 
-export type TableHeadingProps = {
+export interface TableHeadingProps {
   scope: 'row' | 'col';
   children?: React.ReactNode;
   className?: string;
-};
+}
 
 export function TableHeading({
   children,
@@ -24,12 +24,12 @@ export function TableHeading({
   );
 }
 
-export type TableCellProps = {
+export interface TableCellProps {
   children?: React.ReactNode;
   className?: string;
   colSpan?: number;
   rowSpan?: number;
-};
+}
 
 export function TableCell({
   children,
@@ -54,13 +54,13 @@ export function TableRow({ children, ...props }: TableRowProps) {
   return <tr {...props}>{children}</tr>;
 }
 
-export type TableProps = {
+export interface TableProps {
   head?: React.ReactNode;
   foot?: React.ReactNode;
   children?: React.ReactNode;
   className?: React.ReactNode;
   caption?: React.ReactNode;
-};
+}
 
 export default function Table({
   head,

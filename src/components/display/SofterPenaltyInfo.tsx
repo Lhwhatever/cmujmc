@@ -1,5 +1,4 @@
-import React, { useState } from 'react';
-z;
+import { useState } from 'react';
 import { trpc } from '../../utils/trpc';
 import Button from '../Button';
 import Dialog from '../Dialog';
@@ -8,9 +7,9 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import InputField from '../form/InputField';
 
-type SofterPenaltyApplicationDialogProps = {
+interface SofterPenaltyApplicationDialogProps {
   leagueId: number;
-};
+}
 
 const confirmationFormSchema = z.object({
   confirmation: z.string(),
@@ -91,12 +90,12 @@ const SofterPenaltyApplicationDialog = ({
   );
 };
 
-export type SofterPenaltyProps = {
+export interface SofterPenaltyProps {
   softPenaltyCutoff: number;
   freeChombos: number | null;
   leagueId: number;
   numMatches: number;
-};
+}
 
 export default function SofterPenaltyInfo({
   leagueId,

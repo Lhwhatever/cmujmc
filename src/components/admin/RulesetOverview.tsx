@@ -1,11 +1,10 @@
-import React from 'react';
 import Table, { TableCell, TableHeading, TableRow } from '../Table';
 import { RouterOutputs, trpc } from '../../utils/trpc';
 import Loading from '../Loading';
 
-type RulesetTableProps = {
+interface RulesetTableProps {
   data: RouterOutputs['rulesets']['list']['rulesets'];
-};
+}
 
 const RulesetTable = ({ data }: RulesetTableProps) => {
   return (

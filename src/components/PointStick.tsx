@@ -1,4 +1,3 @@
-import React from 'react';
 import clsx from 'clsx';
 
 const circleSizeClasses = {
@@ -14,10 +13,10 @@ const circleFillColors = {
   green: 'bg-green-800',
 };
 
-type CircleProps = {
+interface CircleProps {
   size: keyof typeof circleSizeClasses;
   fill: keyof typeof circleFillColors;
-};
+}
 
 const Circle = ({ size, fill }: CircleProps) => {
   return (

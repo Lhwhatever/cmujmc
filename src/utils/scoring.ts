@@ -25,13 +25,13 @@ export const computePlacements = (playerScores: number[]) => {
   }));
 };
 
-export type ComputePlayerPtArg = {
+export interface ComputePlayerPtArg {
   rawScore: number;
   returnPts: number;
   placementMin: number;
   placementMax: number;
   uma: Decimal[];
-};
+}
 
 export const computePlayerPt = ({
   rawScore,

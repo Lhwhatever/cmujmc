@@ -6,23 +6,23 @@ import clsx from 'clsx';
 import FieldLabel from './FieldLabel';
 import _ from 'lodash';
 
-type VariantText = {
+interface VariantText {
   type?: 'text';
-};
+}
 
-type VariantNumber = {
+interface VariantNumber {
   type: 'number';
   step?: number;
   min?: number;
   max?: number;
   defaultValue?: number;
-};
+}
 
-type VariantDatetime = {
+interface VariantDatetime {
   type: 'datetime-local';
   min?: Date;
   max?: Date;
-};
+}
 
 type Variants = VariantText | VariantNumber | VariantDatetime;
 

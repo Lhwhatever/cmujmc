@@ -41,7 +41,7 @@ export const buttonColorStyles = {
   },
 };
 
-export type ButtonProps = {
+export interface ButtonProps {
   onClick?: () => void;
   leftIcon?: React.ReactNode;
   children?: React.ReactNode;
@@ -50,7 +50,7 @@ export type ButtonProps = {
   icon?: boolean;
   disabled?: boolean;
   roundSided?: 'right';
-};
+}
 
 export default function Button({
   children,

@@ -14,9 +14,9 @@ type Match = NonNullable<
   RouterOutputs['leagues']['scoreHistory']['txns'][number]['match']
 >;
 
-export type MatchResultProps = {
+export interface MatchResultProps {
   match: Match;
-};
+}
 
 const MatchResult = ({ match }: MatchResultProps) => {
   const userId = useSession().data?.user?.id;
@@ -37,7 +37,7 @@ const MatchResult = ({ match }: MatchResultProps) => {
           return (
             <React.Fragment key={playerPosition}>
               <div>
-                <PlacementRange min={placementMin!} max={placementMax!} />
+                <PlacementRange min={placementMin} max={placementMax} />
               </div>
               <div className={clsx(userId === playerId && 'font-bold')}>
                 {renderPlayerName({ player, unregisteredPlaceholder })}
@@ -58,9 +58,9 @@ const timeFormat: DateTimeFormatOptions = {
   timeStyle: 'short',
 };
 
-export type ScoreHistoryProps = {
+export interface ScoreHistoryProps {
   leagueId: number;
-};
+}
 
 export default function ScoreHistory({ leagueId }: ScoreHistoryProps) {
   const query = trpc.leagues.scoreHistory.useQuery(leagueId);
@@ -72,7 +72,7 @@ export default function ScoreHistory({ leagueId }: ScoreHistoryProps) {
 
   return (
     <div className="flex flex-col gap-2">
-      {txns.map(({ id, delta, time, match, description, type }) => {
+      {txns.map(({ id, delta, time, description, type, match }) => {
         return (
           <div key={id} className="flex flex-col rounded-xl shadow p-4 gap-1">
             <div className="flex flex-row justify-between gap-1">
@@ -91,7 +91,7 @@ export default function ScoreHistory({ leagueId }: ScoreHistoryProps) {
               <div className="text-2xl">{new Decimal(delta).toFixed(1)} PT</div>
             </div>
             {type === TransactionType.MATCH_RESULT && (
-              <MatchResult match={match!} />
+              <MatchResult match={match} />
             )}
           </div>
         );

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Dialog from '../Dialog';
 import { Fieldset } from '@headlessui/react';
 import UserComboBox, { User, UserOption } from '../UserComboBox';
@@ -26,15 +26,15 @@ export type RankedMatch = NonNullable<
   RouterOutputs['matches']['getById']['match']
 >;
 
-type MatchCreationFormProps = {
+interface MatchCreationFormProps {
   eventId: number;
   gameMode: GameMode;
   onRefresh: () => void;
   onClose: () => void;
-  onSuccess: (m: MatchCreationResult) => void;
+  onSuccess: (_m: MatchCreationResult) => void;
   users: User[] | null;
   hidden?: boolean;
-};
+}
 
 const MatchCreationForm = ({
   gameMode,
@@ -72,7 +72,6 @@ const MatchCreationForm = ({
               {
                 onError(error) {
                   try {
-                    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument,@typescript-eslint/no-unsafe-member-access
                     setErrors(JSON.parse(error.message)[0].message);
                   } catch (e) {
                     console.error(e);
@@ -81,7 +80,9 @@ const MatchCreationForm = ({
               },
             ),
           );
-        } catch (e) {}
+        } catch (_) {
+          // TODO: process match creation errors
+        }
       } else {
         setErrors('');
       }
@@ -124,14 +125,14 @@ const chomboFormSchema = z.object({
   description: z.string(),
 });
 
-type ChomboEntryFormProps = {
+interface ChomboEntryFormProps {
   hidden?: boolean;
   players: RankedMatch['players'];
   chombos: [number, string][];
-  onChange: (newList: [number, string][]) => void;
+  onChange: (_newList: [number, string][]) => void;
   onBack: () => void;
   onSubmit: () => void;
-};
+}
 
 const ChomboEntryForm = ({
   players,
@@ -248,11 +249,11 @@ const scoreEntrySchema = z.object({
   leftoverBets: z.number().multipleOf(1000).min(0),
 });
 
-export type ScoreEntryFormProps = {
+export interface ScoreEntryFormProps {
   leagueId: number;
   targetMatch: RankedMatch;
   onClose: () => void;
-};
+}
 
 const ScoreEntryForm = ({
   leagueId,
@@ -420,12 +421,12 @@ const ScoreEntryForm = ({
   );
 };
 
-export type MatchEntryDialogProps = {
+export interface MatchEntryDialogProps {
   targetEvent: RankedEvent | null;
-  setTargetEvent: (e: RankedEvent | null) => void;
+  setTargetEvent: (_: RankedEvent | null) => void;
   targetMatch: RankedMatch | null;
-  setTargetMatch: (e: RankedMatch | null) => void;
-};
+  setTargetMatch: (_: RankedMatch | null) => void;
+}
 
 export default function MatchEntryDialog({
   targetEvent,

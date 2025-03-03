@@ -1,4 +1,3 @@
-import React from 'react';
 import { trpc } from '../../utils/trpc';
 import Loading from '../Loading';
 import Table, { TableCell, TableHeading, TableRow } from '../Table';
@@ -10,9 +9,9 @@ import { renderAliases } from '../../utils/usernames';
 import { useSession } from 'next-auth/react';
 import clsx from 'clsx';
 
-export type LeaderboardProps = {
+export interface LeaderboardProps {
   leagueId: number;
-};
+}
 
 export default function Leaderboard({ leagueId }: LeaderboardProps) {
   const userId = useSession().data?.user?.id;

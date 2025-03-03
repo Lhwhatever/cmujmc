@@ -1,4 +1,3 @@
-import React from 'react';
 import { RouterOutputs, trpc } from '../../utils/trpc';
 import { TransactionType } from '@prisma/client';
 import { NumberFormatOptions, useFormatter } from 'next-intl';
@@ -31,9 +30,8 @@ export const computeMatchStats = (
 
   for (const { type, match, delta } of txns) {
     switch (type) {
-      case TransactionType.MATCH_RESULT:
+      case TransactionType.MATCH_RESULT: {
         ++numMatches;
-
         const deltaDecimal = new Decimal(delta);
         gl = gl.add(deltaDecimal);
         glsq = glsq.add(deltaDecimal.mul(deltaDecimal));
@@ -52,6 +50,7 @@ export const computeMatchStats = (
           }
         }
         break;
+      }
       case TransactionType.CHOMBO:
         ++numChombos;
         chomboLoss = chomboLoss.add(delta);
@@ -93,16 +92,16 @@ export const computeMatchStats = (
       formatter.number(gl.div(numMatchesDecimal).toNumber(), decimalStyle) +
       ' PT',
     StDev: stdev.toFixed(2) + ' PT',
-    'High Score': formatter.number(highScore!),
+    'High Score': highScore !== null ? formatter.number(highScore) : '-',
     'Mean Score': formatter.number(scoreSum / numMatches, decimalStyle),
   };
 };
 
-export type PersonalStatsProps = {
+export interface PersonalStatsProps {
   softPenaltyCutoff: number;
   freeChombos: number | null;
   leagueId: number;
-};
+}
 
 export function PersonalStats({
   leagueId,

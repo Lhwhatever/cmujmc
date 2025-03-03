@@ -1,10 +1,10 @@
 import { prisma } from '../server/prisma';
 import { Prisma } from '@prisma/client';
 
-export type UserGroups = {
+export interface UserGroups {
   cmu: boolean;
   discord: boolean;
-};
+}
 
 export const getUserGroups = async (
   userId?: string | null,

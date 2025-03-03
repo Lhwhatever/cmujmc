@@ -1,4 +1,3 @@
-import React from 'react';
 import Page from '../../components/Page';
 import { useSession } from 'next-auth/react';
 import UserOverview from '../../components/admin/UserOverview';
