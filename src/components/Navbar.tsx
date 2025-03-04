@@ -53,7 +53,7 @@ export default function Navbar() {
   const session = useSession();
 
   return (
-    <nav className="relative flex w-full flex-wrap items-center justify-between bg-lime-950 py-2 shadow-dark-mild lg:py-4">
+    <nav className="relative flex w-dvw flex-wrap items-center justify-between bg-lime-950 py-2 shadow-dark-mild lg:py-4">
       <div className="flex w-full flex-wrap items-center justify-between">
         <div className="ms-2 ml-3">
           <Link className="text-xl text-black dark:text-white" href="/">
