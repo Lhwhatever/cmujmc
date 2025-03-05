@@ -63,7 +63,7 @@ const AuthWrapper = ({ children, specs }: AuthWrapperProps) => {
     } else {
       setReady(true);
     }
-  }, [status, session, setReady, router]);
+  }, [status, session, setReady, router, specs]);
 
   if (ready) {
     return children;
