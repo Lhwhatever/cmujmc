@@ -1,8 +1,8 @@
-import * as Mahjong from '../../utils/mahjong/tiles';
-import { Tile } from '../../utils/mahjong/tiles';
+import * as Mahjong from '../../../utils/mahjong/tiles';
+import { Tile } from '../../../utils/mahjong/tiles';
 import { useState } from 'react';
-import Page from '../../components/Page';
-import Scenario2D from '../../components/hand/Scenario2D';
+import Page from '../../../components/Page';
+import Scenario2D from '../../../components/hand/Scenario2D';
 
 export default function Wwyd() {
   const scenario = {

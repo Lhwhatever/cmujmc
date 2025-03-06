@@ -15,6 +15,22 @@ interface TemplateListingProps {
 }
 
 const TemplateListing = ({ template }: TemplateListingProps) => {
+  const router = useRouter();
+  const host = trpc.wwyd.quiz.host.useMutation();
+
+  const handleHost = async () => {
+    try {
+      await host.mutateAsync(template.id, {
+        async onError(error) {
+          alert(error.message);
+        },
+      });
+    } catch (_) {
+    } finally {
+      router.push(`/wwyd/${template}/admin`);
+    }
+  };
+
   return (
     <div className="rounded-md p-4 border border-gray-400 drop-shadow-2xl w-full">
       <Heading level="h5">{template.name || 'Untitled'}</Heading>
@@ -22,7 +38,7 @@ const TemplateListing = ({ template }: TemplateListingProps) => {
         Last updated <DateTime date={template.updated} relative /> &middot;
         Created <DateTime date={template.created} relative />
       </p>
-      <div className="mt-2">
+      <div className="mt-2 flex flex-row gap-2">
         <ButtonLink
           color="blue"
           fill="outlined"
@@ -30,6 +46,9 @@ const TemplateListing = ({ template }: TemplateListingProps) => {
         >
           Edit
         </ButtonLink>
+        <Button color="blue" fill="filled" onClick={handleHost}>
+          Host
+        </Button>
       </div>
     </div>
   );
@@ -69,8 +88,11 @@ export default function WwydTemplateList() {
 
   return (
     <Page>
-      <div className="flow flow-col">
-        <div className="flow flow-row mb-2">
+      <div className="flex flex-col">
+        <div className="flex flex-row mb-2 gap-4">
+          <Button color="yellow" fill="filled" onClick={() => router.back()}>
+            Back
+          </Button>
           <Button color="green" fill="filled" onClick={handleCreate}>
             Create
           </Button>
