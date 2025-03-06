@@ -9,7 +9,6 @@ import DateTimeRange from '../../../components/DateTimeRange';
 import Accordion, { AccordionSegment } from '../../../components/Accordion';
 import { signIn, useSession } from 'next-auth/react';
 import Button from '../../../components/Button';
-import { PlusIcon } from '@heroicons/react/16/solid';
 import Dialog from '../../../components/Dialog';
 import { Fieldset } from '@headlessui/react';
 import InputField from '../../../components/form/InputField';
@@ -18,7 +17,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { AdminUserError } from '../../../protocol/errors';
-import { redirect, usePathname } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import RankedEventDetails, {
   RankedEvent,
 } from '../../../components/display/RankedEventDetails';
@@ -96,12 +95,7 @@ const EventCreator = ({ leagueId }: EventCreatorProps) => {
 
   return (
     <>
-      <Button
-        color="green"
-        fill="filled"
-        leftIcon={<PlusIcon className="size-4" />}
-        onClick={() => setDialogOpen(true)}
-      >
+      <Button color="green" fill="filled" onClick={() => setDialogOpen(true)}>
         Create
       </Button>
       <Dialog
@@ -270,17 +264,19 @@ export default function League() {
     },
   });
 
+  useEffect(() => {
+    if (query.isError) {
+      void router.push('/');
+    }
+  }, [query.isError, router]);
+
   const session = useSession();
-  if (query.isPending) {
+  if (!query.data) {
     return (
       <Page>
         <Loading />
       </Page>
     );
-  }
-
-  if (query.isError) {
-    redirect('/');
   }
 
   const { league, userInfo } = query.data;
