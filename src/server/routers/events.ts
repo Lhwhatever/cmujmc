@@ -22,7 +22,7 @@ const leagueOrderBys = {
 
 type CreateEvent = z.infer<typeof schema.event.create>;
 
-export const eventRouter = router({
+const eventRouter = router({
   create: adminProcedure
     .input(schema.event.create)
     .mutation(async ({ input }) => {
@@ -114,3 +114,5 @@ export const eventRouter = router({
     return { events };
   }),
 });
+
+export default eventRouter;

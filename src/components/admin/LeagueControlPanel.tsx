@@ -248,7 +248,6 @@ export default function LeagueControlPanel() {
           color="green"
           fill="filled"
           onClick={() => setCreateDialogOpen(true)}
-          leftIcon={<PlusIcon className="size-4" />}
         >
           Add
         </Button>

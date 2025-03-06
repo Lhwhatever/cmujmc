@@ -1,6 +1,9 @@
-import React from 'react';
+import React, { ElementType } from 'react';
 import clsx from 'clsx';
-import { Button as HeadlessButton } from '@headlessui/react';
+import {
+  Button as HeadlessButton,
+  ButtonProps as HeadlessButtonProps,
+} from '@headlessui/react';
 
 export const buttonColorStyles = {
   outlined: {
@@ -41,28 +44,27 @@ export const buttonColorStyles = {
   },
 };
 
-export interface ButtonProps {
-  onClick?: () => void;
-  leftIcon?: React.ReactNode;
-  children?: React.ReactNode;
-  color: 'yellow' | 'green' | 'red' | 'blue';
-  fill: keyof typeof buttonColorStyles;
-  icon?: boolean;
-  disabled?: boolean;
-  roundSided?: 'right';
-}
+export type ButtonProps<TTag extends ElementType = 'button'> =
+  HeadlessButtonProps<TTag> & {
+    children?: React.ReactNode;
+    color: 'yellow' | 'green' | 'red' | 'blue';
+    fill: keyof typeof buttonColorStyles;
+    icon?: boolean;
+    disabled?: boolean;
+    className?: string;
+    roundSided?: 'right';
+  };
 
-export default function Button({
-  children,
-  leftIcon,
-  onClick,
+export default function Button<TTag extends ElementType = 'button'>({
   color,
   fill,
   disabled,
   icon,
   roundSided,
-}: ButtonProps) {
-  const className = clsx(
+  className,
+  ...other
+}: ButtonProps<TTag>) {
+  const combinedClassName = clsx(
     'font-medium text-sm inline-flex items-center border',
     icon && 'rounded-lg p-1',
     !icon && 'px-5 py-2.5',
@@ -72,17 +74,8 @@ export default function Button({
     fill === 'filled' && !disabled && 'text-white',
     buttonColorStyles[fill][color][disabled ? 'disabled' : 'enabled'],
     disabled && 'cursor-not-allowed',
+    className,
   );
 
-  return (
-    <HeadlessButton onClick={onClick} className={className}>
-      {leftIcon ? (
-        <div className="flex flex-row">
-          {leftIcon} <div>{children}</div>
-        </div>
-      ) : (
-        children
-      )}
-    </HeadlessButton>
-  );
+  return <HeadlessButton className={combinedClassName} {...other} />;
 }

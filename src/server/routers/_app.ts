@@ -2,19 +2,21 @@
  * This file contains the root router of your tRPC-backend
  */
 import { router, publicProcedure } from '../trpc';
-import userRouter from './user';
-import rulesetRouter from './ruleset';
-import leagueRouter from './league';
-import { eventRouter } from './events';
-import matchRouter from './match';
+import user from './user';
+import rulesets from './ruleset';
+import leagues from './league';
+import events from './events';
+import matches from './match';
+import wwyd from './wwyd';
 
 export const appRouter = router({
   healthcheck: publicProcedure.query(() => 'yay!'),
-  user: userRouter,
-  rulesets: rulesetRouter,
-  leagues: leagueRouter,
-  events: eventRouter,
-  matches: matchRouter,
+  user,
+  rulesets,
+  leagues,
+  events,
+  matches,
+  wwyd,
 });
 
 export type AppRouter = typeof appRouter;

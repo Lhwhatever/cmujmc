@@ -16,4 +16,5 @@ export interface IFieldProps<
   errors: FieldErrors<TFieldValues>;
   required?: boolean;
   description?: React.ReactNode;
+  className?: string;
 }

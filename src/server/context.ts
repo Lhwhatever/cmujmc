@@ -19,9 +19,7 @@ export const createContext = async (
   opts: CreateNextContextOptions | CreateWSSContextFnOptions,
 ) => {
   if (isCreateNextContextOptions(opts)) {
-    const session = await auth(opts.req, opts.res);
-    console.log('creating next context', session);
-    return { session };
+    return { session: await auth(opts.req, opts.res) };
   }
 
   const cookies = cookie.parse(opts.req.headers.cookie ?? '');
@@ -39,11 +37,7 @@ export const createContext = async (
     setHeader() {},
   } as unknown as ServerResponse;
 
-  const session = await auth(req, res);
-
-  //console.log('creating ws context', req, session);
-
-  return { session };
+  return { session: await auth(req, res) };
 };
 
 export type Context = Awaited<ReturnType<typeof createContext>>;
