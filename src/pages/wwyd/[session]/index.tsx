@@ -3,8 +3,12 @@ import { Tile } from '../../../utils/mahjong/tiles';
 import { useState } from 'react';
 import Page from '../../../components/Page';
 import Scenario2D from '../../../components/hand/Scenario2D';
+import clsx from 'clsx';
+import { XMarkIcon } from '@heroicons/react/24/solid';
 
 export default function Wwyd() {
+  const [bannerHidden, setBannerHidden] = useState(false);
+
   const scenario = {
     hand: {
       tiles: Mahjong.parseMpsz('123p123s78s44z'),
@@ -37,13 +41,26 @@ export default function Wwyd() {
   };
 
   return (
-    <Page className="mt-12 h-[calc(100dvh-3rem)] sm:mt-16 sm:h-[calc(100dvh-4rem)] box-border">
-      <Scenario2D
-        scenario={scenario}
-        settings={settings}
-        tileWidth={36}
-        options={options}
-      />
+    <Page className="mt-8 h-[calc(100dvh-2rem)] sm:mt-12 sm:h-[calc(100dvh-3rem)] lg:mt-16 lg:h-[calc(100dvh-4rem)] box-border">
+      <div
+        className={clsx(
+          'absolute bg-yellow-400 p-4 top-16 w-dvw sm:invisible flex flex-row z-50',
+          bannerHidden && 'invisible',
+        )}
+      >
+        <div className="p-1">
+          Your screen may be too narrow to display the following content well.
+          Try changing to landscape mode or using another device.
+        </div>
+        <button className="p-1" onClick={() => setBannerHidden(true)}>
+          <XMarkIcon height={36} />
+        </button>
+      </div>
+      <Scenario2D scenario={scenario} settings={settings} options={options} />
     </Page>
   );
 }
+
+Wwyd.auth = {
+  role: 'user',
+};

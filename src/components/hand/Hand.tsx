@@ -9,14 +9,14 @@ interface CallProps {
 }
 
 const Call = ({ call, tileWidth, tileHeight }: CallProps) => {
-  const halfSpacing = 1;
-  const translation = (tileHeight - tileWidth) / 2;
+  const halfSpacing = 2;
+  const halfDifference = (tileHeight - tileWidth) / 2;
 
   switch (call.type) {
     case 'chii':
       return (
         <div
-          className="flex flex-row gap-0.5"
+          className="flex flex-row gap-1"
           style={{
             paddingLeft: tileHeight - tileWidth,
           }}
@@ -26,7 +26,7 @@ const Call = ({ call, tileWidth, tileHeight }: CallProps) => {
             tileWidth={tileWidth}
             style={{
               rotate: '90deg',
-              translate: `-${translation - halfSpacing}px ${translation}px`,
+              translate: `-${halfDifference}px ${halfDifference}px`,
             }}
           />
           <Tile tile={call.support[0]} tileWidth={tileWidth} style={{}} />
@@ -36,12 +36,12 @@ const Call = ({ call, tileWidth, tileHeight }: CallProps) => {
     case 'pon': {
       const calledTileX =
         (1 - call.source) * (tileWidth + halfSpacing * 2) +
-        translation -
+        halfDifference -
         halfSpacing;
 
       return (
         <div
-          className="flex flex-row gap-0.5"
+          className="flex flex-row gap-1"
           style={{
             paddingRight: tileHeight - tileWidth,
           }}
@@ -65,7 +65,7 @@ const Call = ({ call, tileWidth, tileHeight }: CallProps) => {
             tileWidth={tileWidth}
             style={{
               rotate: '90deg',
-              translate: `${calledTileX}px ${translation}px`,
+              translate: `${calledTileX}px ${halfDifference}px`,
             }}
           />
         </div>
@@ -74,7 +74,7 @@ const Call = ({ call, tileWidth, tileHeight }: CallProps) => {
     case 'ankan': {
       return (
         <div
-          className="flex flex-row gap-0.5"
+          className="flex flex-row gap-1"
           style={{
             paddingRight: tileHeight - tileWidth,
           }}
@@ -89,11 +89,11 @@ const Call = ({ call, tileWidth, tileHeight }: CallProps) => {
     case 'daiminkan': {
       const tiles = [0, -2, -3][call.source - 1];
       const calledTileX =
-        tiles * (tileWidth + halfSpacing * 2) + translation - halfSpacing;
+        tiles * (tileWidth + halfSpacing * 2) + halfDifference - halfSpacing;
 
       return (
         <div
-          className="flex flex-row gap-0.5"
+          className="flex flex-row gap-1"
           style={{
             paddingRight: tileHeight - tileWidth,
           }}
@@ -124,7 +124,7 @@ const Call = ({ call, tileWidth, tileHeight }: CallProps) => {
             tileWidth={tileWidth}
             style={{
               rotate: '90deg',
-              translate: `${calledTileX}px ${translation}px`,
+              translate: `${calledTileX}px ${halfDifference}px`,
             }}
           />
         </div>
@@ -132,14 +132,14 @@ const Call = ({ call, tileWidth, tileHeight }: CallProps) => {
     }
     case 'shouminkan': {
       const calledTileX =
-        (1 - call.source) * (tileWidth + halfSpacing * 2) + translation - 1;
+        (1 - call.source) * (tileWidth + halfSpacing * 2) + halfDifference - 1;
       const kanTileX =
-        -call.source * (tileWidth + halfSpacing * 2) + translation - 1;
-      const kanTileY = translation - (tileWidth + halfSpacing * 2);
+        -call.source * (tileWidth + halfSpacing * 2) + halfDifference - 1;
+      const kanTileY = halfDifference - (tileWidth + halfSpacing * 2);
 
       return (
         <div
-          className="flex flex-row gap-0.5"
+          className="flex flex-row gap-1"
           style={{
             marginRight: -(tileWidth * 2 - tileHeight - halfSpacing * 2),
           }}
@@ -163,7 +163,7 @@ const Call = ({ call, tileWidth, tileHeight }: CallProps) => {
             tileWidth={tileWidth}
             style={{
               rotate: '90deg',
-              translate: `${calledTileX}px ${translation}px`,
+              translate: `${calledTileX}px ${halfDifference}px`,
             }}
           />
           <Tile
@@ -239,7 +239,7 @@ export default function Hand({ hand, tileWidth, options }: HandProps) {
     index === hoveredTile || index === selectedTile ? -10 : 0;
 
   return (
-    <div className="flex flex-row h-[48px] gap-0.5">
+    <div className="flex flex-row flex-wrap h-[48px] gap-1">
       {hand.tiles.map((tile, index) => (
         <Tile
           tile={tile}

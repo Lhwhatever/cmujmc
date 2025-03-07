@@ -72,6 +72,7 @@
     "react-dom": "19.0.0",
     "react-hook-form": "^7.54.2",
     "react-svg": "^16.3.0",
+    "react-use": "^17.6.0",
     "superjson": "^1.12.4",
     "tailwind-merge": "^2.5.4",
     "tsx": "^4.0.0",
