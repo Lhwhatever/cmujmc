@@ -25,7 +25,7 @@ const WwydList = ({ wwyds }: WwydListProps) => {
   const utils = trpc.useUtils();
   const session = useSession();
 
-  const deleteMutation = trpc.wwyd.quiz.delete.useMutation({
+  const deleteMutation = trpc.wwyd.quiz.admin.delete.useMutation({
     async onSuccess() {
       utils.wwyd.quiz.list.invalidate();
     },

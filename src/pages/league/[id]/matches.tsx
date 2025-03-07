@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import Page from '../../../components/Page';
 import { useRouter } from 'next/router';
 import { trpc } from '../../../utils/trpc';
@@ -7,7 +7,6 @@ import Loading from '../../../components/Loading';
 import DateTime from '../../../components/DateTime';
 import PlacementRange from '../../../components/display/PlacementRange';
 import MatchPlayerName from '../../../components/display/MatchPlayerName';
-import { redirect } from 'next/navigation';
 import Heading from '../../../components/Heading';
 
 interface ContentProps {
@@ -75,16 +74,18 @@ export default function Matches() {
 
   const query = trpc.leagues.get.useQuery(id, { retry: 3 });
 
-  if (query.isPending) {
+  useEffect(() => {
+    if (query.isError) {
+      void router.push('/');
+    }
+  }, [router, query.isError]);
+
+  if (!query.data) {
     return (
       <Page>
         <Loading />
       </Page>
     );
-  }
-
-  if (query.isError) {
-    redirect('/');
   }
 
   const { league } = query.data;

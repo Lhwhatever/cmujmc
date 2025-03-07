@@ -1,5 +1,3 @@
-import { z } from 'zod';
+import { wwydQuestionSchema } from '../../utils/wwyd/basicSchema';
 
-export const host = z.number();
-
-export const delete_ = z.number();
+export const playOutput = wwydQuestionSchema;

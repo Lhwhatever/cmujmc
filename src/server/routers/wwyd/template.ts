@@ -1,10 +1,11 @@
 import { adminProcedure, router } from '../../trpc';
 import { prisma } from '../../prisma';
 import schema from '../../../protocol/schema';
+import { z } from 'zod';
 
 const templateRouter = router({
   get: adminProcedure
-    .input(schema.wwyd.template.get)
+    .input(z.number().int())
     .query(async ({ input: id }) =>
       prisma.wwyd.findUniqueOrThrow({ where: { id } }),
     ),
@@ -48,7 +49,7 @@ const templateRouter = router({
         where: { id },
         data: {
           name: data.name,
-          schema: JSON.parse(data.schema),
+          schema: data.schema,
           updated: new Date(),
         },
       });

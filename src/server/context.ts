@@ -18,11 +18,6 @@ function isCreateNextContextOptions(
 export const createContext = async (
   opts: CreateNextContextOptions | CreateWSSContextFnOptions,
 ) => {
-  console.log(
-    'socket address',
-    opts.req.socket.remoteAddress,
-    opts.req.socket.remotePort,
-  );
   if (isCreateNextContextOptions(opts)) {
     return { session: await auth(opts.req, opts.res) };
   }

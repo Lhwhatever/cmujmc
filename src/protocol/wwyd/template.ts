@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import wwydScenarioSchema from '../../utils/wwyd/basicSchema';
 
 export const get = z.number();
 
@@ -13,16 +14,6 @@ export const edit = z.object({
   id: z.number(),
   data: z.object({
     name: z.string(),
-    schema: z.string().refine(
-      (s) => {
-        try {
-          JSON.parse(s);
-          return true;
-        } catch (_) {
-          return false;
-        }
-      },
-      { message: 'Must be a valid JSON object' },
-    ),
+    schema: wwydScenarioSchema,
   }),
 });

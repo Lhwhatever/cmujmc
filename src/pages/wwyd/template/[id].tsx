@@ -10,10 +10,34 @@ import { useEffect } from 'react';
 import InputField from '../../../components/form/InputField';
 import { JSONValue } from 'superjson/src/types';
 import TextareaField from '../../../components/form/TextareaField';
-import schema from '../../../protocol/schema';
 import Button from '../../../components/Button';
+import { z } from 'zod';
+import wwydQuizSchema from '../../../utils/wwyd/basicSchema';
 
-const wwydFormSchema = schema.wwyd.template.edit.shape.data;
+const wwydFormSchema = z.object({
+  name: z.string(),
+  schema: z.string().superRefine((s, ctx) => {
+    try {
+      const jsonObject = JSON.parse(s);
+      const result = wwydQuizSchema.safeParse(jsonObject);
+      if (!result.success) {
+        for (const { path, message, ...other } of result.error.issues) {
+          ctx.addIssue({
+            path: [],
+            message: `Field: ${path} | ${message}`,
+            ...other,
+          });
+        }
+      }
+    } catch (e) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Not a valid JSON object: ${e}`,
+        fatal: true,
+      });
+    }
+  }),
+});
 
 interface WwydFormProps {
   id: number;
@@ -27,12 +51,12 @@ const WwydForm = ({ id, name, schema }: WwydFormProps) => {
 
   const update = trpc.wwyd.template.edit.useMutation({
     async onSuccess() {
-      utils.wwyd.template.list.invalidate();
-      utils.wwyd.template.get.invalidate(id);
+      void utils.wwyd.template.list.invalidate();
+      void utils.wwyd.template.get.invalidate(id);
       return router.push('/wwyd/template');
     },
     async onError(error) {
-      alert(error);
+      alert(error.message);
     },
   });
 
@@ -44,8 +68,11 @@ const WwydForm = ({ id, name, schema }: WwydFormProps) => {
 
   const onSubmit = async () => {
     handleSubmit(
-      (data) => update.mutateAsync({ id, data }),
-      (error) => alert(error),
+      async ({ name, schema: schemaString }) => {
+        const schema = wwydQuizSchema.parse(JSON.parse(schemaString));
+        await update.mutateAsync({ id, data: { name, schema } });
+      },
+      (error) => alert(JSON.stringify(error)),
     )();
   };
 
@@ -75,15 +102,17 @@ const WwydForm = ({ id, name, schema }: WwydFormProps) => {
   );
 };
 
-export default function WwydTemplate() {
-  const router = useRouter();
-  const id = parseInt(router.query.id as string);
+interface WwydTemplateProps {
+  id: number;
+}
 
+const WwydTemplate = ({ id }: WwydTemplateProps) => {
+  const router = useRouter();
   const query = trpc.wwyd.template.get.useQuery(id, { retry: 3 });
 
   useEffect(() => {
     if (query.isError) {
-      void router.push('/wwyd/template');
+      void router.back();
     }
   }, [router, query.isError]);
 
@@ -95,10 +124,21 @@ export default function WwydTemplate() {
     );
   }
 
+  return <WwydForm name={query.data.name} schema={query.data.schema} id={id} />;
+};
+
+export default function WwydTemplatePage() {
+  const router = useRouter();
+  const id = parseInt(router.query.id as string);
+
+  useEffect(() => {
+    if (Number.isNaN(id)) {
+      void router.back();
+    }
+  }, [router, id]);
+
   return (
-    <Page>
-      <WwydForm name={query.data.name} schema={query.data.schema} id={id} />
-    </Page>
+    <Page>{Number.isNaN(id) ? <Loading /> : <WwydTemplate id={id} />}</Page>
   );
 }
 

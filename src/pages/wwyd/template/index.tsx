@@ -16,7 +16,7 @@ interface TemplateListingProps {
 
 const TemplateListing = ({ template }: TemplateListingProps) => {
   const router = useRouter();
-  const host = trpc.wwyd.quiz.host.useMutation();
+  const host = trpc.wwyd.quiz.admin.host.useMutation();
 
   const handleHost = async () => {
     try {
@@ -27,7 +27,7 @@ const TemplateListing = ({ template }: TemplateListingProps) => {
       });
     } catch (_) {
     } finally {
-      router.push(`/wwyd/${template}/admin`);
+      router.push(`/wwyd/${template.id}/admin`);
     }
   };
 
