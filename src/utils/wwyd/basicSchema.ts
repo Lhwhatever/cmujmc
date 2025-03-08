@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import schema_2d from './2d_schema';
+
 const schema = z.string();
 const version = z
   .string()
@@ -8,12 +10,15 @@ const version = z
     'Must follow semantic versioning',
   );
 
+const scenario = z.object({
+  schema,
+  version,
+  scenario: schema_2d,
+});
+
 const wwydQuizSchema = z.object({
   scenarios: z.array(
-    z.object({
-      schema,
-      version,
-      scenario: z.any(),
+    scenario.extend({
       settings: z.object({
         timeLimit: z.number().nonnegative(),
       }),
@@ -21,10 +26,7 @@ const wwydQuizSchema = z.object({
   ),
 });
 
-export const wwydQuestionSchema = z.object({
-  schema,
-  version,
-  scenario: z.any(),
+export const wwydQuestionSchema = scenario.extend({
   settings: z.object({
     endDate: z.number(),
   }),

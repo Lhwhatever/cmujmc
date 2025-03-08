@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 export enum Tile {
   TILE_1M = 1,
   TILE_2M = 2,
@@ -69,7 +71,61 @@ const offsets = {
   s: 20,
 };
 
-export const parseMpsz = (hand: string): Tile[] => {
+const mpszTileTransformer = (s: string, ctx: z.RefinementCtx) => {
+  if (s.length !== 2) {
+    ctx.addIssue({
+      code: 'custom',
+      message: `Expected 2 characters, received ${s.length}`,
+    });
+    return null;
+  }
+
+  const charCode = s.charCodeAt(0);
+  if (!(0x30 <= charCode && charCode <= 0x39)) {
+    // 0-9
+    ctx.addIssue({
+      code: 'custom',
+      message: `Expected numeric first character, received ${s.charAt(0)}`,
+    });
+    return null;
+  }
+  const num = charCode - 0x30;
+
+  const char = s.charAt(1);
+  switch (char) {
+    case 'm':
+      return (Tile.TILE_0M + num) as Tile;
+    case 'p':
+      return (Tile.TILE_0P + num) as Tile;
+    case 's':
+      return (Tile.TILE_0S + num) as Tile;
+    case 'z':
+      if (num < 1 || num > 7) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `Cannot have number ${num} before 'z'`,
+        });
+        return null;
+      }
+      if (num <= 4) {
+        return (Tile.TILE_1Z + num - 1) as Tile;
+      }
+      return (Tile.TILE_5Z + num - 5) as Tile;
+    default:
+      ctx.addIssue({
+        code: 'custom',
+        message: `Illegal suit ${char}`,
+      });
+      return null;
+  }
+};
+
+export const mpszTileResolver = z
+  .string()
+  .transform((s, ctx) => mpszTileTransformer(s, ctx) ?? z.NEVER);
+export const mpszTileValidator = z.string().superRefine(mpszTileTransformer);
+
+const mpszHandTransformer = (hand: string, ctx: z.RefinementCtx) => {
   const result: Tile[] = [];
   let buffer: number[] = [];
 
@@ -83,8 +139,12 @@ export const parseMpsz = (hand: string): Tile[] => {
 
     const char = hand.charAt(i);
     if (char === 'm' || char === 'p' || char === 's') {
-      if (buffer.length === 0)
-        throw new Error(`${char} not preceded by number`);
+      if (buffer.length === 0) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `${char} not preceded by number`,
+        });
+      }
       for (const num of buffer) {
         result.push((offsets[char] + num) as Tile);
       }
@@ -93,7 +153,12 @@ export const parseMpsz = (hand: string): Tile[] => {
     }
 
     if (char === 'z') {
-      if (buffer.length === 0) throw new Error(`z not preceded by number`);
+      if (buffer.length === 0) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `z not preceded by number`,
+        });
+      }
       for (const num of buffer) {
         switch (num) {
           case 1:
@@ -108,18 +173,31 @@ export const parseMpsz = (hand: string): Tile[] => {
             result.push(Tile.TILE_5Z + num - 5);
             break;
           default:
-            throw new Error(`Illegal number before z: ${num}`);
+            ctx.addIssue({
+              code: 'custom',
+              message: `Illegal number before z: ${num}`,
+            });
+            break;
         }
       }
       buffer = [];
       continue;
     }
 
-    throw new Error(`Unrecognized character ${char}`);
+    ctx.addIssue({
+      code: 'custom',
+      message: `Unrecognized character ${char}`,
+    });
+    return z.NEVER;
   }
 
   return result;
 };
+
+export const mpszHandResolver = z
+  .string()
+  .transform((s, ctx) => mpszHandTransformer(s, ctx) ?? z.NEVER);
+export const mpszHandValidator = z.string().superRefine(mpszHandTransformer);
 
 export enum SeatRelative {
   JICHA = 0,
@@ -160,22 +238,17 @@ export interface Hand {
   calls?: Call[];
 }
 
-export enum SeatWind {
-  EAST = 0,
-  SOUTH = 1,
-  WEST = 2,
-  NORTH = 3,
-}
+export type SeatWind = 'E' | 'S' | 'W' | 'N';
 
 export const seatWindToEnglish = (seatWind: SeatWind): string => {
   switch (seatWind) {
-    case SeatWind.EAST:
+    case 'E':
       return 'East';
-    case SeatWind.SOUTH:
+    case 'S':
       return 'South';
-    case SeatWind.WEST:
+    case 'W':
       return 'West';
-    case SeatWind.NORTH:
+    case 'N':
       return 'North';
   }
 };
@@ -183,13 +256,13 @@ export const seatWindToEnglish = (seatWind: SeatWind): string => {
 export interface HandNumber {
   prevalentWind: SeatWind;
   dealerNumber: 1 | 2 | 3 | 4;
-  honba: number;
+  honba?: number;
 }
 
 export const handNumberToEnglish = ({
   prevalentWind,
   dealerNumber,
-  honba,
+  honba = 0,
 }: HandNumber): string => {
   const suffix = honba > 0 ? `-${honba}` : '';
   return `${seatWindToEnglish(prevalentWind)} ${dealerNumber}${suffix}`;

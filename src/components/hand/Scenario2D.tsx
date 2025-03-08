@@ -6,21 +6,14 @@ import Timer from '../Timer';
 import clsx from 'clsx';
 import { useState } from 'react';
 import { useMeasure } from 'react-use';
+import { z } from 'zod';
+import v1_schema from '../../utils/wwyd/2d_schema';
+import { mpszHandResolver, mpszTileResolver } from '../../utils/mahjong/tiles';
 
 export interface Scenario2DProps {
-  scenario: {
-    hand: MahjongTiles.Hand;
-    handNumber: MahjongTiles.HandNumber;
-    turn: number;
-    seat: MahjongTiles.SeatWind;
-    dora: MahjongTiles.Tile[];
-  };
+  scenario: z.infer<typeof v1_schema>;
   settings: {
     endDate: Date;
-  };
-  options?: {
-    discard?: MahjongTiles.Tile[];
-    riichi?: MahjongTiles.Tile[];
   };
 }
 
@@ -31,31 +24,22 @@ const computeTileWidth = (width: number, height: number) => {
   return 30;
 };
 
-export default function Scenario2D({
-  scenario,
-  settings,
-  options = {},
-}: Scenario2DProps) {
-  const { hand, handNumber, seat, dora, turn } = scenario;
+export default function Scenario2D({ scenario, settings }: Scenario2DProps) {
+  const { hand: serializedHand, handNumber, seat, dora, turn } = scenario;
   const { endDate } = settings;
+
+  const [doRiichi, setDoRiichi] = useState(false);
 
   const [ref, { width, height }] = useMeasure<HTMLDivElement>();
   const tileWidth = computeTileWidth(width, height);
-  console.log('tileWidth', tileWidth);
 
-  const [doRiichi, setDoRiichi] = useState(() => {
-    if (options.discard !== undefined && options.discard.length === 0)
-      return true;
-    if (options.riichi !== undefined && options.riichi.length === 0)
-      return false;
-    return undefined;
-  });
-
-  const discardTiles = options.discard && new Set(options.discard);
-  const riichiTiles = options.riichi && new Set(options.riichi);
-
-  const showRiichi = options.riichi === undefined || options.riichi.length > 0;
-  const showSkip = showRiichi;
+  const hand = {
+    tiles: mpszHandResolver.parse(serializedHand.tiles),
+    draw: scenario.hand.draw
+      ? mpszTileResolver.parse(serializedHand.draw)
+      : undefined,
+    calls: [],
+  };
 
   return (
     <div ref={ref} className="bg-green-700 h-full w-full px-4 py-4">
@@ -68,9 +52,16 @@ export default function Scenario2D({
           <div className="flex flex-row gap-1 align-middle self-center">
             <Heading level="h6">Dora</Heading>
             {dora.map((dora, index) => (
-              <Tile key={index} tile={dora} tileWidth={tileWidth} />
+              <Tile
+                key={index}
+                tile={MahjongTiles.mpszTileResolver.parse(dora)}
+                tileWidth={tileWidth}
+              />
             ))}
           </div>
+        </div>
+        <div className="text-center">
+          Double-tap on a tile from your hand to select it.
         </div>
         <div className="grow" />
         <div className="flex flex-row justify-end my-8 gap-2">
@@ -78,8 +69,6 @@ export default function Scenario2D({
             className={clsx(
               'text-2xl px-2 py-2 min-w-24 text-center cursor-pointer',
               'bg-orange-900 text-orange-400 hover:bg-orange-800',
-              doRiichi && 'bg-orange-800',
-              showRiichi ? '' : 'hidden',
             )}
             onClick={() => setDoRiichi(true)}
           >
@@ -89,7 +78,6 @@ export default function Scenario2D({
             className={clsx(
               'text-2xl px-2 py-2 min-w-24 text-center cursor-pointer',
               'bg-gray-900 text-gray-400 hover:bg-gray-800',
-              showSkip ? '' : 'hidden',
               doRiichi && 'invisible',
             )}
             onClick={() => setDoRiichi(false)}
@@ -102,11 +90,7 @@ export default function Scenario2D({
           />
         </div>
         <div>
-          <Hand
-            hand={hand}
-            tileWidth={tileWidth}
-            options={doRiichi ? riichiTiles : discardTiles}
-          />
+          <Hand hand={hand} tileWidth={tileWidth} />
         </div>
       </div>
     </div>

@@ -91,6 +91,7 @@ const quizRouter = router({
           );
 
           if (response === null || response[0][1].length === 0) {
+            console.log(`Failures: ${ctx.user.name}`);
             if (++fails >= 6) break;
             continue;
           }
@@ -101,10 +102,18 @@ const quizRouter = router({
           if ('type' in entry && entry.type === 'done') break;
           yield JSON.parse(entry.data);
         }
+      } catch (e) {
+        console.log('Error', e);
       } finally {
+        console.log(`Unsubscribing: ${ctx.user.name}`);
         store.hdel(keys.players, ctx.user.id);
       }
+      return;
     }),
+
+  countParticipants: authedProcedure
+    .input(z.number())
+    .query(({ input: id }) => valkey(id).hlen(keys.players)),
 
   admin: router({
     host: adminProcedure
@@ -163,6 +172,7 @@ const quizRouter = router({
       .input(z.number().int())
       .mutation(async ({ input: id }) => {
         const v = valkey(id);
+        console.log('Next question!');
 
         const schemaString = await v.get(keys.schema);
         if (schemaString === null) {
