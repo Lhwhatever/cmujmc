@@ -15,7 +15,6 @@ import { useRouter } from 'next/router';
 import schema from '../../protocol/schema';
 import DateTimeRange from '../DateTimeRange';
 import Dialog from '../Dialog';
-import { PlusIcon } from '@heroicons/react/16/solid';
 import Loading from '../Loading';
 
 interface LeagueTableProps {

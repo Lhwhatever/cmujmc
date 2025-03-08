@@ -11,17 +11,14 @@ interface WwydAdminProps {
 }
 
 const WwydAdmin = ({ quizId }: WwydAdminProps) => {
-  const [done, setDone] = useState(false);
+  const [done, _setDone] = useState(false);
+  const [scenario, setScenario] = useState(null);
 
-  const subscription = trpc.wwyd.quiz.play.useSubscription(quizId, {
+  trpc.wwyd.quiz.play.useSubscription(quizId, {
     onData(data) {
       console.log(data);
     },
   });
-
-  console.log(subscription.data);
-  console.log(subscription.status);
-  console.log(subscription.error);
 
   const nextQuestionMutation = trpc.wwyd.quiz.admin.nextQuestion.useMutation();
   const restartMutation = trpc.wwyd.quiz.admin.restart.useMutation();

@@ -1,5 +1,3 @@
-import * as Mahjong from '../../../utils/mahjong/tiles';
-import { Tile } from '../../../utils/mahjong/tiles';
 import { useEffect, useState } from 'react';
 import Page from '../../../components/Page';
 import Scenario2D from '../../../components/hand/Scenario2D';
@@ -48,7 +46,7 @@ const WwydScenarioWrapper = ({ quizId }: WwydScenarioWrapperProps) => {
     typeof schema.wwyd.quiz.playOutput
   > | null>(null);
 
-  const subscription = trpc.wwyd.quiz.play.useSubscription(quizId, {
+  trpc.wwyd.quiz.play.useSubscription(quizId, {
     onData(data) {
       console.log(data);
       setQuestion(

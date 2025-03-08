@@ -26,6 +26,7 @@ const TemplateListing = ({ template }: TemplateListingProps) => {
         },
       });
     } catch (_) {
+      /* empty */
     } finally {
       router.push(`/wwyd/${template.id}/admin`);
     }

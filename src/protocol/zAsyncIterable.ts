@@ -26,11 +26,13 @@ export function zAsyncIterable<
   /**
    * Validate the value yielded by the async generator
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   yield: z.ZodType<TYieldIn, any, TYieldOut>;
   /**
    * Validate the return value of the async generator
    * @remark not applicable for subscriptions
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return?: z.ZodType<TReturnIn, any, TReturnOut>;
   /**
    * Whether if the yielded values are tracked
@@ -70,6 +72,7 @@ export function zAsyncIterable<
       TReturnIn,
       unknown
     >,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     any,
     AsyncIterable<
       Tracked extends true ? TrackedEnvelope<TYieldOut> : TYieldOut,

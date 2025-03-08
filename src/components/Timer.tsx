@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useInterval } from 'react-use';
 
 export interface TimerProps {
   endDate: Date;
@@ -14,14 +15,7 @@ export default function Timer({ endDate, className, frameRate }: TimerProps) {
   const [secondsLeft, setSecondsLeft] = useState('');
   const timerInterval = Math.round(1000 / (frameRate ?? 20));
 
-  useEffect(() => {
-    const interval = setInterval(
-      (endDate) => setSecondsLeft(getTimerText(endDate)),
-      timerInterval,
-      endDate,
-    );
-    setTimeout(() => clearInterval(interval), getTimeLeft(endDate));
-  }, [endDate, setSecondsLeft, timerInterval]);
+  useInterval(() => setSecondsLeft(getTimerText(endDate)), timerInterval);
 
   return <div className={className}>{secondsLeft}</div>;
 }

@@ -116,19 +116,9 @@ export default function Scenario2D({ scenario, settings }: Scenario2DProps) {
               'text-2xl px-2 py-2 min-w-24 text-center cursor-pointer',
               'bg-orange-900 text-orange-400 hover:bg-orange-800',
             )}
-            onClick={() => setDoRiichi(true)}
+            onClick={() => setDoRiichi(!doRiichi)}
           >
-            Riichi
-          </div>
-          <div
-            className={clsx(
-              'text-2xl px-2 py-2 min-w-24 text-center cursor-pointer',
-              'bg-gray-900 text-gray-400 hover:bg-gray-800',
-              doRiichi && 'invisible',
-            )}
-            onClick={() => setDoRiichi(false)}
-          >
-            Skip
+            Riichi: {doRiichi ? 'Yes' : 'No'}
           </div>
           <Timer
             endDate={endDate}
