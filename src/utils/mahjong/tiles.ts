@@ -199,6 +199,22 @@ export const mpszHandResolver = z
   .transform((s, ctx) => mpszHandTransformer(s, ctx) ?? z.NEVER);
 export const mpszHandValidator = z.string().superRefine(mpszHandTransformer);
 
+export const toMpsz = (tile: Tile): string => {
+  if (tile <= Tile.TILE_9M) {
+    return `${tile - offsets.m}m`;
+  }
+  if (tile <= Tile.TILE_9P) {
+    return `${tile - offsets.p}p`;
+  }
+  if (tile <= Tile.TILE_9S) {
+    return `${tile - offsets.s}s`;
+  }
+  if (tile <= Tile.TILE_4Z) {
+    return `${tile - Tile.TILE_1Z + 1}z`;
+  }
+  return `${tile - Tile.TILE_5Z + 5}z`;
+};
+
 export enum SeatRelative {
   JICHA = 0,
   SHIMOCHA = 1,

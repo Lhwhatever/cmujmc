@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import Loading from '../../../components/Loading';
 import Button from '../../../components/Button';
 import clsx from 'clsx';
+import { WwydScenarioWrapper } from './index';
 
 interface WwydAdminProps {
   quizId: number;
@@ -12,13 +13,6 @@ interface WwydAdminProps {
 
 const WwydAdmin = ({ quizId }: WwydAdminProps) => {
   const [done, _setDone] = useState(false);
-  const [scenario, setScenario] = useState(null);
-
-  trpc.wwyd.quiz.play.useSubscription(quizId, {
-    onData(data) {
-      console.log(data);
-    },
-  });
 
   const nextQuestionMutation = trpc.wwyd.quiz.admin.nextQuestion.useMutation();
   const restartMutation = trpc.wwyd.quiz.admin.restart.useMutation();
@@ -42,6 +36,9 @@ const WwydAdmin = ({ quizId }: WwydAdminProps) => {
         >
           Restart
         </Button>
+      </div>
+      <div className="w-full max-w-[80vw]">
+        <WwydScenarioWrapper quizId={quizId} />
       </div>
     </div>
   );

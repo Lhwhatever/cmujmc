@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import schema_2d from './2d_schema';
+import { mpszTileValidator } from '../mahjong/tiles';
 
 const schema = z.string();
 const version = z
@@ -31,5 +32,16 @@ export const wwydQuestionSchema = scenario.extend({
     endDate: z.number(),
   }),
 });
+
+export const moveSchema = z.discriminatedUnion('action', [
+  z.object({
+    action: z.literal('none'),
+    discard: mpszTileValidator.or(z.literal('tsumogiri')),
+  }),
+  z.object({
+    action: z.literal('riichi'),
+    discard: mpszTileValidator.or(z.literal('tsumogiri')),
+  }),
+]);
 
 export default wwydQuizSchema;

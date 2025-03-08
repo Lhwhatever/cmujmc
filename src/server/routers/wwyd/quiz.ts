@@ -4,16 +4,16 @@ import {
   publicProcedure,
   router,
 } from '../../trpc';
-import makeValkey, { transformXReadResponse } from '../../cache/makeValkey';
+import makeValkey, { VStream } from '../../cache/makeValkey';
 import { prisma } from '../../prisma';
 import { AdminUserError, NotFoundError } from '../../../protocol/errors';
 import { z } from 'zod';
-import wwydQuizSchema from '../../../utils/wwyd/basicSchema';
+import wwydQuizSchema, { moveSchema } from '../../../utils/wwyd/basicSchema';
 import schema from '../../../protocol/schema';
 import { zAsyncIterable } from '../../../protocol/zAsyncIterable';
 
 const makePrefix = (id: number | string) => `wwyd:${id}:`;
-const valkey = (id: number | string) => makeValkey(makePrefix(id));
+const valkey = makeValkey(makePrefix);
 
 const keys = {
   name: 'name',
@@ -31,10 +31,11 @@ const extractId = (key: string) => {
   return parseInt(matchArray[1]);
 };
 
+type StreamElement = z.infer<typeof schema.wwyd.quiz.playOutput>;
+
 const quizRouter = router({
   list: publicProcedure.query(async () => {
-    const v = makeValkey();
-
+    const v = valkey();
     const stream = v.scanStream({
       match: makePrefix('*') + keys.name,
     });
@@ -57,15 +58,9 @@ const quizRouter = router({
 
   play: authedProcedure
     .input(z.number())
-    .output(
-      zAsyncIterable({
-        yield: schema.wwyd.quiz.playOutput,
-      }),
-    )
+    .output(zAsyncIterable({ yield: schema.wwyd.quiz.playOutput }))
     .subscription(async function* ({ input: id, ctx }) {
       const store = valkey(id);
-
-      let fails = 0;
       let nextMsgId = '0';
 
       if ((await store.get(keys.name)) === null) {
@@ -79,36 +74,47 @@ const quizRouter = router({
           ctx.user.name ?? 'Anonymous',
         );
 
-        while (true) {
-          const response = transformXReadResponse(
-            await store.xread(
-              'BLOCK',
-              300000,
-              'STREAMS',
-              keys.stream,
-              nextMsgId,
-            ),
-          );
+        const stream = new VStream<StreamElement>(store, keys.stream);
 
-          if (response === null || response[0][1].length === 0) {
-            if (++fails >= 10) break;
-            continue;
+        while (true) {
+          const results = await stream.xread(nextMsgId, {
+            blockMs: 300000,
+            retries: 5,
+          });
+
+          if (results === null) {
+            throw new Error(
+              `Too many retries: play subscription ${id}, user: ${ctx.user.name}`,
+            );
           }
 
-          const results = response[0][1];
-          const [id, entry] = results[results.length - 1];
-          nextMsgId = id;
-          if ('type' in entry && entry.type === 'done') break;
-          yield JSON.parse(entry.data);
+          if (results.length === 0) continue;
+
+          const lastEntry = results[results.length - 1];
+          if (lastEntry.entry.type === 'done') break;
+          nextMsgId = lastEntry.id;
+
+          const lastQuestionIdx = Math.max(
+            0,
+            results.findLastIndex((value) => value.entry.type === 'question'),
+          );
+
+          for (let i = lastQuestionIdx; i < results.length; ++i) {
+            yield results[i].entry;
+          }
         }
+        yield { type: 'done' };
       } catch (e) {
-        console.log('Error', e);
+        console.error('Error in play', e);
       } finally {
-        console.log(`Unsubscribing: ${ctx.user.name}`);
         store.hdel(keys.players, ctx.user.id);
       }
       return;
     }),
+
+  submit: authedProcedure.input(moveSchema).mutation(async ({ input, ctx }) => {
+    console.log(ctx.user.name, ': ', input);
+  }),
 
   countParticipants: authedProcedure
     .input(z.number())
@@ -142,13 +148,13 @@ const quizRouter = router({
     delete: adminProcedure
       .input(z.number().int())
       .mutation(async ({ input: id }) => {
-        const v = makeValkey();
+        const v = valkey();
 
         const stream = v.scanStream({
           match: makePrefix(id) + '*',
         });
 
-        await stream.forEach(async (keys) => {
+        return stream.forEach(async (keys) => {
           if (keys.length === 0) return;
           await v.del(...keys);
         });
@@ -171,7 +177,6 @@ const quizRouter = router({
       .input(z.number().int())
       .mutation(async ({ input: id }) => {
         const v = valkey(id);
-        console.log('Next question!');
 
         const schemaString = await v.get(keys.schema);
         if (schemaString === null) {
@@ -181,8 +186,10 @@ const quizRouter = router({
         const schema = wwydQuizSchema.parse(JSON.parse(schemaString));
         const nextQuestionId = (await v.incr(keys.nextQuestion)) - 1;
 
+        const stream = new VStream<StreamElement>(v, keys.stream);
+
         if (nextQuestionId >= schema.scenarios.length) {
-          await v.xadd(keys.stream, '*', 'type', 'done');
+          await stream.xadd({ type: 'done' });
           return;
         }
 
@@ -202,14 +209,11 @@ const quizRouter = router({
           },
         };
 
-        await v.xadd(
-          keys.stream,
-          '*',
-          'type',
-          'question',
-          'data',
-          JSON.stringify(question),
-        );
+        await stream.xadd({
+          type: 'question',
+          id: nextQuestionId,
+          data: question,
+        });
         return nextQuestionId;
       }),
   }),

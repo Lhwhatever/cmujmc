@@ -8,12 +8,14 @@ import { useRouter } from 'next/router';
 import ButtonLink from '../../../components/ButtonLink';
 import schema from '../../../protocol/schema';
 import { z } from 'zod';
+import { wwydQuestionSchema } from '../../../utils/wwyd/basicSchema';
 
 interface NotReadyScreenProps {
   quizId: number;
+  isDone: boolean;
 }
 
-const NotReadyScreen = ({ quizId }: NotReadyScreenProps) => {
+const FalloverScreen = ({ quizId, isDone }: NotReadyScreenProps) => {
   const query = trpc.wwyd.quiz.countParticipants.useQuery(quizId, {
     refetchInterval: 10000,
   });
@@ -21,12 +23,15 @@ const NotReadyScreen = ({ quizId }: NotReadyScreenProps) => {
   return (
     <div className="bg-black text-white h-full m-auto p-4 flex flex-col justify-center gap-4">
       <div className="text-center">
-        The quiz is not ready yet. Please wait for the host.
+        {isDone
+          ? 'The quiz is over. Thanks for playing!'
+          : 'The quiz is not ready yet. Please wait for the host.'}
       </div>
       <div className="text-center">
-        {query.data === undefined
-          ? 'Connecting...'
-          : `${query.data} player(s) connected.`}
+        {!isDone &&
+          (query.data === undefined
+            ? 'Connecting...'
+            : `${query.data} player(s) connected.`)}
       </div>
       <div className="w-fit mx-auto">
         <ButtonLink fill="filled" color="red" href="/wwyd">
@@ -41,28 +46,43 @@ interface WwydScenarioWrapperProps {
   quizId: number;
 }
 
-const WwydScenarioWrapper = ({ quizId }: WwydScenarioWrapperProps) => {
-  const [question, setQuestion] = useState<z.infer<
-    typeof schema.wwyd.quiz.playOutput
-  > | null>(null);
+type Question = z.infer<typeof wwydQuestionSchema>;
+
+export const WwydScenarioWrapper = ({ quizId }: WwydScenarioWrapperProps) => {
+  const [questionId, setQuestionId] = useState<number | null>(null);
+  const [question, setQuestion] = useState<Question | null>(null);
+  const [isDone, setIsDone] = useState(false);
 
   trpc.wwyd.quiz.play.useSubscription(quizId, {
-    onData(data) {
-      console.log(data);
-      setQuestion(
-        data as unknown as z.infer<typeof schema.wwyd.quiz.playOutput>,
-      );
+    onData(event) {
+      const e = event as unknown as z.infer<typeof schema.wwyd.quiz.playOutput>;
+      switch (e.type) {
+        case 'question':
+          setQuestionId(e.id);
+          setQuestion(e.data);
+          break;
+        case 'done':
+          setIsDone(true);
+          break;
+      }
     },
   });
 
-  if (question === null) return <NotReadyScreen quizId={quizId} />;
+  if (question === null || questionId === null || isDone)
+    return <FalloverScreen quizId={quizId} isDone={isDone} />;
 
   const settings = {
     endDate: new Date(question.settings.endDate),
   };
 
   if (question.schema === '2d') {
-    return <Scenario2D scenario={question.scenario} settings={settings} />;
+    return (
+      <Scenario2D
+        questionId={questionId}
+        scenario={question.scenario}
+        settings={settings}
+      />
+    );
   }
 
   return <div>Unsupported/unknown schema {question.schema}</div>;
@@ -87,8 +107,9 @@ export default function WwydPage() {
         )}
       >
         <div className="p-1">
-          Your screen may be too narrow to display the following content well.
-          Try changing to landscape mode or using another device.
+          Your screen may be too narrow to render the following content as
+          intended. Try changing your device orientation to landscape or using
+          another device.
         </div>
         <button className="p-1" onClick={() => setBannerHidden(true)}>
           <XMarkIcon height={36} />
