@@ -184,6 +184,10 @@ export interface HandProps {
   hand: MahjongTiles.Hand;
   options?: Set<MahjongTiles.Tile>;
   tileWidth: number;
+  selectedTileIdx: number | null;
+  onSelect: (idx: number | null) => void;
+  confirmedTileIdx: number | null;
+  onConfirm: (idx: number) => void;
 }
 
 const createStyles = (
@@ -191,15 +195,21 @@ const createStyles = (
   translateYPct: number,
 ): CSSProperties => ({
   cursor: validOption ? 'pointer' : undefined,
-  filter: validOption ? undefined : 'saturate(10%) brightness(60%)',
+  filter: validOption ? undefined : 'saturate(50%) brightness(50%)',
   translate: `0 ${translateYPct}%`,
 });
 
-export default function Hand({ hand, tileWidth, options }: HandProps) {
+export default function Hand({
+  hand,
+  tileWidth,
+  options,
+  confirmedTileIdx,
+  onConfirm,
+  selectedTileIdx,
+  onSelect,
+}: HandProps) {
+  const [hovererdTileIdx, sethovererdTileIdx] = useState<number | null>(null);
   const tileHeight = getHeightFromWidth(tileWidth);
-
-  const [hoveredTile, setHoveredTile] = useState<number | null>(null);
-  const [selectedTile, setSelectedTile] = useState<number | null>(null);
 
   const getTileAt = (index: number): MahjongTiles.Tile => {
     if (index >= 0) return hand.tiles[index];
@@ -208,35 +218,35 @@ export default function Hand({ hand, tileWidth, options }: HandProps) {
   };
 
   const isValidOption = (index: number): boolean => {
-    return options?.has(getTileAt(index)) ?? true;
+    return (
+      confirmedTileIdx === null && (options?.has(getTileAt(index)) ?? true)
+    );
   };
 
   const addTileHandlers = (index: number) => ({
     onMouseEnter: () => {
-      if (isValidOption(index)) setHoveredTile(index);
+      if (isValidOption(index)) sethovererdTileIdx(index);
     },
-    onMouseLeave: () => setHoveredTile(null),
+    onMouseLeave: () => sethovererdTileIdx(null),
     onClick: () => {
-      if (index === selectedTile) {
-        // TODO
-        console.log(`Double selected tile ${index}`);
+      if (index === selectedTileIdx) {
+        onConfirm(index);
       } else if (isValidOption(index)) {
-        console.log(`Selected tile ${index}`);
-        setSelectedTile(index);
+        onSelect(index);
       } else {
-        setSelectedTile(null);
+        onSelect(null);
       }
     },
     style: {
       translate: `0 ${
-        index === hoveredTile ? Math.round(-0.1 * tileHeight) : 0
+        index === hovererdTileIdx ? Math.round(-0.1 * tileHeight) : 0
       }px`,
       cursor: 'pointer',
     },
   });
 
   const getTranslateY = (index: number): number =>
-    index === hoveredTile || index === selectedTile ? -10 : 0;
+    index === hovererdTileIdx || index === selectedTileIdx ? -20 : 0;
 
   return (
     <div className="flex flex-row flex-wrap h-[48px] gap-1">

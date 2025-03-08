@@ -91,8 +91,7 @@ const quizRouter = router({
           );
 
           if (response === null || response[0][1].length === 0) {
-            console.log(`Failures: ${ctx.user.name}`);
-            if (++fails >= 6) break;
+            if (++fails >= 10) break;
             continue;
           }
 

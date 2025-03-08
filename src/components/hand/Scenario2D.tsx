@@ -24,6 +24,40 @@ const computeTileWidth = (width: number, height: number) => {
   return 30;
 };
 
+interface InstructionProps {
+  tiles: MahjongTiles.Tile[];
+  tileWidth: number;
+  selectedTileIdx: number | null;
+  confirmedTileIdx: number | null;
+}
+
+const Instruction = ({
+  tiles,
+  tileWidth,
+  selectedTileIdx,
+  confirmedTileIdx,
+}: InstructionProps) => {
+  if (confirmedTileIdx !== null) return 'Your choice has been submitted!';
+
+  if (selectedTileIdx === null)
+    return 'Double-tap a tile to submit your choice.';
+
+  if (selectedTileIdx < 0)
+    return 'Tap on the drawn tile again to submit your choice.';
+
+  return (
+    <>
+      Tap on the selected{' '}
+      <Tile
+        tile={tiles[selectedTileIdx]}
+        tileWidth={tileWidth}
+        style={{ display: 'inline-block', marginLeft: 2, marginRight: 2 }}
+      />{' '}
+      again to submit your choice!{' '}
+    </>
+  );
+};
+
 export default function Scenario2D({ scenario, settings }: Scenario2DProps) {
   const { hand: serializedHand, handNumber, seat, dora, turn } = scenario;
   const { endDate } = settings;
@@ -33,12 +67,19 @@ export default function Scenario2D({ scenario, settings }: Scenario2DProps) {
   const [ref, { width, height }] = useMeasure<HTMLDivElement>();
   const tileWidth = computeTileWidth(width, height);
 
+  const [selectedTileIdx, setSelectedTileIdx] = useState<number | null>(null);
+  const [confirmedTileIdx, setConfirmedTileIdx] = useState<number | null>(null);
+
   const hand = {
     tiles: mpszHandResolver.parse(serializedHand.tiles),
     draw: scenario.hand.draw
       ? mpszTileResolver.parse(serializedHand.draw)
       : undefined,
     calls: [],
+  };
+
+  const handleConfirm = (idx: number) => {
+    setConfirmedTileIdx(idx);
   };
 
   return (
@@ -61,7 +102,12 @@ export default function Scenario2D({ scenario, settings }: Scenario2DProps) {
           </div>
         </div>
         <div className="text-center">
-          Double-tap on a tile from your hand to select it.
+          <Instruction
+            tiles={hand.tiles}
+            tileWidth={tileWidth / 3}
+            selectedTileIdx={selectedTileIdx}
+            confirmedTileIdx={confirmedTileIdx}
+          />
         </div>
         <div className="grow" />
         <div className="flex flex-row justify-end my-8 gap-2">
@@ -90,7 +136,14 @@ export default function Scenario2D({ scenario, settings }: Scenario2DProps) {
           />
         </div>
         <div>
-          <Hand hand={hand} tileWidth={tileWidth} />
+          <Hand
+            hand={hand}
+            tileWidth={tileWidth}
+            selectedTileIdx={selectedTileIdx}
+            onSelect={setSelectedTileIdx}
+            confirmedTileIdx={confirmedTileIdx}
+            onConfirm={handleConfirm}
+          />
         </div>
       </div>
     </div>
