@@ -1,5 +1,6 @@
 import { wwydQuestionSchema } from '../../utils/wwyd/basicSchema';
 import { z } from 'zod';
+import { wwydResponseSchema } from '../../utils/wwyd/response';
 
 export const playOutput = z.discriminatedUnion('type', [
   z.object({
@@ -11,3 +12,9 @@ export const playOutput = z.discriminatedUnion('type', [
     data: wwydQuestionSchema,
   }),
 ]);
+
+export const submit = z.object({
+  quizId: z.number().int(),
+  questionId: z.number().int().nonnegative(),
+  answer: wwydResponseSchema,
+});

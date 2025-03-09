@@ -68,6 +68,8 @@ export const WwydScenarioWrapper = ({ quizId }: WwydScenarioWrapperProps) => {
     },
   });
 
+  const submitMutation = trpc.wwyd.quiz.submit.useMutation();
+
   if (question === null || questionId === null || isDone)
     return <FalloverScreen quizId={quizId} isDone={isDone} />;
 
@@ -81,6 +83,9 @@ export const WwydScenarioWrapper = ({ quizId }: WwydScenarioWrapperProps) => {
         questionId={questionId}
         scenario={question.scenario}
         settings={settings}
+        onSubmit={(answer) =>
+          submitMutation.mutateAsync({ quizId, questionId, answer })
+        }
       />
     );
   }

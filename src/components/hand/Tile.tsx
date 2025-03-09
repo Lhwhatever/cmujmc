@@ -1,6 +1,6 @@
 import * as Mahjong from '../../utils/mahjong/tiles';
 import { ReactSVG } from 'react-svg';
-import { CSSProperties, MouseEventHandler } from 'react';
+import { CSSProperties, MouseEventHandler, ReactNode } from 'react';
 
 export interface TileProps {
   tile?: Mahjong.Tile;

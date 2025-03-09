@@ -1,10 +1,10 @@
 import Hand from './Hand';
 import * as MahjongTiles from '../../utils/mahjong/tiles';
 import Heading from '../Heading';
-import Tile from './Tile';
+import Tile, { getHeightFromWidth } from './Tile';
 import Timer from '../Timer';
 import clsx from 'clsx';
-import { useEffect, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { useMeasure } from 'react-use';
 import { z } from 'zod';
 import v1_schema from '../../utils/wwyd/2d_schema';
@@ -13,13 +13,13 @@ import {
   mpszTileResolver,
   toMpsz,
 } from '../../utils/mahjong/tiles';
-import { trpc } from '../../utils/trpc';
+import { wwydResponseSchema } from '../../utils/wwyd/response';
 
 const computeTileWidth = (width: number, height: number) => {
-  if (width >= 1280 && height >= 480) return 48;
-  if (width >= 1024 && height >= 384) return 42;
-  if (width >= 768 && height >= 288) return 36;
-  return 30;
+  if (width >= 1280 && height >= 480) return 72;
+  if (width >= 1024 && height >= 384) return 60;
+  if (width >= 768 && height >= 288) return 48;
+  return 36;
 };
 
 interface InstructionProps {
@@ -63,12 +63,31 @@ export interface Scenario2DProps {
   settings: {
     endDate: Date;
   };
+  onSubmit: (response: z.infer<typeof wwydResponseSchema>) => Promise<void>;
 }
+
+const createAnnotationsBottom = (
+  confirmedIdx: number | null,
+  tileHeight: number,
+) => {
+  const annotations: Record<number, ReactNode> = {};
+  if (confirmedIdx !== null)
+    annotations[confirmedIdx] = (
+      <div
+        className="absolute bg-orange-300 left-0 right-0 text-center py-0.5 text-xs"
+        style={{ top: tileHeight + 8 }}
+      >
+        Me
+      </div>
+    );
+  return annotations;
+};
 
 export default function Scenario2D({
   questionId,
   scenario,
   settings,
+  onSubmit,
 }: Scenario2DProps) {
   const { hand: serializedHand, handNumber, seat, dora, turn } = scenario;
   const { endDate } = settings;
@@ -77,11 +96,12 @@ export default function Scenario2D({
 
   const [ref, { width, height }] = useMeasure<HTMLDivElement>();
   const tileWidth = computeTileWidth(width, height);
+  const tileHeight = getHeightFromWidth(tileWidth);
 
   const [selectedTileIdx, setSelectedTileIdx] = useState<number | null>(null);
   const [confirmedTileIdx, setConfirmedTileIdx] = useState<number | null>(null);
 
-  const submitChoice = trpc.wwyd.quiz.submit.useMutation();
+  const [errorMessage, setErrorMessage] = useState('');
 
   const hand = {
     tiles: mpszHandResolver.parse(serializedHand.tiles),
@@ -91,30 +111,35 @@ export default function Scenario2D({
     calls: [],
   };
 
-  const handleConfirm = (idx: number) => {
+  const handleConfirm = async (idx: number) => {
     const discard = idx < 0 ? 'tsumogiri' : toMpsz(hand.tiles[idx]);
-    submitChoice.mutateAsync(
-      {
+    try {
+      await onSubmit({
         action: doRiichi ? 'riichi' : 'none',
         discard,
-      },
-      {
-        onSuccess() {
-          setConfirmedTileIdx(idx);
-        },
-      },
-    );
+      });
+      setConfirmedTileIdx(idx);
+      setErrorMessage('');
+    } catch (e) {
+      if (typeof e === 'object' && e !== null && 'message' in e)
+        setErrorMessage(e.message as string);
+    }
+  };
+
+  const handleToggleRiichi = () => {
+    if (confirmedTileIdx === null) setDoRiichi(!doRiichi);
   };
 
   useEffect(() => {
     setSelectedTileIdx(null);
     setConfirmedTileIdx(null);
     setDoRiichi(false);
+    setErrorMessage('');
   }, [questionId]);
 
   return (
     <div ref={ref} className="bg-green-700 h-full w-full px-4 py-4">
-      <div className="w-full max-w-4xl m-auto">
+      <div className="w-full max-w-6xl m-auto">
         <div className="flex flex-row justify-between content-center">
           <Heading level="h4" className="h-min block">
             {MahjongTiles.handNumberToEnglish(handNumber)} &middot;{' '}
@@ -140,6 +165,7 @@ export default function Scenario2D({
             confirmedTileIdx={confirmedTileIdx}
           />
         </div>
+        <div className="text-center text-red-800">{errorMessage}</div>
         <div className="grow" />
         <div className="flex flex-row justify-end my-8 gap-2">
           <div
@@ -147,7 +173,7 @@ export default function Scenario2D({
               'text-2xl px-2 py-2 min-w-24 text-center cursor-pointer',
               'bg-orange-900 text-orange-400 hover:bg-orange-800',
             )}
-            onClick={() => setDoRiichi(!doRiichi)}
+            onClick={handleToggleRiichi}
           >
             Riichi: {doRiichi ? 'Yes' : 'No'}
           </div>
@@ -164,6 +190,10 @@ export default function Scenario2D({
             onSelect={setSelectedTileIdx}
             confirmedTileIdx={confirmedTileIdx}
             onConfirm={handleConfirm}
+            annotationBottom={createAnnotationsBottom(
+              confirmedTileIdx,
+              tileHeight,
+            )}
           />
         </div>
       </div>

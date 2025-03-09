@@ -1,6 +1,6 @@
 import * as MahjongTiles from '../../utils/mahjong/tiles';
 import Tile, { getHeightFromWidth } from './Tile';
-import { CSSProperties, useState } from 'react';
+import { CSSProperties, ReactNode, useState } from 'react';
 
 interface CallProps {
   call: MahjongTiles.Call;
@@ -188,6 +188,7 @@ export interface HandProps {
   onSelect: (idx: number | null) => void;
   confirmedTileIdx: number | null;
   onConfirm: (idx: number) => void;
+  annotationBottom?: Record<number, ReactNode>;
 }
 
 const createStyles = (
@@ -207,8 +208,9 @@ export default function Hand({
   onConfirm,
   selectedTileIdx,
   onSelect,
+  annotationBottom = {},
 }: HandProps) {
-  const [hovererdTileIdx, sethovererdTileIdx] = useState<number | null>(null);
+  const [hovererdTileIdx, setHoveredTileIdx] = useState<number | null>(null);
   const tileHeight = getHeightFromWidth(tileWidth);
 
   const getTileAt = (index: number): MahjongTiles.Tile => {
@@ -225,12 +227,13 @@ export default function Hand({
 
   const addTileHandlers = (index: number) => ({
     onMouseEnter: () => {
-      if (isValidOption(index)) sethovererdTileIdx(index);
+      if (isValidOption(index)) setHoveredTileIdx(index);
     },
-    onMouseLeave: () => sethovererdTileIdx(null),
+    onMouseLeave: () => setHoveredTileIdx(null),
     onClick: () => {
       if (index === selectedTileIdx) {
         onConfirm(index);
+        onSelect(null);
       } else if (isValidOption(index)) {
         onSelect(index);
       } else {
@@ -248,28 +251,32 @@ export default function Hand({
   const getTranslateY = (index: number): number =>
     index === hovererdTileIdx || index === selectedTileIdx ? -20 : 0;
 
+  const tilesAndIndices = [
+    ...hand.tiles.map(
+      (tile, index) => [tile, index] as [MahjongTiles.Tile, number],
+    ),
+    ...(hand.draw !== undefined
+      ? [[hand.draw, -1] as [MahjongTiles.Tile, number]]
+      : []),
+  ];
+
   return (
-    <div className="flex flex-row flex-wrap h-[48px] gap-1">
-      {hand.tiles.map((tile, index) => (
-        <Tile
-          tile={tile}
-          key={index}
-          tileWidth={tileWidth}
-          {...addTileHandlers(index)}
-          style={createStyles(isValidOption(index), getTranslateY(index))}
-        />
+    <div className="flex flex-row flex-wrap gap-1">
+      {tilesAndIndices.map(([tile, index]) => (
+        <div className="relative" key={index}>
+          <Tile
+            tile={tile}
+            tileWidth={tileWidth}
+            {...addTileHandlers(index)}
+            style={{
+              ...createStyles(isValidOption(index), getTranslateY(index)),
+              marginLeft: index < 0 ? tileWidth : 0,
+            }}
+          />
+          {annotationBottom[index]}
+        </div>
       ))}
-      {hand.draw && (
-        <Tile
-          tile={hand.draw}
-          tileWidth={tileWidth}
-          {...addTileHandlers(-1)}
-          style={{
-            ...createStyles(isValidOption(-1), getTranslateY(-1)),
-            marginLeft: tileWidth,
-          }}
-        />
-      )}
+
       <div className="grow flex flex-row-reverse gap-2">
         {hand.calls?.map((call, index) => (
           <Call
