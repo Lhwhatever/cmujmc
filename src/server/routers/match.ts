@@ -19,7 +19,6 @@ import {
 } from '../../utils/scoring';
 import {
   coalesceNames,
-  getUserGroups,
   maskNames,
   UserGroups,
   userSelector,
@@ -27,6 +26,7 @@ import {
 import { markStale } from '../leaderboard/worker';
 import { Session } from 'next-auth';
 import assertNonNull from '../../utils/nullcheck';
+import { cachedGetUserGroups } from '../cache/userGroups';
 
 //==================== for create ====================
 
@@ -164,7 +164,7 @@ const matchRouter = router({
   create: authedProcedure
     .input(schema.match.create)
     .mutation(async ({ ctx, input }) => {
-      const userGroups = await getUserGroups(ctx.session?.user?.id);
+      const userGroups = await cachedGetUserGroups(ctx.session?.user?.id);
       const event = await prisma.event.findUnique({
         where: { id: input.eventId },
         select: { ruleset: { select: { id: true, gameMode: true } } },
@@ -213,7 +213,7 @@ const matchRouter = router({
   getById: publicProcedure
     .input(z.number())
     .query(async ({ input: id, ctx }) => {
-      const userGroups = await getUserGroups(ctx.session?.user?.id);
+      const userGroups = await cachedGetUserGroups(ctx.session?.user?.id);
       const match: Match | null = await prisma.match.findUnique({
         include: matchIncludes,
         where: { id },
@@ -340,7 +340,7 @@ const matchRouter = router({
   getCompletedByLeague: publicProcedure
     .input(z.number())
     .query(async ({ input: leagueId, ctx }) => {
-      const userGroups = await getUserGroups(ctx.session?.user?.id);
+      const userGroups = await cachedGetUserGroups(ctx.session?.user?.id);
       const matches = await prisma.match.findMany({
         include: matchIncludes,
         where: {
@@ -369,7 +369,7 @@ const matchRouter = router({
   getIncompleteByEvent: publicProcedure
     .input(z.number())
     .query(async ({ input: eventId, ctx }) => {
-      const userGroups = await getUserGroups(ctx.session?.user?.id);
+      const userGroups = await cachedGetUserGroups(ctx.session?.user?.id);
       const matches: Match[] = await prisma.match.findMany({
         include: matchIncludes,
         where: { eventId, status: Status.PENDING },

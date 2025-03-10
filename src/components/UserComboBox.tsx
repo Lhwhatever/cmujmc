@@ -12,7 +12,8 @@ export type UserOption =
 
 export interface UserComboBoxProps {
   label?: string;
-  userList: User[] | null;
+  userList: User[] | undefined;
+  isLoading: boolean;
   user: UserOption | null;
   onUserChange: (_user: UserOption | null) => void;
   required?: boolean;
@@ -53,6 +54,7 @@ export default function UserComboBox({
   userList,
   onUserChange,
   required,
+  isLoading,
 }: UserComboBoxProps) {
   const [query, setQuery] = useState('');
 
@@ -63,13 +65,14 @@ export default function UserComboBox({
       keys: ['displayName', 'name', 'andrew', 'discord'],
     });
 
-  const results = fuse && userList ? getResults(userList, fuse, query) : null;
+  const results = fuse && getResults(userList, fuse, query);
 
   return (
     <ComboboxField
       label={label}
       onChange={onUserChange}
       options={results}
+      isLoading={isLoading}
       displayValue={displayUser}
       value={user}
       query={query}

@@ -1,13 +1,21 @@
-import { RouterOutputs, trpc } from '../../utils/trpc';
+import { trpc } from '../../utils/trpc';
 import Table, { TableCell, TableHeading, TableRow } from '../Table';
 import Loading from '../Loading';
 import { renderAliases } from '../../utils/usernames';
+import { Suspense } from 'react';
 
-interface UserTableProps {
-  users: RouterOutputs['user']['listAll']['users'];
-}
+const UserTable = () => {
+  const [{ pages }, _] = trpc.user.listAll.useSuspenseInfiniteQuery(
+    {},
+    {
+      getNextPageParam(s) {
+        return s.nextCursor;
+      },
+    },
+  );
 
-const UserTable = ({ users }: UserTableProps) => {
+  const users = pages.flatMap((page) => page.users);
+
   return (
     <Table
       head={
@@ -30,11 +38,9 @@ const UserTable = ({ users }: UserTableProps) => {
 };
 
 export default function UserOverview() {
-  const users = trpc.user.listAll.useQuery();
-
-  if (!users.data) {
-    return <Loading />;
-  }
-
-  return <UserTable users={users.data.users} />;
+  return (
+    <Suspense fallback={<Loading />}>
+      <UserTable />
+    </Suspense>
+  );
 }

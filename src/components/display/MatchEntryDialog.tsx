@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import Dialog from '../Dialog';
 import { Fieldset } from '@headlessui/react';
-import UserComboBox, { User, UserOption } from '../UserComboBox';
+import UserComboBox, { UserOption } from '../UserComboBox';
 import Button from '../Button';
 import { RouterOutputs, trpc } from '../../utils/trpc';
 import { GameMode } from '@prisma/client';
@@ -32,7 +32,6 @@ interface MatchCreationFormProps {
   onRefresh: () => void;
   onClose: () => void;
   onSuccess: (_m: MatchCreationResult) => void;
-  users: User[] | null;
   hidden?: boolean;
 }
 
@@ -41,7 +40,6 @@ const MatchCreationForm = ({
   onClose,
   onRefresh,
   onSuccess,
-  users,
   eventId,
   hidden,
 }: MatchCreationFormProps) => {
@@ -54,14 +52,24 @@ const MatchCreationForm = ({
   };
   const [errors, setErrors] = useState('');
 
-  const createMatch = trpc.matches.create.useMutation();
+  const createMatchMutation = trpc.matches.create.useMutation();
+  const userListQuery = trpc.user.listAll.useInfiniteQuery(
+    {},
+    {
+      getNextPageParam(s) {
+        return s.nextCursor;
+      },
+    },
+  );
+
+  const users = userListQuery.data?.pages?.flatMap((r) => r.users);
 
   const handleSubmit = () => {
     void (async () => {
       if (players.every((p) => p !== null)) {
         try {
           onSuccess(
-            await createMatch.mutateAsync(
+            await createMatchMutation.mutateAsync(
               {
                 eventId,
                 players: players.map(({ type, payload }) => ({
@@ -101,6 +109,7 @@ const MatchCreationForm = ({
             user={player}
             onUserChange={updateUser(index)}
             userList={users}
+            isLoading={userListQuery.isFetching}
             required
           />
         ))}
@@ -434,7 +443,6 @@ export default function MatchEntryDialog({
   targetMatch,
   setTargetMatch,
 }: MatchEntryDialogProps) {
-  const users = trpc.user.listAll.useQuery();
   const utils = trpc.useUtils();
   const handleClose = () => {
     setTargetEvent(null);
@@ -465,7 +473,6 @@ export default function MatchEntryDialog({
             gameMode={targetEvent.ruleset.gameMode}
             onRefresh={handleRefresh}
             onClose={handleClose}
-            users={users.data?.users ?? null}
             onSuccess={handleSuccess}
           />
           {targetMatch && (

@@ -32,7 +32,11 @@ export const userSelector = Prisma.validator<Prisma.UserDefaultArgs>()({
   },
 });
 
-export type User = Prisma.UserGetPayload<typeof userSelector>;
+export type User = Prisma.Result<
+  typeof prisma.user,
+  typeof userSelector,
+  'findFirstOrThrow'
+>;
 
 export interface INames {
   id: string;

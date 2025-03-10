@@ -13,17 +13,13 @@ import { computeClosingDate } from './events';
 import { isBefore } from 'date-fns';
 import { Prisma, Status, TransactionType } from '@prisma/client';
 import { computeTransactions, umaSelector } from '../../utils/scoring';
-import {
-  getUserGroups,
-  maskNames,
-  userSelector,
-  coalesceNames,
-} from '../../utils/usernames';
+import { maskNames, userSelector, coalesceNames } from '../../utils/usernames';
 import Decimal from 'decimal.js';
 import { z } from 'zod';
 import { getLeaderboard } from '../leaderboard/leaderboard';
 import { markStale } from '../leaderboard/worker';
 import assertNonNull from '../../utils/nullcheck';
+import { cachedGetUserGroups } from '../cache/userGroups';
 
 const leagueRouter = router({
   list: publicProcedure.query(async () => {
@@ -222,7 +218,7 @@ const leagueRouter = router({
         leagueId,
       );
 
-      const userGroups = await getUserGroups(ctx.session?.user?.id);
+      const userGroups = await cachedGetUserGroups(ctx.session?.user?.id);
 
       const users = [...rankedUsers, ...unrankedUsers].map(
         ({ user, ...rest }) => ({
@@ -327,7 +323,7 @@ const leagueRouter = router({
         },
       });
 
-      const userGroups = await getUserGroups(userId);
+      const userGroups = await cachedGetUserGroups(userId);
 
       return {
         txns: txns.map((txn) => {

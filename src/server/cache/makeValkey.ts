@@ -4,10 +4,19 @@ import superjson from 'superjson';
 
 const valkeyUrl = process.env['VALKEY_URL'] ?? 'redis://localhost:6379';
 
-export default function makeValkey(template: (id: number | string) => string) {
+export default function makeValkey(keyPrefix: string): () => Valkey;
+export default function makeValkey(
+  template: (id: number | string) => string,
+): (id?: string | number) => Valkey;
+export default function makeValkey(
+  arg: string | ((id: number | string) => string),
+) {
+  if (typeof arg === 'string') {
+    return () => new Valkey(valkeyUrl, { keyPrefix: arg + ':' });
+  }
   return (id?: string | number) =>
     new Valkey(valkeyUrl, {
-      keyPrefix: id === undefined ? undefined : template(id),
+      keyPrefix: id === undefined ? undefined : arg(id),
     });
 }
 

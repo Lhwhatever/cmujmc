@@ -17,44 +17,11 @@ const DummyEntry = ({ children }: DummyEntryProps) => {
   return <div className="block px-4 py-2 text-gray-600">{children}</div>;
 };
 
-interface OptionsProps<T, K extends React.Key> {
-  onChange: (_: T) => void;
-  keyOf?: (_: T) => K;
-  options: T[];
-  displayValue: (_: T) => string;
-}
-
-const Options = <T, K extends React.Key>({
-  options,
-  onChange,
-  displayValue,
-  keyOf,
-}: OptionsProps<T, K>) => {
-  if (options.length === 0) {
-    return <DummyEntry>No options available.</DummyEntry>;
-  }
-
-  return (
-    <>
-      {options.map((option, idx) => (
-        <ComboboxOption
-          value={option}
-          key={keyOf ? keyOf(option) : idx}
-          className="block px-4 py-2 data-[focus]:bg-gray-100 data-[hover]:bg-gray-100 cursor-pointer"
-          onClick={() => onChange(option)}
-          order={idx}
-        >
-          {displayValue(option)}
-        </ComboboxOption>
-      ))}
-    </>
-  );
-};
-
 export interface ComboboxFieldProps<T, K extends React.Key> {
   onChange: (_: T) => void;
   keyOf?: (_: T) => K;
-  options: T[] | null;
+  options: T[] | undefined;
+  isLoading: boolean;
   displayValue: (_: T) => string;
   label?: string;
   required?: boolean;
@@ -71,6 +38,7 @@ export default function ComboboxField<T, K extends React.Key>({
   onQueryChange,
   displayValue,
   options,
+  isLoading,
   keyOf,
 }: ComboboxFieldProps<T, K>) {
   const [isDirty, setIsDirty] = useState(false);
@@ -100,18 +68,23 @@ export default function ComboboxField<T, K extends React.Key>({
         />
         <ComboboxOptions
           anchor="bottom"
-          className="border mt-1 empty:invisible bg-white rounded-lg w-auto"
+          className="border mt-1 empty:invisible bg-white rounded-lg w-[var(--input-width)]"
         >
-          {options === null ? (
-            <DummyEntry>Loading...</DummyEntry>
-          ) : (
-            <Options
-              options={options}
-              onChange={onChange}
-              keyOf={keyOf}
-              displayValue={displayValue}
-            />
+          {!isLoading && (options === undefined || options.length === 0) && (
+            <DummyEntry>No options available.</DummyEntry>
           )}
+          {options?.map((option, idx) => (
+            <ComboboxOption
+              value={option}
+              key={keyOf ? keyOf(option) : idx}
+              className="block px-4 py-2 data-[focus]:bg-gray-100 data-[hover]:bg-gray-100 cursor-pointer"
+              onClick={() => onChange(option)}
+              order={idx}
+            >
+              {displayValue(option)}
+            </ComboboxOption>
+          ))}
+          {isLoading && <DummyEntry>Loading...</DummyEntry>}
         </ComboboxOptions>
       </Combobox>
       {hasErrors && (

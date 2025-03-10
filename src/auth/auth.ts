@@ -9,6 +9,8 @@ import {
   NextApiResponse,
 } from 'next';
 import process from 'node:process';
+import { updateUserInvalidateCache } from '../server/cache/userGroups';
+import { invalidateUserCache } from '../server/cache/users';
 
 const andrewPattern = new RegExp('([A-Za-z0-9]+)@(andrew|alumni).cmu.edu');
 
@@ -20,7 +22,7 @@ const tryExtractAndrewId = (email: string) => {
 export const adapter: Adapter = {
   ...PrismaAdapter(prisma),
   createUser: async ({ name, email, emailVerified }: AdapterUser) => {
-    return prisma.user.create({
+    const result = await prisma.user.create({
       data: {
         displayName: name,
         name,
@@ -29,6 +31,8 @@ export const adapter: Adapter = {
         emailVerified,
       },
     });
+    void invalidateUserCache();
+    return result;
   },
   getUserByEmail: async (email: string) => {
     const andrew = tryExtractAndrewId(email);
@@ -39,8 +43,7 @@ export const adapter: Adapter = {
   },
   updateUser: async ({ id, ...data }) => {
     const andrew = (data.email && tryExtractAndrewId(data.email)) ?? undefined;
-    return prisma.user.update({
-      where: { id },
+    return updateUserInvalidateCache(id, {
       data: { displayName: data.name, andrew, ...data },
     });
   },
