@@ -1,4 +1,4 @@
-import Hand from './Hand';
+import Hand, { Annotation } from './Hand';
 import * as MahjongTiles from '../../utils/mahjong/tiles';
 import Heading from '../Heading';
 import Tile, { getHeightFromWidth } from './Tile';
@@ -13,12 +13,12 @@ import {
   mpszTileResolver,
   toMpsz,
 } from '../../utils/mahjong/tiles';
-import { wwydResponseSchema } from '../../utils/wwyd/response';
+import { ResponseDatum, wwydResponseSchema } from '../../utils/wwyd/response';
 
 const computeTileWidth = (width: number, height: number) => {
-  if (width >= 1280 && height >= 480) return 72;
-  if (width >= 1024 && height >= 384) return 60;
-  if (width >= 768 && height >= 288) return 48;
+  if (width >= 1280 && height >= 480) return 54;
+  if (width >= 1024 && height >= 384) return 48;
+  if (width >= 768 && height >= 288) return 42;
   return 36;
 };
 
@@ -64,6 +64,7 @@ export interface Scenario2DProps {
     endDate: Date;
   };
   onSubmit: (response: z.infer<typeof wwydResponseSchema>) => Promise<void>;
+  responseData: ResponseDatum[];
 }
 
 const createAnnotationsBottom = (
@@ -83,11 +84,65 @@ const createAnnotationsBottom = (
   return annotations;
 };
 
+const createAnnotationData = (
+  responseData: ResponseDatum[],
+  tiles: MahjongTiles.Tile[],
+  confirmedTileIdx: number | null,
+  withDraw: boolean,
+): Map<number, Annotation[]> => {
+  const tileToIndex = new Map<string, number>();
+  if (withDraw) tileToIndex.set('tsumogiri', -1);
+  for (let i = 0; i < tiles.length; ++i) {
+    const tile = toMpsz(tiles[i]);
+    if (confirmedTileIdx === i || !tileToIndex.has(tile)) {
+      tileToIndex.set(tile, i);
+    }
+  }
+
+  const annotations = new Map<number, Annotation[]>();
+  for (const { subject, byChoice } of responseData) {
+    const map = new Map(Object.entries(byChoice));
+    for (const [tile, index] of tileToIndex) {
+      const items: [string, string][] = [];
+
+      const discardVotes = map.get(tile);
+      if (discardVotes) {
+        items.push(['Cut', String(discardVotes)]);
+      }
+
+      const riiVotes = map.get(`riichi:${tile}`);
+      if (riiVotes) {
+        items.push(['Rii', String(riiVotes)]);
+      }
+
+      if (items.length > 0) {
+        if (!annotations.has(index)) {
+          annotations.set(index, []);
+        }
+        annotations
+          .get(index)
+          ?.push({ subject, align: 'top', color: 'gray', items });
+      }
+    }
+  }
+
+  if (confirmedTileIdx !== null) {
+    const confirmedTileAnnotations = annotations.get(confirmedTileIdx) ?? [];
+    annotations.set(confirmedTileIdx, [
+      ...confirmedTileAnnotations,
+      { subject: 'Me', align: 'bottom', color: 'yellow' },
+    ]);
+  }
+
+  return annotations;
+};
+
 export default function Scenario2D({
   questionId,
   scenario,
   settings,
   onSubmit,
+  responseData,
 }: Scenario2DProps) {
   const { hand: serializedHand, handNumber, seat, dora, turn } = scenario;
   const { endDate } = settings;
@@ -96,7 +151,6 @@ export default function Scenario2D({
 
   const [ref, { width, height }] = useMeasure<HTMLDivElement>();
   const tileWidth = computeTileWidth(width, height);
-  const tileHeight = getHeightFromWidth(tileWidth);
 
   const [selectedTileIdx, setSelectedTileIdx] = useState<number | null>(null);
   const [confirmedTileIdx, setConfirmedTileIdx] = useState<number | null>(null);
@@ -141,7 +195,7 @@ export default function Scenario2D({
     <div ref={ref} className="bg-green-700 h-full w-full px-4 py-4">
       <div className="w-full max-w-6xl m-auto">
         <div className="flex flex-row justify-between content-center">
-          <Heading level="h4" className="h-min block">
+          <Heading level="h4" className="h-min block" px-1>
             {MahjongTiles.handNumberToEnglish(handNumber)} &middot;{' '}
             {MahjongTiles.seatWindToEnglish(seat)} Seat &middot; Turn {turn}
           </Heading>
@@ -190,9 +244,11 @@ export default function Scenario2D({
             onSelect={setSelectedTileIdx}
             confirmedTileIdx={confirmedTileIdx}
             onConfirm={handleConfirm}
-            annotationBottom={createAnnotationsBottom(
+            annotations={createAnnotationData(
+              responseData,
+              hand.tiles,
               confirmedTileIdx,
-              tileHeight,
+              hand.draw !== undefined,
             )}
           />
         </div>

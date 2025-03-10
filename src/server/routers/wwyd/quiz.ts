@@ -16,7 +16,7 @@ import { zAsyncIterable } from '../../../protocol/zAsyncIterable';
 import { TRPCError } from '@trpc/server';
 import superjson from 'superjson';
 import Valkey from 'iovalkey';
-import { responseToString, WwydResponse } from '../../../utils/wwyd/response';
+import { serializeResponse } from '../../../utils/wwyd/response';
 
 const makePrefix = (id: number | string) => `wwyd:${id}:`;
 const valkey = makeValkey(makePrefix);
@@ -114,12 +114,13 @@ class WwydQuizState {
     return true;
   }
 
-  async isSetup(): Promise<boolean> {
-    return (await this.v.get(keys.currQuestion)) !== null;
+  async getCurrQuestionIdx(): Promise<number | null> {
+    const currIdx = await this.v.get(keys.currQuestion);
+    if (currIdx === null) return null;
+    return parseInt(currIdx);
   }
 
   async incrementQuestion(): Promise<number> {
-    console.log('incrementing question');
     return this.v.incr(keys.currQuestion);
   }
 
@@ -165,14 +166,21 @@ class WwydQuizState {
     };
   }
 
-  async recordAnswer(userId: string, response: WwydResponse): Promise<boolean> {
+  async recordAnswer(
+    userId: string,
+    serializedResponse: string,
+  ): Promise<boolean> {
     return (
-      (await this.v.hsetnx(
-        keys.answers,
-        userId,
-        responseToString(response),
-      )) === 1
+      (await this.v.hsetnx(keys.answers, userId, serializedResponse)) === 1
     );
+  }
+
+  async summarizeResponses(): Promise<Record<string, number>> {
+    const statistics: Record<string, number> = {};
+    for (const response of await this.v.hvals(keys.answers)) {
+      statistics[response] = 1 + (statistics[response] ?? 0);
+    }
+    return statistics;
   }
 }
 
@@ -186,7 +194,7 @@ const quizRouter = router({
       const state = new WwydQuizState(quizId);
       let nextMsgId = '0';
 
-      if (!(await state.isSetup())) {
+      if ((await state.getCurrQuestionIdx()) == null) {
         throw new NotFoundError('wwyd.quiz.play', quizId);
       }
 
@@ -263,7 +271,7 @@ const quizRouter = router({
         });
       }
 
-      if (!(await state.recordAnswer(ctx.user.id, answer))) {
+      if (!(await state.recordAnswer(ctx.user.id, serializeResponse(answer)))) {
         throw new TRPCError({
           code: 'BAD_REQUEST',
           message: 'Already submitted an answer',
@@ -309,7 +317,7 @@ const quizRouter = router({
       .input(z.number().int())
       .mutation(async ({ input: id }) => {
         const state = new WwydQuizState(id);
-        if (!(await state.isSetup())) {
+        if ((await state.getCurrQuestionIdx()) == null) {
           throw new NotFoundError('id', id);
         }
 
@@ -344,6 +352,42 @@ const quizRouter = router({
         });
 
         return currQuestionIdx;
+      }),
+
+    revealResponses: adminProcedure
+      .input(z.number().int())
+      .mutation(async ({ input: quizId }) => {
+        const state = new WwydQuizState(quizId);
+        const currState = await state.getCurrQuestionState();
+        if (currState === null) {
+          throw new NotFoundError('id', quizId);
+        }
+
+        const { questionId, timeLimit } = currState;
+        const question = await state.getQuestion(questionId);
+        if (question === null) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Game has ended!',
+          });
+        }
+
+        if (Date.now() <= timeLimit) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'There is still time left!',
+          });
+        }
+
+        const responses = await state.summarizeResponses();
+        // TODO: validate poll responses
+
+        await state.stream.xadd({
+          type: 'data',
+          id: questionId,
+          subject: 'Poll',
+          data: responses,
+        });
       }),
   }),
 });

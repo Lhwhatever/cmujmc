@@ -1,6 +1,7 @@
 import * as MahjongTiles from '../../utils/mahjong/tiles';
 import Tile, { getHeightFromWidth } from './Tile';
 import { CSSProperties, ReactNode, useState } from 'react';
+import clsx from 'clsx';
 
 interface CallProps {
   call: MahjongTiles.Call;
@@ -180,6 +181,92 @@ const Call = ({ call, tileWidth, tileHeight }: CallProps) => {
   }
 };
 
+interface AnnotationColorGroup {
+  subject: string;
+  item: string;
+}
+
+const annotationColors = {
+  yellow: {
+    subject: 'bg-yellow-400',
+    item: 'bg-yellow-200',
+  } as AnnotationColorGroup,
+  gray: {
+    subject: 'bg-gray-400',
+    item: 'bg-gray-200',
+  } as AnnotationColorGroup,
+};
+
+const sortAnnotations = (
+  annotations: Annotation[],
+): Map<Annotation['align'], Annotation[]> => {
+  const map = new Map<Annotation['align'], Annotation[]>();
+  for (const annotation of annotations) {
+    if (!map.has(annotation.align)) {
+      map.set(annotation.align, []);
+    }
+    map.get(annotation.align)?.push(annotation);
+  }
+  return map;
+};
+
+export interface Annotation {
+  subject: string;
+  align: 'top' | 'bottom';
+  color: keyof typeof annotationColors;
+  items?: [string, string][];
+}
+
+interface AnnotationsProp {
+  annotations: Annotation[];
+  tileHeight: number;
+}
+
+const Annotations = ({ annotations, tileHeight }: AnnotationsProp) => {
+  return (
+    <>
+      {sortAnnotations(annotations)
+        .entries()
+        .map(
+          ([alignment, annotations]) =>
+            annotations.length > 0 && (
+              <div
+                key={alignment}
+                className="flex flex-col gap-4 absolute left-0 right-0"
+                style={{
+                  top: alignment === 'bottom' ? tileHeight + 8 : undefined,
+                  bottom: alignment === 'top' ? tileHeight + 8 : undefined,
+                }}
+              >
+                {annotations.map((annotation) => (
+                  <div
+                    className="flex flex-col text-center text-xs"
+                    key={annotation.subject}
+                  >
+                    <div className={annotationColors[annotation.color].subject}>
+                      {annotation.subject}
+                    </div>
+                    {annotation.items?.map(([left, right], index) => (
+                      <div
+                        key={index}
+                        className={clsx(
+                          'flex flex-row justify-between px-1',
+                          annotationColors[annotation.color].item,
+                        )}
+                      >
+                        <div className="align-left">{left}</div>
+                        <div className="align-right">{right}</div>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            ),
+        )}
+    </>
+  );
+};
+
 export interface HandProps {
   hand: MahjongTiles.Hand;
   options?: Set<MahjongTiles.Tile>;
@@ -188,7 +275,7 @@ export interface HandProps {
   onSelect: (idx: number | null) => void;
   confirmedTileIdx: number | null;
   onConfirm: (idx: number) => void;
-  annotationBottom?: Record<number, ReactNode>;
+  annotations?: Map<number, Annotation[]>;
 }
 
 const createStyles = (
@@ -208,7 +295,7 @@ export default function Hand({
   onConfirm,
   selectedTileIdx,
   onSelect,
-  annotationBottom = {},
+  annotations,
 }: HandProps) {
   const [hovererdTileIdx, setHoveredTileIdx] = useState<number | null>(null);
   const tileHeight = getHeightFromWidth(tileWidth);
@@ -273,7 +360,10 @@ export default function Hand({
               marginLeft: index < 0 ? tileWidth : 0,
             }}
           />
-          {annotationBottom[index]}
+          <Annotations
+            annotations={annotations?.get(index) ?? []}
+            tileHeight={tileHeight}
+          />
         </div>
       ))}
 

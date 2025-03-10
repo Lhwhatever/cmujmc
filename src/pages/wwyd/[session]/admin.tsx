@@ -1,10 +1,9 @@
 import { useRouter } from 'next/router';
 import Page from '../../../components/Page';
 import { trpc } from '../../../utils/trpc';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import Loading from '../../../components/Loading';
 import Button from '../../../components/Button';
-import clsx from 'clsx';
 import { WwydScenarioWrapper } from './index';
 
 interface WwydAdminProps {
@@ -12,10 +11,10 @@ interface WwydAdminProps {
 }
 
 const WwydAdmin = ({ quizId }: WwydAdminProps) => {
-  const [done, _setDone] = useState(false);
-
   const nextQuestionMutation = trpc.wwyd.quiz.admin.nextQuestion.useMutation();
   const restartMutation = trpc.wwyd.quiz.admin.restart.useMutation();
+  const showResponsesMutation =
+    trpc.wwyd.quiz.admin.revealResponses.useMutation();
 
   return (
     <div className="flex flex-col gap-4 w-full">
@@ -23,7 +22,6 @@ const WwydAdmin = ({ quizId }: WwydAdminProps) => {
         <Button
           color="blue"
           fill="outlined"
-          className={clsx(done && 'hidden')}
           onClick={() => nextQuestionMutation.mutate(quizId)}
         >
           Next Question
@@ -31,10 +29,16 @@ const WwydAdmin = ({ quizId }: WwydAdminProps) => {
         <Button
           color="red"
           fill="outlined"
-          className={clsx(done && 'hidden')}
           onClick={() => restartMutation.mutate(quizId)}
         >
           Restart
+        </Button>
+        <Button
+          color="green"
+          fill="outlined"
+          onClick={() => showResponsesMutation.mutate(quizId)}
+        >
+          Show Responses
         </Button>
       </div>
       <div className="w-full max-w-[80vw]">

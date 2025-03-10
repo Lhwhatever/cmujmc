@@ -11,6 +11,12 @@ export const playOutput = z.discriminatedUnion('type', [
     id: z.number(),
     data: wwydQuestionSchema,
   }),
+  z.object({
+    type: z.literal('data'),
+    id: z.number(),
+    subject: z.string(),
+    data: z.record(z.string().or(z.number())),
+  }),
 ]);
 
 export const submit = z.object({

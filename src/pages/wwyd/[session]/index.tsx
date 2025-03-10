@@ -9,6 +9,7 @@ import ButtonLink from '../../../components/ButtonLink';
 import schema from '../../../protocol/schema';
 import { z } from 'zod';
 import { wwydQuestionSchema } from '../../../utils/wwyd/basicSchema';
+import { ResponseDatum } from '../../../utils/wwyd/response';
 
 interface NotReadyScreenProps {
   quizId: number;
@@ -52,6 +53,7 @@ export const WwydScenarioWrapper = ({ quizId }: WwydScenarioWrapperProps) => {
   const [questionId, setQuestionId] = useState<number | null>(null);
   const [question, setQuestion] = useState<Question | null>(null);
   const [isDone, setIsDone] = useState(false);
+  const [responseData, setResponseData] = useState<ResponseDatum[]>([]);
 
   trpc.wwyd.quiz.play.useSubscription(quizId, {
     onData(event) {
@@ -60,9 +62,19 @@ export const WwydScenarioWrapper = ({ quizId }: WwydScenarioWrapperProps) => {
         case 'question':
           setQuestionId(e.id);
           setQuestion(e.data);
+          setResponseData([]);
           break;
         case 'done':
           setIsDone(true);
+          break;
+        case 'data':
+          setResponseData([
+            ...responseData,
+            {
+              subject: e.subject,
+              byChoice: e.data,
+            },
+          ]);
           break;
       }
     },
@@ -86,6 +98,7 @@ export const WwydScenarioWrapper = ({ quizId }: WwydScenarioWrapperProps) => {
         onSubmit={(answer) =>
           submitMutation.mutateAsync({ quizId, questionId, answer })
         }
+        responseData={responseData}
       />
     );
   }
