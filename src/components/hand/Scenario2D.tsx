@@ -39,10 +39,10 @@ const Instruction = ({
   if (confirmedTileIdx !== null) return 'Your choice has been submitted!';
 
   if (selectedTileIdx === null)
-    return 'Double-tap a tile to submit your choice.';
+    return "Double-tap a tile to submit your move. We won't prevent illegal moves, so think carefully!";
 
   if (selectedTileIdx < 0)
-    return 'Tap on the drawn tile again to submit your choice.';
+    return "Tap on the drawn tile again to submit your move. We won't prevent illegal moves, so think carefully!";
 
   return (
     <>
@@ -52,7 +52,8 @@ const Instruction = ({
         tileWidth={tileWidth}
         style={{ display: 'inline-block', marginLeft: 2, marginRight: 2 }}
       />{' '}
-      again to submit your choice!{' '}
+      again to submit your move! We won&lsquo;t prevent illegal moves, so think
+      carefully!
     </>
   );
 };

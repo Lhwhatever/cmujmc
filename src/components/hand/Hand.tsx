@@ -250,7 +250,7 @@ const Annotations = ({ annotations, tileHeight }: AnnotationsProp) => {
                       <div
                         key={index}
                         className={clsx(
-                          'flex flex-row justify-between px-1',
+                          'flex flex-row justify-between px-[1px]',
                           annotationColors[annotation.color].item,
                         )}
                       >
@@ -350,15 +350,18 @@ export default function Hand({
   return (
     <div className="flex flex-row flex-wrap gap-1">
       {tilesAndIndices.map(([tile, index]) => (
-        <div className="relative" key={index}>
+        <div
+          className="relative"
+          key={index}
+          style={{
+            marginLeft: index < 0 ? tileWidth : 0,
+          }}
+        >
           <Tile
             tile={tile}
             tileWidth={tileWidth}
             {...addTileHandlers(index)}
-            style={{
-              ...createStyles(isValidOption(index), getTranslateY(index)),
-              marginLeft: index < 0 ? tileWidth : 0,
-            }}
+            style={createStyles(isValidOption(index), getTranslateY(index))}
           />
           <Annotations
             annotations={annotations?.get(index) ?? []}
