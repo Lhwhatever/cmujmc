@@ -72,8 +72,8 @@ type Ruleset = RouterOutputs['rulesets']['list']['rulesets'][number];
 const filterRulesets = (
   query: string,
   rulesets?: Ruleset[],
-): Ruleset[] | null => {
-  if (rulesets === undefined) return null;
+): Ruleset[] | undefined => {
+  if (rulesets === undefined) return undefined;
   if (!query) return rulesets;
   const fuse = new Fuse(rulesets, { keys: ['name'] });
   return fuse.search(query).map((r: FuseResult<Ruleset>) => r.item);
@@ -125,18 +125,22 @@ const LeagueCreationDialog = ({ open, onClose }: LeagueCreationDialogProps) => {
 
   const onSubmit = async (data: LeagueCreationParams) => {
     if (ruleset === null) return;
-    try {
-      await mutation.mutateAsync({
+    mutation.mutate(
+      {
         ...data,
         invitational,
         singleEvent,
         defaultRulesetId: ruleset.id,
-      });
-      onClose();
-    } catch (e) {
-      // TODO
-      console.error(e);
-    }
+      },
+      {
+        onSuccess() {
+          onClose();
+        },
+        onError(e) {
+          alert(e.message);
+        },
+      },
+    );
   };
 
   return (
@@ -186,6 +190,7 @@ const LeagueCreationDialog = ({ open, onClose }: LeagueCreationDialogProps) => {
           onChange={setRuleset}
           displayValue={displayRuleset}
           options={filteredRulesets}
+          isLoading={allRulesets.isLoading}
         />
         <InputField
           name="startDate"

@@ -45,3 +45,6 @@ cmumahjong_club.key
 
 azure
 tmp
+
+# eslint
+.eslintcache

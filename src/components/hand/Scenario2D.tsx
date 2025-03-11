@@ -1,10 +1,10 @@
 import Hand, { Annotation } from './Hand';
 import * as MahjongTiles from '../../utils/mahjong/tiles';
 import Heading from '../Heading';
-import Tile, { getHeightFromWidth } from './Tile';
+import Tile from './Tile';
 import Timer from '../Timer';
 import clsx from 'clsx';
-import { ReactNode, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMeasure } from 'react-use';
 import { z } from 'zod';
 import v1_schema from '../../utils/wwyd/2d_schema';
@@ -67,23 +67,6 @@ export interface Scenario2DProps {
   onSubmit: (response: z.infer<typeof wwydResponseSchema>) => Promise<void>;
   responseData: ResponseDatum[];
 }
-
-const createAnnotationsBottom = (
-  confirmedIdx: number | null,
-  tileHeight: number,
-) => {
-  const annotations: Record<number, ReactNode> = {};
-  if (confirmedIdx !== null)
-    annotations[confirmedIdx] = (
-      <div
-        className="absolute bg-orange-300 left-0 right-0 text-center py-0.5 text-xs"
-        style={{ top: tileHeight + 8 }}
-      >
-        Me
-      </div>
-    );
-  return annotations;
-};
 
 const createAnnotationData = (
   responseData: ResponseDatum[],

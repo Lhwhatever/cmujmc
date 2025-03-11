@@ -1,6 +1,6 @@
 import * as MahjongTiles from '../../utils/mahjong/tiles';
 import Tile, { getHeightFromWidth } from './Tile';
-import { CSSProperties, ReactNode, useState } from 'react';
+import { CSSProperties, useState } from 'react';
 import clsx from 'clsx';
 
 interface CallProps {
