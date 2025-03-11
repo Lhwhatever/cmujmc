@@ -23,10 +23,19 @@ import {
   UserGroups,
   userSelector,
 } from '../../utils/usernames';
-import { markStale } from '../leaderboard/worker';
 import { Session } from 'next-auth';
 import assertNonNull from '../../utils/nullcheck';
 import { cachedGetUserGroups } from '../cache/userGroups';
+import {
+  aggregateTxnArray,
+  TxnAggregate,
+  txnsSelector,
+} from '../../utils/ranking';
+import {
+  recomputePlayersOnLeaderboard,
+  updateLeaderboardEntries,
+  UpdateLeaderboardPlayerRecord,
+} from '../cache/leaderboard';
 
 //==================== for create ====================
 
@@ -227,7 +236,7 @@ const matchRouter = router({
   record: authedProcedure
     .input(schema.match.record)
     .mutation(async ({ ctx, input }) => {
-      const leagueId = await prisma.$transaction(async (tx) => {
+      const txnResult = await prisma.$transaction(async (tx) => {
         const { matchId, players } = input;
         const match = await tx.match.findUnique({
           where: { id: matchId },
@@ -276,21 +285,43 @@ const matchRouter = router({
 
         const { chomboDelta } = match.ruleset;
 
-        const userLeagues = await tx.userLeague.findMany({
-          where: {
-            leagueId,
-            userId: {
-              in: match.players.flatMap(({ playerId }) =>
-                playerId === null ? [] : [playerId],
-              ),
+        const { matchesRequired, users: userLeagues } =
+          await tx.league.findUniqueOrThrow({
+            where: { id: leagueId },
+            select: {
+              matchesRequired: true,
+              users: {
+                where: {
+                  userId: {
+                    in: match.players.flatMap(({ playerId }) =>
+                      playerId === null ? [] : [playerId],
+                    ),
+                  },
+                },
+                select: { userId: true },
+              },
             },
-          },
-          select: { userId: true, freeChombos: true },
+          });
+
+        const existingTxns = await tx.userLeagueTransaction.findMany({
+          where: { userMatchMatchId: matchId },
+          select: { userId: true },
         });
 
-        await tx.userLeagueTransaction.deleteMany({
-          where: { userMatchMatchId: matchId },
-        });
+        const leaderboardUpdateActions = new Map<
+          string,
+          { type: 'recompute' } | { type: 'apply'; payload: TxnAggregate }
+        >();
+
+        if (existingTxns.length > 0) {
+          await tx.userLeagueTransaction.deleteMany({
+            where: { userMatchMatchId: matchId },
+          });
+        } else {
+          for (const { userId } of existingTxns) {
+            leaderboardUpdateActions.set(userId, { type: 'recompute' });
+          }
+        }
 
         for (let i = 0; i < match.players.length; ++i) {
           const { playerId } = match.players[i];
@@ -302,16 +333,13 @@ const matchRouter = router({
           );
           if (userLeague === undefined) continue;
 
-          const { freeChombos } = userLeague;
-
-          const { txns, chombos } = computeTransactions({
+          const { txns } = computeTransactions({
             playerId,
             matchId,
             playerPosition: i + 1,
             leagueId,
             time,
             chombos: players[i].chombos,
-            freeChombos,
             chomboDelta,
             rawScore: scores[i],
             returnPts: match.ruleset.returnPts,
@@ -319,22 +347,64 @@ const matchRouter = router({
             ...placements[i],
           });
 
-          await tx.userLeagueTransaction.createMany({ data: txns });
+          const createdTxns =
+            await tx.userLeagueTransaction.createManyAndReturn({
+              data: txns,
+              select: txnsSelector.select,
+            });
 
-          if (freeChombos && freeChombos > 0 && chombos > 0) {
-            await tx.userLeague.update({
-              where: { leagueId_userId: { leagueId, userId: playerId } },
-              data: {
-                freeChombos: Math.max(0, freeChombos - chombos),
-              },
+          if (!leaderboardUpdateActions.has(playerId)) {
+            leaderboardUpdateActions.set(playerId, {
+              type: 'apply',
+              payload: aggregateTxnArray(createdTxns),
             });
           }
         }
 
-        return leagueId;
+        return {
+          leagueId,
+          matchesRequired,
+          leaderboardUpdateActions,
+        };
       });
 
-      if (leagueId !== undefined) markStale(leagueId);
+      if (txnResult !== undefined) {
+        const playersToRecommpute: string[] = [];
+        const leaderboardEntriesToUpdate: UpdateLeaderboardPlayerRecord[] = [];
+
+        for (const [userId, action] of txnResult.leaderboardUpdateActions) {
+          switch (action.type) {
+            case 'recompute':
+              playersToRecommpute.push(userId);
+              break;
+            case 'apply':
+              leaderboardEntriesToUpdate.push({
+                userId,
+                aggregate: action.payload,
+              });
+              break;
+          }
+        }
+
+        try {
+          if (playersToRecommpute.length > 0) {
+            await recomputePlayersOnLeaderboard(
+              txnResult.leagueId,
+              playersToRecommpute,
+            );
+          }
+
+          if (leaderboardEntriesToUpdate.length > 0) {
+            await updateLeaderboardEntries(
+              txnResult.leagueId,
+              txnResult.matchesRequired,
+              leaderboardEntriesToUpdate,
+            );
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
     }),
 
   getCompletedByLeague: publicProcedure

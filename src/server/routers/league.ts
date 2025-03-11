@@ -14,12 +14,16 @@ import { isBefore } from 'date-fns';
 import { Prisma, Status, TransactionType } from '@prisma/client';
 import { computeTransactions, umaSelector } from '../../utils/scoring';
 import { maskNames, userSelector, coalesceNames } from '../../utils/usernames';
-import Decimal from 'decimal.js';
 import { z } from 'zod';
-import { getLeaderboard } from '../leaderboard/leaderboard';
-import { markStale } from '../leaderboard/worker';
 import assertNonNull from '../../utils/nullcheck';
 import { cachedGetUserGroups } from '../cache/userGroups';
+import {
+  cachedGetLeaderboard,
+  getLastLeaderboardUpdate,
+  updateLeaderboardEntries,
+} from '../cache/leaderboard';
+import { cachedGetUsers } from '../cache/users';
+import { aggregateTxnArray, txnsSelector } from '../../utils/ranking';
 
 const leagueRouter = router({
   list: publicProcedure.query(async () => {
@@ -113,10 +117,15 @@ const leagueRouter = router({
     .input(schema.league.register)
     .mutation(async ({ input, ctx }) => {
       const { leagueId } = input;
-      await prisma.$transaction(async (tx) => {
+      const txnResult = await prisma.$transaction(async (tx) => {
         const league = await tx.league.findUnique({
           where: { id: leagueId },
-          include: { users: { where: { userId: ctx.user.id }, take: 1 } },
+          select: {
+            users: { where: { userId: ctx.user.id }, take: 1 },
+            invitational: true,
+            startingPoints: true,
+            matchesRequired: true,
+          },
         });
 
         if (league === null) {
@@ -186,7 +195,6 @@ const leagueRouter = router({
               leagueId,
               time: match.time,
               chombos: assertNonNull(chombos, 'chombos'),
-              freeChombos: null,
               chomboDelta: match.ruleset.chomboDelta,
               returnPts: match.ruleset.returnPts,
               uma: match.ruleset.uma.map(({ value }) => value),
@@ -203,97 +211,56 @@ const leagueRouter = router({
           },
         });
 
-        await tx.userLeagueTransaction.createMany({
-          data: [initialTxn, ...txns],
-        });
+        return {
+          matchesRequiredForRank: league.matchesRequired,
+          aggregate: aggregateTxnArray(
+            await tx.userLeagueTransaction.createManyAndReturn({
+              data: [initialTxn, ...txns],
+              select: txnsSelector.select,
+            }),
+          ),
+        };
       });
-      markStale(leagueId);
+      updateLeaderboardEntries(leagueId, txnResult.matchesRequiredForRank, [
+        { userId: ctx.user.id, aggregate: txnResult.aggregate },
+      ]);
     }),
 
   leaderboard: publicProcedure
     .input(schema.league.leaderboard)
     .query(async ({ input, ctx }) => {
       const { leagueId } = input;
-      const { lastUpdated, rankedUsers, unrankedUsers } = await getLeaderboard(
-        leagueId,
-      );
 
-      const userGroups = await cachedGetUserGroups(ctx.session?.user?.id);
+      const usersPromise = cachedGetUsers();
+      const userGroupsPromise = cachedGetUserGroups(ctx.session?.user?.id);
+      const leaderboardPromise = cachedGetLeaderboard(leagueId);
 
-      const users = [...rankedUsers, ...unrankedUsers].map(
-        ({ user, ...rest }) => ({
-          user: maskNames(user, userGroups),
-          ...rest,
-        }),
-      );
+      const users = await usersPromise;
+      const usersById = new Map(users.map((user) => [user.id, user]));
 
+      const userGroups = await userGroupsPromise;
+
+      const { lastUpdated, entries } = await leaderboardPromise;
       return {
-        lastUpdated: new Date(lastUpdated).toISOString(),
-        users,
+        lastUpdated,
+        users: entries.map(({ userId, rank, agg }) => ({
+          user: maskNames(
+            coalesceNames(
+              assertNonNull(usersById.get(userId) ?? null, 'userId'),
+            ),
+            userGroups,
+          ),
+          rank,
+          agg,
+        })),
       };
     }),
 
-  softerPenalty: authedProcedure
-    .input(schema.league.softenPenalty)
-    .mutation(async ({ input, ctx }) => {
-      const { leagueId } = input;
-      const { id: userId } = ctx.user;
-      await prisma.$transaction(async (tx) => {
-        const userLeague = await tx.userLeague.findUnique({
-          where: { leagueId_userId: { leagueId, userId } },
-          include: {
-            league: { select: { softPenaltyCutoff: true } },
-            txns: { orderBy: { time: 'asc' } },
-          },
-        });
-
-        if (userLeague === null) {
-          throw new NotFoundError('userLeague', `${userId}:${leagueId}`);
-        }
-
-        if (userLeague.freeChombos !== null) {
-          throw new TRPCError({
-            message: 'Already softer penalty',
-            code: 'BAD_REQUEST',
-          });
-        }
-
-        const numMatches = userLeague.txns.reduce(
-          (count, { type }) =>
-            count + (type === TransactionType.MATCH_RESULT ? 1 : 0),
-          0,
-        );
-
-        if (numMatches >= userLeague.league.softPenaltyCutoff) {
-          throw new TRPCError({
-            message: 'Played too many games to apply softer penalty',
-            code: 'BAD_REQUEST',
-          });
-        }
-
-        const chombosFreed: string[] = [];
-        let chomboAllowance = 3;
-        for (const { id, type } of userLeague.txns) {
-          if (type === TransactionType.CHOMBO) {
-            chombosFreed.push(id);
-            if (--chomboAllowance == 0) break;
-          }
-        }
-
-        await tx.userLeague.update({
-          where: { leagueId_userId: { leagueId, userId } },
-          data: {
-            freeChombos: chomboAllowance,
-            txns: {
-              updateMany: {
-                where: { id: { in: chombosFreed } },
-                data: { delta: new Decimal(0) },
-              },
-            },
-          },
-        });
-      });
-      markStale(leagueId);
+  isLeaderboardStale: publicProcedure
+    .input(schema.league.isLeaderboardStale)
+    .query(async ({ input }) => {
+      const { leagueId, lastUpdated } = input;
+      return (await getLastLeaderboardUpdate(leagueId)) !== lastUpdated;
     }),
 
   scoreHistory: authedProcedure

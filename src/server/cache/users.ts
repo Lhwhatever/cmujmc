@@ -13,7 +13,7 @@ export interface CachedGetUsersResult {
   users: User[];
 }
 
-export const cachedGetUsers = async (
+export const cachedGetUsersPaginated = async (
   cursor: string | null | undefined,
 ): Promise<CachedGetUsersResult> => {
   const v = valkey();
@@ -37,6 +37,17 @@ export const cachedGetUsers = async (
     nextCursor: '0',
     users,
   };
+};
+
+export const cachedGetUsers = async (): Promise<User[]> => {
+  const users: User[] = [];
+  let cursor: string | undefined = undefined;
+  while (cursor !== '0') {
+    const result = await cachedGetUsersPaginated(cursor);
+    cursor = result.nextCursor;
+    users.push(...result.users);
+  }
+  return users;
 };
 
 export const invalidateUserCache = () => {

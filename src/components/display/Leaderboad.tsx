@@ -1,5 +1,4 @@
 import { trpc } from '../../utils/trpc';
-import Loading from '../Loading';
 import Table, { TableCell, TableHeading, TableRow } from '../Table';
 import { Placement } from './PlacementRange';
 import Decimal from 'decimal.js';
@@ -8,18 +7,33 @@ import { useFormatter } from 'next-intl';
 import { renderAliases } from '../../utils/usernames';
 import { useSession } from 'next-auth/react';
 import clsx from 'clsx';
+import { Suspense, useEffect } from 'react';
 
 export interface LeaderboardProps {
   leagueId: number;
 }
 
-export default function Leaderboard({ leagueId }: LeaderboardProps) {
+const LeaderboardContents = ({ leagueId }: LeaderboardProps) => {
   const userId = useSession().data?.user?.id;
-  const query = trpc.leagues.leaderboard.useQuery({ leagueId });
+  const [{ lastUpdated, users }, query] =
+    trpc.leagues.leaderboard.useSuspenseQuery({
+      leagueId,
+    });
+
+  const isStaleQuery = trpc.leagues.isLeaderboardStale.useQuery(
+    { leagueId, lastUpdated },
+    {
+      refetchInterval: 60000,
+    },
+  );
+
+  useEffect(() => {
+    if (isStaleQuery.data) {
+      void query.refetch();
+    }
+  }, [isStaleQuery.data, query]);
+
   const formatter = useFormatter();
-  if (query.isLoading || query.data === undefined) {
-    return <Loading />;
-  }
 
   return (
     <Table
@@ -43,18 +57,14 @@ export default function Leaderboard({ leagueId }: LeaderboardProps) {
           </TableHeading>
         </TableRow>
       }
-      caption={
-        <span>
-          Last updated{' '}
-          <DateTime
-            date={new Date(query.data.lastUpdated)}
-            format={{ dateStyle: 'short', timeStyle: 'medium' }}
-          />
-        </span>
-      }
       className="mb-4"
+      caption={
+        <div>
+          Last updated <DateTime date={new Date(lastUpdated)} relative />
+        </div>
+      }
     >
-      {query.data.users.map(({ user, rank, agg }) => (
+      {users.map(({ user, rank, agg }) => (
         <TableRow
           key={user.id}
           className={clsx(user.id === userId && 'font-bold')}
@@ -62,11 +72,16 @@ export default function Leaderboard({ leagueId }: LeaderboardProps) {
           <TableCell>
             {rank === undefined ? '\u2014' : <Placement placement={rank} />}
           </TableCell>
-          <TableCell>{renderAliases(user.name, user)}</TableCell>
+          <TableCell className="flex flex-col">
+            <div>{renderAliases(user.name, user)}</div>
+            <div className="font-normal italic text-xs">
+              <DateTime date={new Date(agg.lastActivityDate)} relative />
+            </div>
+          </TableCell>
           <TableCell>{new Decimal(agg.score).toFixed(1)}</TableCell>
           <TableCell>{formatter.number(agg.numMatches)}</TableCell>
           <TableCell className="hidden sm:table-cell">
-            {formatter.number(agg.placements[1] ?? 0)}
+            {formatter.number(agg.placements.get(1) ?? 0)}
           </TableCell>
           <TableCell className="hidden sm:table-cell">
             {agg.highscore === null
@@ -76,5 +91,13 @@ export default function Leaderboard({ leagueId }: LeaderboardProps) {
         </TableRow>
       ))}
     </Table>
+  );
+};
+
+export default function Leaderboard({ leagueId }: LeaderboardProps) {
+  return (
+    <Suspense>
+      <LeaderboardContents leagueId={leagueId} />
+    </Suspense>
   );
 }

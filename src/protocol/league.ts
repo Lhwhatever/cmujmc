@@ -28,6 +28,11 @@ export const leaderboard = z.object({
   leagueId: z.number().int(),
 });
 
+export const isLeaderboardStale = z.object({
+  leagueId: z.number().int(),
+  lastUpdated: z.number().int(),
+});
+
 export const softenPenalty = z.object({
   leagueId: z.number().int(),
 });

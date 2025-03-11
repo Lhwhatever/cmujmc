@@ -55,7 +55,6 @@ export type ComputeUserLeagueTxnArgs = ComputePlayerPtArg & {
   leagueId: number;
   time: Date;
   chombos: number | string[];
-  freeChombos: number | null;
   chomboDelta: Decimal;
   uma: Decimal[];
 };
@@ -67,7 +66,6 @@ export const computeTransactions = ({
   leagueId,
   time,
   chombos,
-  freeChombos,
   chomboDelta,
   ...playerPtArg
 }: ComputeUserLeagueTxnArgs) => {
@@ -85,11 +83,11 @@ export const computeTransactions = ({
     ? chombos
     : new Array<string | null>(chombos).fill(null);
 
-  const chomboTxns = chomboDescriptions.map((description, index) => ({
+  const chomboTxns = chomboDescriptions.map((description) => ({
     type: TransactionType.CHOMBO,
     userId: playerId,
     leagueId,
-    delta: index < (freeChombos ?? 0) ? new Decimal(0) : chomboDelta,
+    delta: chomboDelta,
     time,
     description,
     userMatchMatchId: matchId,

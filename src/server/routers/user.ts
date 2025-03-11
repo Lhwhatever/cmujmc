@@ -1,14 +1,9 @@
 import { authedProcedure, publicProcedure, router } from '../trpc';
 import { prisma } from '../prisma';
-import {
-  coalesceNames,
-  getUserGroups,
-  maskNames,
-  userSelector,
-} from '../../utils/usernames';
+import { coalesceNames, getUserGroups, maskNames } from '../../utils/usernames';
 import schema from '../../protocol/schema';
 import { updateUserInvalidateCache } from '../cache/userGroups';
-import { cachedGetUsers, invalidateUserCache } from '../cache/users';
+import { cachedGetUsersPaginated } from '../cache/users';
 
 const processPartialField = (s?: string) => (s === '' ? null : s);
 
@@ -18,7 +13,9 @@ const userRouter = router({
     .query(async ({ input, ctx }) => {
       const userId = ctx.session?.user?.id;
       const userGroups = await getUserGroups(userId);
-      const { nextCursor, users } = await cachedGetUsers(input?.cursor);
+      const { nextCursor, users } = await cachedGetUsersPaginated(
+        input?.cursor,
+      );
       return {
         nextCursor,
         users: users.map((user) => maskNames(coalesceNames(user), userGroups)),
