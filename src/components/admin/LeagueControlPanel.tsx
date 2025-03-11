@@ -90,7 +90,6 @@ const defaultLeagueCreationParamValues: LeagueCreationParams = {
   name: '',
   startingPoints: 500.0,
   matchesRequired: 3,
-  softPenaltyCutoff: 3,
   description: '',
   startDate: undefined,
   endDate: undefined,
