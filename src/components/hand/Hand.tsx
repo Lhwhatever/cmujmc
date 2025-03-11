@@ -225,44 +225,42 @@ interface AnnotationsProp {
 const Annotations = ({ annotations, tileHeight }: AnnotationsProp) => {
   return (
     <>
-      {sortAnnotations(annotations)
-        .entries()
-        .map(
-          ([alignment, annotations]) =>
-            annotations.length > 0 && (
-              <div
-                key={alignment}
-                className="flex flex-col gap-4 absolute left-0 right-0"
-                style={{
-                  top: alignment === 'bottom' ? tileHeight + 8 : undefined,
-                  bottom: alignment === 'top' ? tileHeight + 8 : undefined,
-                }}
-              >
-                {annotations.map((annotation) => (
-                  <div
-                    className="flex flex-col text-center text-xs"
-                    key={annotation.subject}
-                  >
-                    <div className={annotationColors[annotation.color].subject}>
-                      {annotation.subject}
-                    </div>
-                    {annotation.items?.map(([left, right], index) => (
-                      <div
-                        key={index}
-                        className={clsx(
-                          'flex flex-row justify-between px-[1px]',
-                          annotationColors[annotation.color].item,
-                        )}
-                      >
-                        <div className="align-left">{left}</div>
-                        <div className="align-right">{right}</div>
-                      </div>
-                    ))}
+      {Array.from(sortAnnotations(annotations).entries()).map(
+        ([alignment, annotations]) =>
+          annotations.length > 0 && (
+            <div
+              key={alignment}
+              className="flex flex-col gap-4 absolute left-0 right-0"
+              style={{
+                top: alignment === 'bottom' ? tileHeight + 8 : undefined,
+                bottom: alignment === 'top' ? tileHeight + 8 : undefined,
+              }}
+            >
+              {annotations.map((annotation) => (
+                <div
+                  className="flex flex-col text-center text-xs"
+                  key={annotation.subject}
+                >
+                  <div className={annotationColors[annotation.color].subject}>
+                    {annotation.subject}
                   </div>
-                ))}
-              </div>
-            ),
-        )}
+                  {annotation.items?.map(([left, right], index) => (
+                    <div
+                      key={index}
+                      className={clsx(
+                        'flex flex-row justify-between px-[1px]',
+                        annotationColors[annotation.color].item,
+                      )}
+                    >
+                      <div className="align-left">{left}</div>
+                      <div className="align-right">{right}</div>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          ),
+      )}
     </>
   );
 };
