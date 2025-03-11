@@ -2,8 +2,10 @@ import makeValkey from './makeValkey';
 import { prisma } from '../prisma';
 import { User, userSelector } from '../../utils/usernames';
 import superjson from 'superjson';
+import Valkey from 'iovalkey';
 
 const valkey = makeValkey(`users`);
+const sharedV = valkey();
 
 const key = 'names';
 const ttl = 3 * 60 * 60; // 3 hours
@@ -13,12 +15,12 @@ export interface CachedGetUsersResult {
   users: User[];
 }
 
-export const cachedGetUsersPaginated = async (
-  cursor: string | null | undefined,
+const cachedGetUserPage = async (
+  v: Valkey,
+  cursor: string,
 ): Promise<CachedGetUsersResult> => {
-  const v = valkey();
   if (await v.expire(key, ttl)) {
-    const [nextCursor, elements] = await v.hscan(key, cursor ?? '0');
+    const [nextCursor, elements] = await v.hscan(key, cursor);
     return {
       nextCursor,
       users: elements
@@ -39,17 +41,25 @@ export const cachedGetUsersPaginated = async (
   };
 };
 
+export const cachedGetUsersPaginated = async (
+  cursor: string | null | undefined,
+): Promise<CachedGetUsersResult> => {
+  return cachedGetUserPage(sharedV, cursor ?? '0');
+};
+
 export const cachedGetUsers = async (): Promise<User[]> => {
+  const v = valkey();
   const users: User[] = [];
-  let cursor: string | undefined = undefined;
-  while (cursor !== '0') {
-    const result = await cachedGetUsersPaginated(cursor);
+  let cursor = '0';
+  do {
+    const result = await cachedGetUserPage(v, cursor);
     cursor = result.nextCursor;
     users.push(...result.users);
-  }
+  } while (cursor !== '0');
+  await v.quit();
   return users;
 };
 
-export const invalidateUserCache = () => {
-  return valkey().del(key);
+export const invalidateUserCache = async (v?: Valkey): Promise<void> => {
+  await (v ?? sharedV).del(key);
 };

@@ -6,6 +6,7 @@ import { prisma } from '../prisma';
 import { invalidateUserCache } from './users';
 
 const valkey = makeValkey(`userGroups`);
+const sharedV = valkey();
 
 const ttl = 3 * 60 * 60; // 3 hours
 
@@ -16,12 +17,11 @@ export const cachedGetUserGroups = async (
     return getUserGroups(null);
   }
 
-  const v = valkey();
-  const cachedValue = await v.getex(userId, 'EX', ttl);
+  const cachedValue = await sharedV.getex(userId, 'EX', ttl);
   if (cachedValue !== null) return superjson.parse<UserGroups>(cachedValue);
 
   const value = await getUserGroups(userId);
-  void v.setex(userId, ttl, superjson.stringify(value));
+  await sharedV.setex(userId, ttl, superjson.stringify(value));
   return value;
 };
 
@@ -35,7 +35,7 @@ export const updateUserInvalidateCache = async <
     ...args,
     where: { id },
   });
-  void valkey().del(id);
-  void invalidateUserCache();
+  await sharedV.del(id);
+  await invalidateUserCache(sharedV);
   return result;
 };

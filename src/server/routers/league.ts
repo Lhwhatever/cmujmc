@@ -48,7 +48,6 @@ const leagueRouter = router({
       startingPoints,
       singleEvent,
       matchesRequired,
-      softPenaltyCutoff,
     } = opts.input;
 
     if (startDate && endDate && !isBefore(startDate, endDate)) {
@@ -67,7 +66,7 @@ const leagueRouter = router({
           connect: { id: defaultRulesetId },
         },
         matchesRequired,
-        softPenaltyCutoff,
+        softPenaltyCutoff: 0,
         startingPoints,
         startDate,
         endDate,
@@ -256,11 +255,11 @@ const leagueRouter = router({
       };
     }),
 
-  isLeaderboardStale: publicProcedure
-    .input(schema.league.isLeaderboardStale)
+  lastLeaderboardUpdate: publicProcedure
+    .input(schema.league.lastLeaderboardUpdate)
     .query(async ({ input }) => {
-      const { leagueId, lastUpdated } = input;
-      return (await getLastLeaderboardUpdate(leagueId)) !== lastUpdated;
+      const { leagueId } = input;
+      return getLastLeaderboardUpdate(leagueId);
     }),
 
   scoreHistory: authedProcedure

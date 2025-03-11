@@ -16,6 +16,14 @@ const WwydAdmin = ({ quizId }: WwydAdminProps) => {
   const showResponsesMutation =
     trpc.wwyd.quiz.admin.revealResponses.useMutation();
 
+  const numParticipants = trpc.wwyd.quiz.countParticipants.useQuery(quizId, {
+    refetchInterval: 1000,
+  });
+
+  const numResponses = trpc.wwyd.quiz.countResponses.useQuery(quizId, {
+    refetchInterval: 1000,
+  });
+
   return (
     <div className="flex flex-col gap-4 w-full">
       <div className="flex flex-row gap-2">
@@ -40,6 +48,10 @@ const WwydAdmin = ({ quizId }: WwydAdminProps) => {
         >
           Show Responses
         </Button>
+      </div>
+      <div>
+        {numResponses.data ?? '???'} responses, {numParticipants.data ?? '???'}{' '}
+        participants (including host)
       </div>
       <div className="w-full max-w-[80vw]">
         <WwydScenarioWrapper quizId={quizId} />

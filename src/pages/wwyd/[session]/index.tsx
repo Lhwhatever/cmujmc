@@ -18,7 +18,7 @@ interface NotReadyScreenProps {
 
 const FalloverScreen = ({ quizId, isDone }: NotReadyScreenProps) => {
   const query = trpc.wwyd.quiz.countParticipants.useQuery(quizId, {
-    refetchInterval: 10000,
+    refetchInterval: 2500,
   });
 
   return (
@@ -50,10 +50,12 @@ interface WwydScenarioWrapperProps {
 type Question = z.infer<typeof wwydQuestionSchema>;
 
 export const WwydScenarioWrapper = ({ quizId }: WwydScenarioWrapperProps) => {
+  const router = useRouter();
   const [questionId, setQuestionId] = useState<number | null>(null);
   const [question, setQuestion] = useState<Question | null>(null);
   const [isDone, setIsDone] = useState(false);
   const [responseData, setResponseData] = useState<ResponseDatum[]>([]);
+  const [timeLimit, setTimeLimit] = useState<Date | null>(null);
 
   trpc.wwyd.quiz.play.useSubscription(quizId, {
     onData(event) {
@@ -62,12 +64,14 @@ export const WwydScenarioWrapper = ({ quizId }: WwydScenarioWrapperProps) => {
         case 'question':
           setQuestionId(e.id);
           setQuestion(e.data);
+          setTimeLimit(new Date(e.data.settings.endDate));
           setResponseData([]);
           break;
         case 'done':
           setIsDone(true);
           break;
         case 'data':
+          setTimeLimit(new Date());
           setResponseData([
             ...responseData,
             {
@@ -78,6 +82,13 @@ export const WwydScenarioWrapper = ({ quizId }: WwydScenarioWrapperProps) => {
           break;
       }
     },
+    onError(e) {
+      if (e?.data?.code === 'NOT_FOUND') {
+        void router.back();
+      } else {
+        alert(e.message);
+      }
+    },
   });
 
   const submitMutation = trpc.wwyd.quiz.submit.useMutation();
@@ -86,7 +97,7 @@ export const WwydScenarioWrapper = ({ quizId }: WwydScenarioWrapperProps) => {
     return <FalloverScreen quizId={quizId} isDone={isDone} />;
 
   const settings = {
-    endDate: new Date(question.settings.endDate),
+    endDate: timeLimit,
   };
 
   if (question.schema === '2d') {

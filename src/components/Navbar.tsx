@@ -30,9 +30,21 @@ const ProfileButton = ({ session }: ProfileButtonProps) => {
           anchor="bottom end"
           className="[--anchor-gap:.5em] bg-lime-200 rounded-lg shadow w-48 mt-2 flex flex-col"
         >
+          {session?.user?.role === 'admin' && (
+            <MenuItem>
+              <div className="block px-4 py-2 text-left hover:bg-lime-400">
+                <Link href="/admin">Admin Dashboard</Link>
+              </div>
+            </MenuItem>
+          )}
           <MenuItem>
             <div className="block px-4 py-2 text-left hover:bg-lime-400">
               <Link href="/profile/edit">Update Profile</Link>
+            </div>
+          </MenuItem>
+          <MenuItem>
+            <div className="block px-4 py-2 text-left hover:bg-lime-400">
+              <Link href="/wwyd">WWYD Quizzes</Link>
             </div>
           </MenuItem>
           <MenuItem>

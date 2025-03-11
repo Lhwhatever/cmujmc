@@ -90,6 +90,7 @@ export const getLastLeaderboardUpdate = async (
 ): Promise<number | null> => {
   const v = valkey(leagueId);
   const s = await v.get(keys.updated);
+  await v.quit();
   if (s === null) return null;
   return parseInt(s);
 };
@@ -234,8 +235,7 @@ const regenerateLeaderboard = async (
 export const cachedGetLeaderboard = async (leagueId: number) => {
   const v = valkey(leagueId);
   const cachedLeaderboard = await getCachedLeaderboard(v);
-  return (
-    cachedLeaderboard ??
+  const result = await (cachedLeaderboard ??
     // regenerate leaderboard
     (await withBackoff(
       async () => {
@@ -253,8 +253,9 @@ export const cachedGetLeaderboard = async (leagueId: number) => {
       },
       50,
       5,
-    ))
-  );
+    )));
+  await v.quit();
+  return result;
 };
 
 export const updateLeaderboardEntries = async (
@@ -263,33 +264,32 @@ export const updateLeaderboardEntries = async (
   players: UpdateLeaderboardPlayerRecord[],
 ) => {
   const v = valkey(leagueId);
-  if (!(await isLeaderboardCached(v))) {
-    // not in cache, nothing to update
-    return;
+  if (await isLeaderboardCached(v)) {
+    await withBackoff(
+      async () => {
+        await v.watch(keys.leaderboard, keys.records, keys.unranked);
+        const currRecords = await v.hmget(
+          keys.records,
+          ...players.map((players) => players.userId),
+        );
+
+        const newEntries = players.map(({ userId, aggregate }, i) => {
+          const serialized = currRecords[i];
+          const currRecord =
+            serialized !== null
+              ? superjson.parse<TxnAggregate>(serialized)
+              : aggregateEmpty;
+          return { userId, aggregate: reduceAggregates(aggregate, currRecord) };
+        });
+
+        return updateCacheEntries(v, requiredMatchesForRank, newEntries);
+      },
+      50,
+      5,
+    );
   }
 
-  await withBackoff(
-    async () => {
-      await v.watch(keys.leaderboard, keys.records, keys.unranked);
-      const currRecords = await v.hmget(
-        keys.records,
-        ...players.map((players) => players.userId),
-      );
-
-      const newEntries = players.map(({ userId, aggregate }, i) => {
-        const serialized = currRecords[i];
-        const currRecord =
-          serialized !== null
-            ? superjson.parse<TxnAggregate>(serialized)
-            : aggregateEmpty;
-        return { userId, aggregate: reduceAggregates(aggregate, currRecord) };
-      });
-
-      return updateCacheEntries(v, requiredMatchesForRank, newEntries);
-    },
-    50,
-    5,
-  );
+  await v.quit();
 };
 
 export const recomputePlayersOnLeaderboard = async (
@@ -297,19 +297,20 @@ export const recomputePlayersOnLeaderboard = async (
   userIds?: string[],
 ): Promise<void> => {
   const v = valkey(leagueId);
-  if (!(await isLeaderboardCached(v))) return;
-
-  await withBackoff(
-    async () => {
-      const { matchesRequired } = await prisma.league.findUniqueOrThrow({
-        where: { id: leagueId },
-        select: {
-          matchesRequired: true,
-        },
-      });
-      return regenerateLeaderboard(v, leagueId, matchesRequired, userIds);
-    },
-    50,
-    5,
-  );
+  if (await isLeaderboardCached(v)) {
+    await withBackoff(
+      async () => {
+        const { matchesRequired } = await prisma.league.findUniqueOrThrow({
+          where: { id: leagueId },
+          select: {
+            matchesRequired: true,
+          },
+        });
+        return regenerateLeaderboard(v, leagueId, matchesRequired, userIds);
+      },
+      50,
+      5,
+    );
+  }
+  await v.quit();
 };

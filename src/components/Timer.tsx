@@ -1,21 +1,16 @@
-import { useState } from 'react';
-import { useInterval } from 'react-use';
+import { useNow } from 'next-intl';
 
 export interface TimerProps {
   endDate: Date;
   className?: string;
-  frameRate?: number;
+  refreshMs?: number;
 }
 
-const getTimeLeft = (endDate: Date): number => endDate.valueOf() - Date.now();
-const getTimerText = (endDate: Date): string =>
-  String(Math.max(Math.floor(getTimeLeft(endDate) / 1000), 0));
+export default function Timer({ endDate, className, refreshMs }: TimerProps) {
+  const now = useNow({ updateInterval: refreshMs ?? 50 });
 
-export default function Timer({ endDate, className, frameRate }: TimerProps) {
-  const [secondsLeft, setSecondsLeft] = useState('');
-  const timerInterval = Math.round(1000 / (frameRate ?? 20));
+  const timeLeft = endDate.valueOf() - now.valueOf();
+  const timerText = String(Math.max(Math.floor(timeLeft / 1000), 0));
 
-  useInterval(() => setSecondsLeft(getTimerText(endDate)), timerInterval);
-
-  return <div className={className}>{secondsLeft}</div>;
+  return <div className={className}>{timerText}</div>;
 }

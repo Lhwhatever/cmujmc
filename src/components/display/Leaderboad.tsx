@@ -20,18 +20,18 @@ const LeaderboardContents = ({ leagueId }: LeaderboardProps) => {
       leagueId,
     });
 
-  const isStaleQuery = trpc.leagues.isLeaderboardStale.useQuery(
-    { leagueId, lastUpdated },
+  const isStaleQuery = trpc.leagues.lastLeaderboardUpdate.useQuery(
+    { leagueId },
     {
       refetchInterval: 60000,
     },
   );
 
   useEffect(() => {
-    if (isStaleQuery.data) {
+    if (isStaleQuery.data !== undefined && isStaleQuery.data !== lastUpdated) {
       void query.refetch();
     }
-  }, [isStaleQuery.data, query]);
+  }, [isStaleQuery.data, query, lastUpdated]);
 
   const formatter = useFormatter();
 
@@ -84,9 +84,9 @@ const LeaderboardContents = ({ leagueId }: LeaderboardProps) => {
             {formatter.number(agg.placements.get(1) ?? 0)}
           </TableCell>
           <TableCell className="hidden sm:table-cell">
-            {agg.highscore === null
-              ? '\u2014'
-              : formatter.number(agg.highscore)}
+            {Number.isFinite(agg.highscore)
+              ? formatter.number(agg.highscore)
+              : '\u2014'}
           </TableCell>
         </TableRow>
       ))}

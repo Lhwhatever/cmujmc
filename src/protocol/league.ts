@@ -8,7 +8,6 @@ export const create = z.object({
   invitational: z.boolean(),
   defaultRulesetId: z.number().int(),
   matchesRequired: z.number().min(1).optional(),
-  softPenaltyCutoff: z.number().min(0).optional(),
   startingPoints: z
     .number({
       required_error: 'Starting rating is required',
@@ -28,9 +27,8 @@ export const leaderboard = z.object({
   leagueId: z.number().int(),
 });
 
-export const isLeaderboardStale = z.object({
+export const lastLeaderboardUpdate = z.object({
   leagueId: z.number().int(),
-  lastUpdated: z.number().int(),
 });
 
 export const softenPenalty = z.object({

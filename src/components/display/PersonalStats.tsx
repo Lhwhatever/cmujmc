@@ -33,7 +33,7 @@ export const computeMatchStats = (
       case TransactionType.MATCH_RESULT: {
         ++numMatches;
         const deltaDecimal = new Decimal(delta);
-        gl = gl.add(deltaDecimal);
+        gl = gl.add(deltaDecimal.toString());
         glsq = glsq.add(deltaDecimal.mul(deltaDecimal));
         if (match != null) {
           const user = match.players[match.userAt];
@@ -77,7 +77,8 @@ export const computeMatchStats = (
   }
 
   const numMatchesDecimal = new Decimal(numMatches);
-  const stdev = glsq.minus(gl.mul(gl)).sqrt().div(numMatchesDecimal);
+  const avgGl = gl.div(numMatchesDecimal);
+  const stdev = glsq.div(numMatchesDecimal).minus(avgGl.mul(avgGl)).sqrt();
 
   return {
     'Recorded Matches': numMatches,
@@ -88,9 +89,7 @@ export const computeMatchStats = (
     'Tie Rate': formatter.number(ties / numMatches, percentStyle),
     'Average rank': formatter.number(rankSum / numMatches, decimalStyle),
     Chombos: `${formatter.number(numChombos)} (${chomboLoss.toString()} PT)`,
-    'G/L per Match':
-      formatter.number(gl.div(numMatchesDecimal).toNumber(), decimalStyle) +
-      ' PT',
+    'G/L per Match': formatter.number(avgGl.toNumber(), decimalStyle) + ' PT',
     StDev: stdev.toFixed(2) + ' PT',
     'High Score': highScore !== null ? formatter.number(highScore) : '-',
     'Mean Score': formatter.number(scoreSum / numMatches, decimalStyle),

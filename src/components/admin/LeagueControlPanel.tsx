@@ -172,15 +172,6 @@ const LeagueCreationDialog = ({ open, onClose }: LeagueCreationDialogProps) => {
           type="number"
           step={1}
         />
-        <InputField
-          name="softPenaltyCutoff"
-          label="Cutoff for soft penalty"
-          register={register}
-          errors={formState.errors}
-          required
-          type="number"
-          step={1}
-        />
         <ComboboxField
           required
           label="Ruleset"

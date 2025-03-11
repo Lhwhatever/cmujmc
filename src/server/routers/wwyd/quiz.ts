@@ -47,9 +47,10 @@ class WwydQuizState {
   readonly v: Valkey;
   readonly stream: VStream<StreamElement>;
 
+  static readonly sharedV = valkey();
+
   static async list(): Promise<[number, string][]> {
-    const v = valkey();
-    const stream = v.scanStream({
+    const stream = WwydQuizState.sharedV.scanStream({
       match: makePrefix('*') + keys.name,
     });
 
@@ -57,7 +58,7 @@ class WwydQuizState {
 
     for await (const keys of stream) {
       if (keys.length === 0) continue;
-      const values = await v.mget(keys);
+      const values = await WwydQuizState.sharedV.mget(keys);
       for (let i = 0; i < keys.length; ++i) {
         const value = values[i];
         if (value !== null) {
@@ -70,28 +71,38 @@ class WwydQuizState {
   }
 
   static async delete(quizId: number): Promise<void> {
-    const v = valkey();
-
-    const stream = v.scanStream({
+    const stream = WwydQuizState.sharedV.scanStream({
       match: makePrefix(quizId) + '*',
     });
 
-    return stream.forEach(async (keys) => {
+    const result = await stream.forEach(async (keys) => {
       if (keys.length === 0) return;
-      await v.del(...keys);
+      await WwydQuizState.sharedV.del(...keys);
     });
+
+    await WwydQuizState.sharedV.quit();
+    return result;
   }
 
   static async restart(quizId: number): Promise<boolean> {
-    const v = valkey();
-    return (
-      (await v.call(
-        'SET',
-        makePrefix(quizId) + keys.currQuestion,
-        -1,
-        'XX',
-      )) !== null
+    const result = await WwydQuizState.sharedV.call(
+      'SET',
+      makePrefix(quizId) + keys.currQuestion,
+      -1,
+      'XX',
     );
+
+    await WwydQuizState.sharedV.quit();
+    return result !== null;
+  }
+
+  static async with<T>(quizId: number, f: (_: WwydQuizState) => Promise<T>) {
+    const wwyd = new WwydQuizState(quizId);
+    try {
+      return f(wwyd);
+    } finally {
+      wwyd.release();
+    }
   }
 
   constructor(quizId: number) {
@@ -100,8 +111,16 @@ class WwydQuizState {
     this.stream = new VStream(this.v, keys.stream);
   }
 
+  async release() {
+    return this.v.quit();
+  }
+
   async countParticipants(): Promise<number> {
     return this.v.hlen(keys.players);
+  }
+
+  async countResponses(): Promise<number> {
+    return this.v.hlen(keys.answers);
   }
 
   async setup(name: string, scenarios: StoredScenario[]): Promise<boolean> {
@@ -192,49 +211,52 @@ const quizRouter = router({
     .output(zAsyncIterable({ yield: schema.wwyd.quiz.playOutput }))
     .subscription(async function* ({ input: quizId, ctx }) {
       const state = new WwydQuizState(quizId);
-      let nextMsgId = '0';
-
-      if ((await state.getCurrQuestionIdx()) == null) {
-        throw new NotFoundError('wwyd.quiz.play', quizId);
-      }
-
       try {
-        await state.registerPlayer(ctx.user.id, ctx.user.name);
+        let nextMsgId = '0';
 
-        while (true) {
-          const results = await state.stream.xread(nextMsgId, {
-            blockMs: 300000,
-            retries: 5,
-          });
-
-          if (results === null) {
-            throw new Error(
-              `Too many retries: play subscription ${quizId}, user: ${ctx.user.name}`,
-            );
-          }
-
-          if (results.length === 0) continue;
-
-          const lastEntry = results[results.length - 1];
-          if (lastEntry.entry.type === 'done') break;
-          nextMsgId = lastEntry.id;
-
-          const lastQuestionIdx = Math.max(
-            0,
-            results.findLastIndex((value) => value.entry.type === 'question'),
-          );
-
-          for (let i = lastQuestionIdx; i < results.length; ++i) {
-            yield results[i].entry;
-          }
+        if ((await state.getCurrQuestionIdx()) == null) {
+          throw new NotFoundError('wwyd.quiz.play', quizId);
         }
-        yield { type: 'done' };
-      } catch (e) {
-        console.error('Error in play', e);
+
+        try {
+          await state.registerPlayer(ctx.user.id, ctx.user.name);
+
+          while (true) {
+            const results = await state.stream.xread(nextMsgId, {
+              blockMs: 300000,
+              retries: 5,
+            });
+
+            if (results === null) {
+              throw new Error(
+                `Too many retries: play subscription ${quizId}, user: ${ctx.user.name}`,
+              );
+            }
+
+            if (results.length === 0) continue;
+
+            const lastEntry = results[results.length - 1];
+            if (lastEntry.entry.type === 'done') break;
+            nextMsgId = lastEntry.id;
+
+            const lastQuestionIdx = Math.max(
+              0,
+              results.findLastIndex((value) => value.entry.type === 'question'),
+            );
+
+            for (let i = lastQuestionIdx; i < results.length; ++i) {
+              yield results[i].entry;
+            }
+          }
+          yield { type: 'done' };
+        } catch (e) {
+          console.error('Error in play', e);
+        } finally {
+          state.deregisterPlayer(ctx.user.id);
+        }
       } finally {
-        state.deregisterPlayer(ctx.user.id);
+        await state.release();
       }
-      return;
     }),
 
   submit: authedProcedure
@@ -244,44 +266,57 @@ const quizRouter = router({
       const { quizId, questionId: submissionQuestionId, answer } = input;
 
       const state = new WwydQuizState(quizId);
+      try {
+        const currQuestionState = await state.getCurrQuestionState();
+        if (currQuestionState === null) {
+          throw new NotFoundError('wwyd.quiz.submit', quizId);
+        }
+        const { questionId, timeLimit } = currQuestionState;
+        if (questionId < 0) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Game has not started yet!',
+          });
+        }
 
-      const currQuestionState = await state.getCurrQuestionState();
-      if (currQuestionState === null) {
-        throw new NotFoundError('wwyd.quiz.submit', quizId);
-      }
-      const { questionId, timeLimit } = currQuestionState;
-      if (questionId < 0) {
-        throw new TRPCError({
-          code: 'BAD_REQUEST',
-          message: 'Game has not started yet!',
-        });
-      }
+        if (submissionQuestionId !== questionId) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: `Expected questionId to be ${questionId}, received ${submissionQuestionId}`,
+          });
+        }
 
-      if (submissionQuestionId !== questionId) {
-        throw new TRPCError({
-          code: 'BAD_REQUEST',
-          message: `Expected questionId to be ${questionId}, received ${submissionQuestionId}`,
-        });
-      }
+        if (submitTime > timeLimit) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Answering period has ended',
+          });
+        }
 
-      if (submitTime > timeLimit) {
-        throw new TRPCError({
-          code: 'BAD_REQUEST',
-          message: 'Answering period has ended',
-        });
-      }
-
-      if (!(await state.recordAnswer(ctx.user.id, serializeResponse(answer)))) {
-        throw new TRPCError({
-          code: 'BAD_REQUEST',
-          message: 'Already submitted an answer',
-        });
+        if (
+          !(await state.recordAnswer(ctx.user.id, serializeResponse(answer)))
+        ) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Already submitted an answer',
+          });
+        }
+      } finally {
+        await state.release();
       }
     }),
 
   countParticipants: authedProcedure
     .input(z.number())
-    .query(({ input: id }) => new WwydQuizState(id).countParticipants()),
+    .query(({ input: id }) =>
+      WwydQuizState.with(id, (state) => state.countParticipants()),
+    ),
+
+  countResponses: authedProcedure
+    .input(z.number())
+    .query(({ input: id }) =>
+      WwydQuizState.with(id, (state) => state.countResponses()),
+    ),
 
   admin: router({
     host: adminProcedure
@@ -296,12 +331,17 @@ const quizRouter = router({
         });
 
         const { scenarios } = wwydQuizSchema.parse(schema);
+        const state = new WwydQuizState(id);
 
-        if (!(await new WwydQuizState(id).setup(name, scenarios))) {
-          throw new AdminUserError<{ id: number }>({
-            field: 'id',
-            message: `WWYD ${id} (name "${name}") is already live! `,
-          });
+        try {
+          if (!(await state.setup(name, scenarios))) {
+            throw new AdminUserError<{ id: number }>({
+              field: 'id',
+              message: `WWYD ${id} (name "${name}") is already live! `,
+            });
+          }
+        } finally {
+          await state.release();
         }
       }),
 
@@ -317,77 +357,79 @@ const quizRouter = router({
       .input(z.number().int())
       .mutation(async ({ input: id }) => {
         const state = new WwydQuizState(id);
-        if ((await state.getCurrQuestionIdx()) == null) {
-          throw new NotFoundError('id', id);
-        }
+        try {
+          if ((await state.getCurrQuestionIdx()) == null) {
+            throw new NotFoundError('id', id);
+          }
 
-        const currQuestionIdx = await state.incrementQuestion();
-        const question = await state.getQuestion(currQuestionIdx);
+          const currQuestionIdx = await state.incrementQuestion();
+          const question = await state.getQuestion(currQuestionIdx);
 
-        if (question === null) {
-          state.broadcast({ type: 'done' });
-          return null;
-        }
+          if (question === null) {
+            state.broadcast({ type: 'done' });
+            return null;
+          }
 
-        const {
-          scenario,
-          schema: schemaName,
-          version,
-          settings: schemaSettings,
-        } = question;
-
-        const endDate = Date.now() + (schemaSettings.timeLimit + 1) * 1000;
-        await state.setTimeLimit(endDate);
-        await state.clearAnswers();
-
-        await state.broadcast({
-          type: 'question',
-          id: currQuestionIdx,
-          data: {
+          const {
             scenario,
             schema: schemaName,
             version,
-            settings: { endDate },
-          },
-        });
+            settings: schemaSettings,
+          } = question;
 
-        return currQuestionIdx;
+          const endDate = Date.now() + (schemaSettings.timeLimit + 1) * 1000;
+          await state.setTimeLimit(endDate);
+          await state.clearAnswers();
+
+          await state.broadcast({
+            type: 'question',
+            id: currQuestionIdx,
+            data: {
+              scenario,
+              schema: schemaName,
+              version,
+              settings: { endDate },
+            },
+          });
+
+          return currQuestionIdx;
+        } finally {
+          await state.release();
+        }
       }),
 
     revealResponses: adminProcedure
       .input(z.number().int())
       .mutation(async ({ input: quizId }) => {
         const state = new WwydQuizState(quizId);
-        const currState = await state.getCurrQuestionState();
-        if (currState === null) {
-          throw new NotFoundError('id', quizId);
-        }
+        try {
+          const currState = await state.getCurrQuestionState();
+          if (currState === null) {
+            throw new NotFoundError('id', quizId);
+          }
 
-        const { questionId, timeLimit } = currState;
-        const question = await state.getQuestion(questionId);
-        if (question === null) {
-          throw new TRPCError({
-            code: 'BAD_REQUEST',
-            message: 'Game has ended!',
+          const { questionId } = currState;
+          const question = await state.getQuestion(questionId);
+          if (question === null) {
+            throw new TRPCError({
+              code: 'BAD_REQUEST',
+              message: 'Game has ended!',
+            });
+          }
+
+          await state.setTimeLimit(Date.now());
+          const responses = await state.summarizeResponses();
+          // TODO: validate poll responses
+
+          await state.stream.xadd({
+            type: 'data',
+            id: questionId,
+            subject: 'Poll',
+            data: responses,
           });
+        } finally {
+          await state.release();
         }
-
-        if (Date.now() <= timeLimit) {
-          throw new TRPCError({
-            code: 'BAD_REQUEST',
-            message: 'There is still time left!',
-          });
-        }
-
-        const responses = await state.summarizeResponses();
-        // TODO: validate poll responses
-
-        await state.stream.xadd({
-          type: 'data',
-          id: questionId,
-          subject: 'Poll',
-          data: responses,
-        });
       }),
   }),
 });

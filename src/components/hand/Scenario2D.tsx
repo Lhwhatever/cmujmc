@@ -62,7 +62,7 @@ export interface Scenario2DProps {
   questionId: number;
   scenario: z.infer<typeof v1_schema>;
   settings: {
-    endDate: Date;
+    endDate: Date | null;
   };
   onSubmit: (response: z.infer<typeof wwydResponseSchema>) => Promise<void>;
   responseData: ResponseDatum[];
@@ -215,10 +215,12 @@ export default function Scenario2D({
           >
             Riichi: {doRiichi ? 'Yes' : 'No'}
           </div>
-          <Timer
-            endDate={endDate}
-            className="text-yellow-500 drop-shadow-xl text-5xl w-20 text-right ml-4"
-          />
+          {endDate !== null && (
+            <Timer
+              endDate={endDate}
+              className="text-yellow-500 drop-shadow-xl text-5xl w-20 text-right ml-4"
+            />
+          )}
         </div>
         <div>
           <Hand
