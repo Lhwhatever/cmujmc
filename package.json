@@ -2,7 +2,7 @@
   "name": "cmujmc",
   "private": true,
   "engines": {
-    "node": ">=18.15.0"
+    "node": ">=22.14.0"
   },
   "scripts": {
     "prebuild": "prisma generate && prisma migrate deploy",
@@ -53,6 +53,7 @@
     "@trpc/react-query": "11.0.0-rc.601",
     "@trpc/server": "11.0.0-rc.601",
     "@types/lodash": "^4.17.12",
+    "@valkey/valkey-glide": "^1.3.1",
     "cache-manager": "^6.1.2",
     "cacheable": "^1.8.3",
     "clsx": "^2.1.1",

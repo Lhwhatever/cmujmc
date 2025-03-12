@@ -80,6 +80,8 @@ export const WwydScenarioWrapper = ({ quizId }: WwydScenarioWrapperProps) => {
             },
           ]);
           break;
+        case 'start':
+          break;
       }
     },
     onError(e) {

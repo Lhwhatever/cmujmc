@@ -24,6 +24,7 @@ import {
 } from '../cache/leaderboard';
 import { cachedGetUsers } from '../cache/users';
 import { aggregateTxnArray, txnsSelector } from '../../utils/ranking';
+import { withCache } from '../cache/glide';
 
 const leagueRouter = router({
   list: publicProcedure.query(async () => {
@@ -220,9 +221,15 @@ const leagueRouter = router({
           ),
         };
       });
-      updateLeaderboardEntries(leagueId, txnResult.matchesRequiredForRank, [
-        { userId: ctx.user.id, aggregate: txnResult.aggregate },
-      ]);
+
+      await withCache((cache) =>
+        updateLeaderboardEntries(
+          cache,
+          leagueId,
+          txnResult.matchesRequiredForRank,
+          [{ userId: ctx.user.id, aggregate: txnResult.aggregate }],
+        ),
+      );
     }),
 
   leaderboard: publicProcedure
@@ -230,23 +237,25 @@ const leagueRouter = router({
     .query(async ({ input, ctx }) => {
       const { leagueId } = input;
 
-      const usersPromise = cachedGetUsers();
-      const userGroupsPromise = cachedGetUserGroups(ctx.session?.user?.id);
-      const leaderboardPromise = cachedGetLeaderboard(leagueId);
+      const [users, userGroups, { lastUpdated, entries }] = await withCache(
+        async (cache) => {
+          const users = cachedGetUsers(cache);
+          const userGroups = cachedGetUserGroups(cache, ctx.session?.user?.id);
+          const leaderboard = cachedGetLeaderboard(cache, leagueId);
 
-      const users = await usersPromise;
-      const usersById = new Map(users.map((user) => [user.id, user]));
+          return [
+            new Map((await users).map((user) => [user.id, user])),
+            await userGroups,
+            await leaderboard,
+          ];
+        },
+      );
 
-      const userGroups = await userGroupsPromise;
-
-      const { lastUpdated, entries } = await leaderboardPromise;
       return {
         lastUpdated,
         users: entries.map(({ userId, rank, agg }) => ({
           user: maskNames(
-            coalesceNames(
-              assertNonNull(usersById.get(userId) ?? null, 'userId'),
-            ),
+            coalesceNames(assertNonNull(users.get(userId) ?? null, 'userId')),
             userGroups,
           ),
           rank,
@@ -259,7 +268,7 @@ const leagueRouter = router({
     .input(schema.league.lastLeaderboardUpdate)
     .query(async ({ input }) => {
       const { leagueId } = input;
-      return getLastLeaderboardUpdate(leagueId);
+      return withCache((cache) => getLastLeaderboardUpdate(cache, leagueId));
     }),
 
   scoreHistory: authedProcedure
@@ -289,7 +298,9 @@ const leagueRouter = router({
         },
       });
 
-      const userGroups = await cachedGetUserGroups(userId);
+      const userGroups = await withCache((cache) =>
+        cachedGetUserGroups(cache, userId),
+      );
 
       return {
         txns: txns.map((txn) => {

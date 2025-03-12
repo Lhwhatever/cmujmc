@@ -4,6 +4,9 @@ import { wwydResponseSchema } from '../../utils/wwyd/response';
 
 export const playOutput = z.discriminatedUnion('type', [
   z.object({
+    type: z.literal('start'),
+  }),
+  z.object({
     type: z.literal('done'),
   }),
   z.object({

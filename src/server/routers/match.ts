@@ -36,6 +36,7 @@ import {
   updateLeaderboardEntries,
   UpdateLeaderboardPlayerRecord,
 } from '../cache/leaderboard';
+import { withCache } from '../cache/glide';
 
 //==================== for create ====================
 
@@ -173,7 +174,9 @@ const matchRouter = router({
   create: authedProcedure
     .input(schema.match.create)
     .mutation(async ({ ctx, input }) => {
-      const userGroups = await cachedGetUserGroups(ctx.session?.user?.id);
+      const userGroups = await withCache((cache) =>
+        cachedGetUserGroups(cache, ctx.session?.user?.id),
+      );
       const event = await prisma.event.findUnique({
         where: { id: input.eventId },
         select: { ruleset: { select: { id: true, gameMode: true } } },
@@ -222,7 +225,9 @@ const matchRouter = router({
   getById: publicProcedure
     .input(z.number())
     .query(async ({ input: id, ctx }) => {
-      const userGroups = await cachedGetUserGroups(ctx.session?.user?.id);
+      const userGroups = await withCache((cache) =>
+        cachedGetUserGroups(cache, ctx.session?.user?.id),
+      );
       const match: Match | null = await prisma.match.findUnique({
         include: matchIncludes,
         where: { id },
@@ -369,13 +374,13 @@ const matchRouter = router({
       });
 
       if (txnResult !== undefined) {
-        const playersToRecommpute: string[] = [];
+        const playersToRecompute: string[] = [];
         const leaderboardEntriesToUpdate: UpdateLeaderboardPlayerRecord[] = [];
 
         for (const [userId, action] of txnResult.leaderboardUpdateActions) {
           switch (action.type) {
             case 'recompute':
-              playersToRecommpute.push(userId);
+              playersToRecompute.push(userId);
               break;
             case 'apply':
               leaderboardEntriesToUpdate.push({
@@ -386,31 +391,33 @@ const matchRouter = router({
           }
         }
 
-        try {
-          if (playersToRecommpute.length > 0) {
+        await withCache(async (cache) => {
+          if (playersToRecompute.length > 0) {
             await recomputePlayersOnLeaderboard(
+              cache,
               txnResult.leagueId,
-              playersToRecommpute,
+              playersToRecompute,
             );
           }
 
           if (leaderboardEntriesToUpdate.length > 0) {
             await updateLeaderboardEntries(
+              cache,
               txnResult.leagueId,
               txnResult.matchesRequired,
               leaderboardEntriesToUpdate,
             );
           }
-        } catch (e) {
-          console.error(e);
-        }
+        });
       }
     }),
 
   getCompletedByLeague: publicProcedure
     .input(z.number())
     .query(async ({ input: leagueId, ctx }) => {
-      const userGroups = await cachedGetUserGroups(ctx.session?.user?.id);
+      const userGroups = await withCache((cache) =>
+        cachedGetUserGroups(cache, ctx.session?.user?.id),
+      );
       const matches = await prisma.match.findMany({
         include: matchIncludes,
         where: {
@@ -439,7 +446,9 @@ const matchRouter = router({
   getIncompleteByEvent: publicProcedure
     .input(z.number())
     .query(async ({ input: eventId, ctx }) => {
-      const userGroups = await cachedGetUserGroups(ctx.session?.user?.id);
+      const userGroups = await withCache((cache) =>
+        cachedGetUserGroups(cache, ctx.session?.user?.id),
+      );
       const matches: Match[] = await prisma.match.findMany({
         include: matchIncludes,
         where: { eventId, status: Status.PENDING },

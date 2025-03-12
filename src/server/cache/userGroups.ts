@@ -1,33 +1,44 @@
-import makeValkey from './makeValkey';
 import { getUserGroups, UserGroups } from '../../utils/usernames';
 import superjson from 'superjson';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../prisma';
 import { invalidateUserCache } from './users';
+import { Duration } from './glide';
+import { GlideClusterClient, TimeUnit } from '@valkey/valkey-glide';
 
-const valkey = makeValkey(`userGroups`);
-const sharedV = valkey();
-
-const ttl = 3 * 60 * 60; // 3 hours
+const expiry: Duration = { unit: TimeUnit.UnixSeconds, count: 3 * 60 * 60 };
 
 export const cachedGetUserGroups = async (
+  cache: GlideClusterClient,
   userId?: string | null,
 ): Promise<UserGroups> => {
   if (userId === null || userId === undefined) {
     return getUserGroups(null);
   }
 
-  const cachedValue = await sharedV.getex(userId, 'EX', ttl);
-  if (cachedValue !== null) return superjson.parse<UserGroups>(cachedValue);
+  const cachedValue = await cache.getex(userId, {
+    expiry: {
+      type: expiry.unit,
+      duration: expiry.count,
+    },
+  });
+  if (cachedValue !== null)
+    return superjson.parse<UserGroups>(cachedValue as string);
 
   const value = await getUserGroups(userId);
-  await sharedV.setex(userId, ttl, superjson.stringify(value));
+  await cache.set(userId, superjson.stringify(value), {
+    expiry: {
+      type: expiry.unit,
+      count: expiry.count,
+    },
+  });
   return value;
 };
 
 export const updateUserInvalidateCache = async <
   T extends Omit<Prisma.Args<typeof prisma.user, 'update'>, 'where'>,
 >(
+  cache: GlideClusterClient,
   id: string,
   args: T,
 ) => {
@@ -35,7 +46,7 @@ export const updateUserInvalidateCache = async <
     ...args,
     where: { id },
   });
-  await sharedV.del(id);
-  await invalidateUserCache(sharedV);
+  await cache.del([id]);
+  await invalidateUserCache(cache);
   return result;
 };

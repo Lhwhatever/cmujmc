@@ -11,6 +11,7 @@ import {
 import process from 'node:process';
 import { updateUserInvalidateCache } from '../server/cache/userGroups';
 import { invalidateUserCache } from '../server/cache/users';
+import { withCache } from '../server/cache/glide';
 
 const andrewPattern = new RegExp('([A-Za-z0-9]+)@(andrew|alumni).cmu.edu');
 
@@ -31,7 +32,7 @@ export const adapter: Adapter = {
         emailVerified,
       },
     });
-    void invalidateUserCache();
+    await withCache(invalidateUserCache);
     return result;
   },
   getUserByEmail: async (email: string) => {
@@ -43,9 +44,11 @@ export const adapter: Adapter = {
   },
   updateUser: async ({ id, ...data }) => {
     const andrew = (data.email && tryExtractAndrewId(data.email)) ?? undefined;
-    return updateUserInvalidateCache(id, {
-      data: { displayName: data.name, andrew, ...data },
-    });
+    return withCache((cache) =>
+      updateUserInvalidateCache(cache, id, {
+        data: { displayName: data.name, andrew, ...data },
+      }),
+    );
   },
   linkAccount: async ({
     type,
