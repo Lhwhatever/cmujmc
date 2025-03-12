@@ -83,6 +83,9 @@ importers:
       next-intl:
         specifier: ^3.26.4
         version: 3.26.4(next@15.1.7(@playwright/test@1.47.0)(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(react@19.0.0)
+      protobufjs:
+        specifier: ^7.4.0
+        version: 7.4.0
       react:
         specifier: 19.0.0
         version: 19.0.0
@@ -3261,38 +3264,28 @@ snapshots:
     dependencies:
       '@prisma/debug': 6.5.0
 
-  '@protobufjs/aspromise@1.1.2':
-    optional: true
+  '@protobufjs/aspromise@1.1.2': {}
 
-  '@protobufjs/base64@1.1.2':
-    optional: true
+  '@protobufjs/base64@1.1.2': {}
 
-  '@protobufjs/codegen@2.0.4':
-    optional: true
+  '@protobufjs/codegen@2.0.4': {}
 
-  '@protobufjs/eventemitter@1.1.0':
-    optional: true
+  '@protobufjs/eventemitter@1.1.0': {}
 
   '@protobufjs/fetch@1.1.0':
     dependencies:
       '@protobufjs/aspromise': 1.1.2
       '@protobufjs/inquire': 1.1.0
-    optional: true
 
-  '@protobufjs/float@1.0.2':
-    optional: true
+  '@protobufjs/float@1.0.2': {}
 
-  '@protobufjs/inquire@1.1.0':
-    optional: true
+  '@protobufjs/inquire@1.1.0': {}
 
-  '@protobufjs/path@1.1.2':
-    optional: true
+  '@protobufjs/path@1.1.2': {}
 
-  '@protobufjs/pool@1.1.0':
-    optional: true
+  '@protobufjs/pool@1.1.0': {}
 
-  '@protobufjs/utf8@1.1.0':
-    optional: true
+  '@protobufjs/utf8@1.1.0': {}
 
   '@react-aria/focus@3.18.4(react@19.0.0)':
     dependencies:
@@ -4510,8 +4503,7 @@ snapshots:
 
   lodash@4.17.21: {}
 
-  long@5.3.1:
-    optional: true
+  long@5.3.1: {}
 
   loose-envify@1.4.0:
     dependencies:
@@ -4865,7 +4857,6 @@ snapshots:
       '@protobufjs/utf8': 1.1.0
       '@types/node': 20.16.5
       long: 5.3.1
-    optional: true
 
   punycode@2.3.1: {}
 
