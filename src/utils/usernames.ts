@@ -1,10 +1,10 @@
 import { prisma } from '../server/prisma';
 import { Prisma } from '@prisma/client';
 
-export type UserGroups = {
+export interface UserGroups {
   cmu: boolean;
   discord: boolean;
-};
+}
 
 export const getUserGroups = async (
   userId?: string | null,
@@ -32,7 +32,11 @@ export const userSelector = Prisma.validator<Prisma.UserDefaultArgs>()({
   },
 });
 
-export type User = Prisma.UserGetPayload<typeof userSelector>;
+export type User = Prisma.Result<
+  typeof prisma.user,
+  typeof userSelector,
+  'findFirstOrThrow'
+>;
 
 export interface INames {
   id: string;

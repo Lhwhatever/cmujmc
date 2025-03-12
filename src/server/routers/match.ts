@@ -19,13 +19,24 @@ import {
 } from '../../utils/scoring';
 import {
   coalesceNames,
-  getUserGroups,
   maskNames,
   UserGroups,
   userSelector,
 } from '../../utils/usernames';
-import { markStale } from '../leaderboard/worker';
 import { Session } from 'next-auth';
+import assertNonNull from '../../utils/nullcheck';
+import { cachedGetUserGroups } from '../cache/userGroups';
+import {
+  aggregateTxnArray,
+  TxnAggregate,
+  txnsSelector,
+} from '../../utils/ranking';
+import {
+  recomputePlayersOnLeaderboard,
+  updateLeaderboardEntries,
+  UpdateLeaderboardPlayerRecord,
+} from '../cache/leaderboard';
+import { withCache } from '../cache/glide';
 
 //==================== for create ====================
 
@@ -43,7 +54,7 @@ const validateCreateMatchPlayers = async (
       case 'unregistered':
         unregisteredPlayers = unregisteredPlayers.add(player.payload);
         break;
-      case 'registered':
+      case 'registered': {
         const id = player.payload;
         const user = await prisma.user.findUnique({ where: { id } });
         if (user === null) {
@@ -52,6 +63,7 @@ const validateCreateMatchPlayers = async (
         registeredPlayers = registeredPlayers.add(id);
         hasSubmittingPlayer = hasSubmittingPlayer || id === requester.id;
         break;
+      }
     }
   }
 
@@ -162,7 +174,9 @@ const matchRouter = router({
   create: authedProcedure
     .input(schema.match.create)
     .mutation(async ({ ctx, input }) => {
-      const userGroups = await getUserGroups(ctx.session?.user?.id);
+      const userGroups = await withCache((cache) =>
+        cachedGetUserGroups(cache, ctx.session?.user?.id),
+      );
       const event = await prisma.event.findUnique({
         where: { id: input.eventId },
         select: { ruleset: { select: { id: true, gameMode: true } } },
@@ -211,7 +225,9 @@ const matchRouter = router({
   getById: publicProcedure
     .input(z.number())
     .query(async ({ input: id, ctx }) => {
-      const userGroups = await getUserGroups(ctx.session?.user?.id);
+      const userGroups = await withCache((cache) =>
+        cachedGetUserGroups(cache, ctx.session?.user?.id),
+      );
       const match: Match | null = await prisma.match.findUnique({
         include: matchIncludes,
         where: { id },
@@ -225,7 +241,7 @@ const matchRouter = router({
   record: authedProcedure
     .input(schema.match.record)
     .mutation(async ({ ctx, input }) => {
-      const leagueId = await prisma.$transaction(async (tx) => {
+      const txnResult = await prisma.$transaction(async (tx) => {
         const { matchId, players } = input;
         const match = await tx.match.findUnique({
           where: { id: matchId },
@@ -274,21 +290,43 @@ const matchRouter = router({
 
         const { chomboDelta } = match.ruleset;
 
-        const userLeagues = await tx.userLeague.findMany({
-          where: {
-            leagueId,
-            userId: {
-              in: match.players.flatMap(({ playerId }) =>
-                playerId === null ? [] : [playerId],
-              ),
+        const { matchesRequired, users: userLeagues } =
+          await tx.league.findUniqueOrThrow({
+            where: { id: leagueId },
+            select: {
+              matchesRequired: true,
+              users: {
+                where: {
+                  userId: {
+                    in: match.players.flatMap(({ playerId }) =>
+                      playerId === null ? [] : [playerId],
+                    ),
+                  },
+                },
+                select: { userId: true },
+              },
             },
-          },
-          select: { userId: true, freeChombos: true },
+          });
+
+        const existingTxns = await tx.userLeagueTransaction.findMany({
+          where: { userMatchMatchId: matchId },
+          select: { userId: true },
         });
 
-        await tx.userLeagueTransaction.deleteMany({
-          where: { userMatchMatchId: matchId },
-        });
+        const leaderboardUpdateActions = new Map<
+          string,
+          { type: 'recompute' } | { type: 'apply'; payload: TxnAggregate }
+        >();
+
+        if (existingTxns.length > 0) {
+          await tx.userLeagueTransaction.deleteMany({
+            where: { userMatchMatchId: matchId },
+          });
+        } else {
+          for (const { userId } of existingTxns) {
+            leaderboardUpdateActions.set(userId, { type: 'recompute' });
+          }
+        }
 
         for (let i = 0; i < match.players.length; ++i) {
           const { playerId } = match.players[i];
@@ -300,16 +338,13 @@ const matchRouter = router({
           );
           if (userLeague === undefined) continue;
 
-          const { freeChombos } = userLeague;
-
-          const { txns, chombos } = computeTransactions({
+          const { txns } = computeTransactions({
             playerId,
             matchId,
             playerPosition: i + 1,
             leagueId,
             time,
             chombos: players[i].chombos,
-            freeChombos,
             chomboDelta,
             rawScore: scores[i],
             returnPts: match.ruleset.returnPts,
@@ -317,28 +352,72 @@ const matchRouter = router({
             ...placements[i],
           });
 
-          await tx.userLeagueTransaction.createMany({ data: txns });
+          const createdTxns =
+            await tx.userLeagueTransaction.createManyAndReturn({
+              data: txns,
+              select: txnsSelector.select,
+            });
 
-          if (freeChombos && freeChombos > 0 && chombos > 0) {
-            await tx.userLeague.update({
-              where: { leagueId_userId: { leagueId, userId: playerId } },
-              data: {
-                freeChombos: Math.max(0, freeChombos - chombos),
-              },
+          if (!leaderboardUpdateActions.has(playerId)) {
+            leaderboardUpdateActions.set(playerId, {
+              type: 'apply',
+              payload: aggregateTxnArray(createdTxns),
             });
           }
         }
 
-        return leagueId;
+        return {
+          leagueId,
+          matchesRequired,
+          leaderboardUpdateActions,
+        };
       });
 
-      if (leagueId !== undefined) markStale(leagueId);
+      if (txnResult !== undefined) {
+        const playersToRecompute: string[] = [];
+        const leaderboardEntriesToUpdate: UpdateLeaderboardPlayerRecord[] = [];
+
+        for (const [userId, action] of txnResult.leaderboardUpdateActions) {
+          switch (action.type) {
+            case 'recompute':
+              playersToRecompute.push(userId);
+              break;
+            case 'apply':
+              leaderboardEntriesToUpdate.push({
+                userId,
+                aggregate: action.payload,
+              });
+              break;
+          }
+        }
+
+        await withCache(async (cache) => {
+          if (playersToRecompute.length > 0) {
+            await recomputePlayersOnLeaderboard(
+              cache,
+              txnResult.leagueId,
+              playersToRecompute,
+            );
+          }
+
+          if (leaderboardEntriesToUpdate.length > 0) {
+            await updateLeaderboardEntries(
+              cache,
+              txnResult.leagueId,
+              txnResult.matchesRequired,
+              leaderboardEntriesToUpdate,
+            );
+          }
+        });
+      }
     }),
 
   getCompletedByLeague: publicProcedure
     .input(z.number())
     .query(async ({ input: leagueId, ctx }) => {
-      const userGroups = await getUserGroups(ctx.session?.user?.id);
+      const userGroups = await withCache((cache) =>
+        cachedGetUserGroups(cache, ctx.session?.user?.id),
+      );
       const matches = await prisma.match.findMany({
         include: matchIncludes,
         where: {
@@ -348,14 +427,28 @@ const matchRouter = router({
         orderBy: { time: 'desc' },
       });
       return {
-        matches: matches.map((match) => transformMatch(match, userGroups)),
+        matches: matches.map(({ players, ...matchOther }) => ({
+          players: players.map((player) => {
+            const { placementMin, placementMax, rawScore, ...playerOther } =
+              transformMatchPlayer(player, userGroups);
+            return {
+              placementMin: assertNonNull(placementMin, 'placementMin'),
+              placementMax: assertNonNull(placementMax, 'placementMax'),
+              rawScore: assertNonNull(rawScore, 'rawScore'),
+              ...playerOther,
+            };
+          }),
+          ...matchOther,
+        })),
       };
     }),
 
   getIncompleteByEvent: publicProcedure
     .input(z.number())
     .query(async ({ input: eventId, ctx }) => {
-      const userGroups = await getUserGroups(ctx.session?.user?.id);
+      const userGroups = await withCache((cache) =>
+        cachedGetUserGroups(cache, ctx.session?.user?.id),
+      );
       const matches: Match[] = await prisma.match.findMany({
         include: matchIncludes,
         where: { eventId, status: Status.PENDING },

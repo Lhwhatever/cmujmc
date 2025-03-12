@@ -1,5 +1,4 @@
 import { Field, Textarea } from '@headlessui/react';
-import React from 'react';
 import { FieldPath, FieldValues } from 'react-hook-form';
 import { IFieldProps } from './baseTypes';
 import clsx from 'clsx';
@@ -19,12 +18,13 @@ export default function TextareaField<
   register,
   name,
   errors,
+  className,
 }: TextareaFieldProps<TFieldValues, TFieldName>) {
   const error = errors[name]?.message;
-
   const inputClass = clsx(
     'block bg-gray-50 border text-sm rounded-lg w-full p-2.5',
     error ? 'border-red-500 text-red-500' : 'border-gray-300 text-gray-900',
+    className,
   );
 
   return (

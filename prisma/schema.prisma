@@ -196,3 +196,11 @@ model UserLeagueTransaction {
   userMatchPlayerPosition Int?
   match                   UserMatch? @relation(fields: [userMatchMatchId, userMatchPlayerPosition], references: [matchId, playerPosition])
 }
+
+model Wwyd {
+  id      Int      @id @default(autoincrement())
+  name    String
+  schema  Json
+  created DateTime @default(now())
+  updated DateTime @default(now())
+}

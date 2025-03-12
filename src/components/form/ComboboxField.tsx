@@ -9,59 +9,26 @@ import {
 import FieldLabel from './FieldLabel';
 import clsx from 'clsx';
 
-type DummyEntryProps = {
+interface DummyEntryProps {
   children?: React.ReactNode;
-};
+}
 
 const DummyEntry = ({ children }: DummyEntryProps) => {
   return <div className="block px-4 py-2 text-gray-600">{children}</div>;
 };
 
-type OptionsProps<T, K extends React.Key> = {
-  onChange: (value: T) => void;
-  keyOf?: (value: T) => K;
-  options: T[];
-  displayValue: (value: T) => string;
-};
-
-const Options = <T, K extends React.Key>({
-  options,
-  onChange,
-  displayValue,
-  keyOf,
-}: OptionsProps<T, K>) => {
-  if (options.length === 0) {
-    return <DummyEntry>No options available.</DummyEntry>;
-  }
-
-  return (
-    <>
-      {options.map((option, idx) => (
-        <ComboboxOption
-          value={option}
-          key={keyOf ? keyOf(option) : idx}
-          className="block px-4 py-2 data-[focus]:bg-gray-100 data-[hover]:bg-gray-100 cursor-pointer"
-          onClick={() => onChange(option)}
-          order={idx}
-        >
-          {displayValue(option)}
-        </ComboboxOption>
-      ))}
-    </>
-  );
-};
-
-export type ComboboxFieldProps<T, K extends React.Key> = {
-  onChange: (value: T) => void;
-  keyOf?: (value: T) => K;
-  options: T[] | null;
-  displayValue: (value: T) => string;
+export interface ComboboxFieldProps<T, K extends React.Key> {
+  onChange: (_: T) => void;
+  keyOf?: (_: T) => K;
+  options: T[] | undefined;
+  isLoading: boolean;
+  displayValue: (_: T) => string;
   label?: string;
   required?: boolean;
   value: T;
   query: string;
-  onQueryChange: (query: string) => void;
-};
+  onQueryChange: (_: string) => void;
+}
 
 export default function ComboboxField<T, K extends React.Key>({
   label,
@@ -71,10 +38,11 @@ export default function ComboboxField<T, K extends React.Key>({
   onQueryChange,
   displayValue,
   options,
+  isLoading,
   keyOf,
 }: ComboboxFieldProps<T, K>) {
   const [isDirty, setIsDirty] = useState(false);
-  const hasErrors = (value === null && isDirty && required)!;
+  const hasErrors = value === null && isDirty && required;
 
   const inputClasses = clsx(
     'block bg-gray-50 border text-sm rounded-lg w-full p-2.5',
@@ -100,18 +68,23 @@ export default function ComboboxField<T, K extends React.Key>({
         />
         <ComboboxOptions
           anchor="bottom"
-          className="border mt-1 empty:invisible bg-white rounded-lg w-auto"
+          className="border mt-1 empty:invisible bg-white rounded-lg w-[var(--input-width)]"
         >
-          {options === null ? (
-            <DummyEntry>Loading...</DummyEntry>
-          ) : (
-            <Options
-              options={options}
-              onChange={onChange}
-              keyOf={keyOf}
-              displayValue={displayValue}
-            />
+          {!isLoading && (options === undefined || options.length === 0) && (
+            <DummyEntry>No options available.</DummyEntry>
           )}
+          {options?.map((option, idx) => (
+            <ComboboxOption
+              value={option}
+              key={keyOf ? keyOf(option) : idx}
+              className="block px-4 py-2 data-[focus]:bg-gray-100 data-[hover]:bg-gray-100 cursor-pointer"
+              onClick={() => onChange(option)}
+              order={idx}
+            >
+              {displayValue(option)}
+            </ComboboxOption>
+          ))}
+          {isLoading && <DummyEntry>Loading...</DummyEntry>}
         </ComboboxOptions>
       </Combobox>
       {hasErrors && (

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Dialog from '../Dialog';
 import { Fieldset } from '@headlessui/react';
-import UserComboBox, { User, UserOption } from '../UserComboBox';
+import UserComboBox, { UserOption } from '../UserComboBox';
 import Button from '../Button';
 import { RouterOutputs, trpc } from '../../utils/trpc';
 import { GameMode } from '@prisma/client';
@@ -26,22 +26,20 @@ export type RankedMatch = NonNullable<
   RouterOutputs['matches']['getById']['match']
 >;
 
-type MatchCreationFormProps = {
+interface MatchCreationFormProps {
   eventId: number;
   gameMode: GameMode;
   onRefresh: () => void;
   onClose: () => void;
-  onSuccess: (m: MatchCreationResult) => void;
-  users: User[] | null;
+  onSuccess: (_m: MatchCreationResult) => void;
   hidden?: boolean;
-};
+}
 
 const MatchCreationForm = ({
   gameMode,
   onClose,
   onRefresh,
   onSuccess,
-  users,
   eventId,
   hidden,
 }: MatchCreationFormProps) => {
@@ -54,14 +52,24 @@ const MatchCreationForm = ({
   };
   const [errors, setErrors] = useState('');
 
-  const createMatch = trpc.matches.create.useMutation();
+  const createMatchMutation = trpc.matches.create.useMutation();
+  const userListQuery = trpc.user.listAll.useInfiniteQuery(
+    {},
+    {
+      getNextPageParam(s) {
+        return s.nextCursor;
+      },
+    },
+  );
+
+  const users = userListQuery.data?.pages?.flatMap((r) => r.users);
 
   const handleSubmit = () => {
     void (async () => {
       if (players.every((p) => p !== null)) {
         try {
           onSuccess(
-            await createMatch.mutateAsync(
+            await createMatchMutation.mutateAsync(
               {
                 eventId,
                 players: players.map(({ type, payload }) => ({
@@ -72,7 +80,6 @@ const MatchCreationForm = ({
               {
                 onError(error) {
                   try {
-                    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument,@typescript-eslint/no-unsafe-member-access
                     setErrors(JSON.parse(error.message)[0].message);
                   } catch (e) {
                     console.error(e);
@@ -81,7 +88,9 @@ const MatchCreationForm = ({
               },
             ),
           );
-        } catch (e) {}
+        } catch (_) {
+          // TODO: process match creation errors
+        }
       } else {
         setErrors('');
       }
@@ -100,6 +109,7 @@ const MatchCreationForm = ({
             user={player}
             onUserChange={updateUser(index)}
             userList={users}
+            isLoading={userListQuery.isFetching}
             required
           />
         ))}
@@ -124,14 +134,14 @@ const chomboFormSchema = z.object({
   description: z.string(),
 });
 
-type ChomboEntryFormProps = {
+interface ChomboEntryFormProps {
   hidden?: boolean;
   players: RankedMatch['players'];
   chombos: [number, string][];
-  onChange: (newList: [number, string][]) => void;
+  onChange: (_newList: [number, string][]) => void;
   onBack: () => void;
   onSubmit: () => void;
-};
+}
 
 const ChomboEntryForm = ({
   players,
@@ -248,11 +258,11 @@ const scoreEntrySchema = z.object({
   leftoverBets: z.number().multipleOf(1000).min(0),
 });
 
-export type ScoreEntryFormProps = {
+export interface ScoreEntryFormProps {
   leagueId: number;
   targetMatch: RankedMatch;
   onClose: () => void;
-};
+}
 
 const ScoreEntryForm = ({
   leagueId,
@@ -420,12 +430,12 @@ const ScoreEntryForm = ({
   );
 };
 
-export type MatchEntryDialogProps = {
+export interface MatchEntryDialogProps {
   targetEvent: RankedEvent | null;
-  setTargetEvent: (e: RankedEvent | null) => void;
+  setTargetEvent: (_: RankedEvent | null) => void;
   targetMatch: RankedMatch | null;
-  setTargetMatch: (e: RankedMatch | null) => void;
-};
+  setTargetMatch: (_: RankedMatch | null) => void;
+}
 
 export default function MatchEntryDialog({
   targetEvent,
@@ -433,7 +443,6 @@ export default function MatchEntryDialog({
   targetMatch,
   setTargetMatch,
 }: MatchEntryDialogProps) {
-  const users = trpc.user.listAll.useQuery();
   const utils = trpc.useUtils();
   const handleClose = () => {
     setTargetEvent(null);
@@ -464,7 +473,6 @@ export default function MatchEntryDialog({
             gameMode={targetEvent.ruleset.gameMode}
             onRefresh={handleRefresh}
             onClose={handleClose}
-            users={users.data?.users ?? null}
             onSuccess={handleSuccess}
           />
           {targetMatch && (

@@ -1,4 +1,3 @@
-import React from 'react';
 import { RouterOutputs, trpc } from '../../utils/trpc';
 import Heading from '../Heading';
 import DateTimeRange from 'components/DateTimeRange';
@@ -13,11 +12,11 @@ import { RankedMatch } from './MatchEntryDialog';
 export type RankedEvent =
   RouterOutputs['events']['getByLeague']['events'][number];
 
-type RelativeTimeProps = {
+interface RelativeTimeProps {
   startDate: Date | null;
   endDate: Date | null;
   now: Date;
-};
+}
 
 const RelativeTime = ({ startDate, endDate, now }: RelativeTimeProps) => {
   if (endDate && isBefore(endDate, now)) {
@@ -44,11 +43,11 @@ const RelativeTime = ({ startDate, endDate, now }: RelativeTimeProps) => {
   return <></>;
 };
 
-type PendingMatchesProps = {
+interface PendingMatchesProps {
   eventId: number;
   registered: boolean;
-  onUpdate: (m: RankedMatch) => void;
-};
+  onUpdate: (_: RankedMatch) => void;
+}
 
 const PendingMatches = ({
   eventId,
@@ -107,13 +106,13 @@ const PendingMatches = ({
   );
 };
 
-export type RankedEventDetailsProps = {
+export interface RankedEventDetailsProps {
   event: RankedEvent;
   now: Date;
-  onRecord: (e: RankedEvent) => void;
+  onRecord: (_e: RankedEvent) => void;
   registered: boolean;
-  onUpdate: (e: RankedEvent, m: RankedMatch) => void;
-};
+  onUpdate: (_e: RankedEvent, _m: RankedMatch) => void;
+}
 
 export default function RankedEventDetails({
   registered,

@@ -1,4 +1,4 @@
-import React, { Key } from 'react';
+import { Key } from 'react';
 import { Field, Select } from '@headlessui/react';
 import FieldLabel from './FieldLabel';
 import { ChevronDownIcon } from '@heroicons/react/24/solid';
@@ -6,15 +6,15 @@ import clsx from 'clsx';
 
 export type Option = string | number | readonly string[];
 
-export type RadioGroupFieldProps<T extends Option> = {
+export interface RadioGroupFieldProps<T extends Option> {
   label?: string;
-  getKey?: (t: T, index: number) => Key;
-  displayOption: (t: T) => string;
+  getKey?: (_t: T, _index: number) => Key;
+  displayOption: (_: T) => string;
   options: T[];
   value: T;
-  onChange: (value: T) => void;
+  onChange: (_: T) => void;
   required?: boolean;
-};
+}
 
 export default function SelectField<T extends Option>({
   label,

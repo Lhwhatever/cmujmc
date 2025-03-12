@@ -1,4 +1,3 @@
-import React from 'react';
 import clsx from 'clsx';
 
 const placementColors = [
@@ -9,9 +8,9 @@ const placementColors = [
   'bg-rose-300',
 ];
 
-export type PlacementProps = {
+export interface PlacementProps {
   placement: number;
-};
+}
 
 export const Placement = ({ placement }: PlacementProps) => {
   const styles = clsx(
@@ -21,10 +20,10 @@ export const Placement = ({ placement }: PlacementProps) => {
   return <div className={styles}>{placement}</div>;
 };
 
-export type PlacementRangeProps = {
+export interface PlacementRangeProps {
   min: number;
   max: number;
-};
+}
 
 export default function PlacementRange({ min, max }: PlacementRangeProps) {
   return (

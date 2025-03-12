@@ -25,13 +25,13 @@ export const computePlacements = (playerScores: number[]) => {
   }));
 };
 
-export type ComputePlayerPtArg = {
+export interface ComputePlayerPtArg {
   rawScore: number;
   returnPts: number;
   placementMin: number;
   placementMax: number;
   uma: Decimal[];
-};
+}
 
 export const computePlayerPt = ({
   rawScore,
@@ -55,7 +55,6 @@ export type ComputeUserLeagueTxnArgs = ComputePlayerPtArg & {
   leagueId: number;
   time: Date;
   chombos: number | string[];
-  freeChombos: number | null;
   chomboDelta: Decimal;
   uma: Decimal[];
 };
@@ -67,7 +66,6 @@ export const computeTransactions = ({
   leagueId,
   time,
   chombos,
-  freeChombos,
   chomboDelta,
   ...playerPtArg
 }: ComputeUserLeagueTxnArgs) => {
@@ -85,11 +83,11 @@ export const computeTransactions = ({
     ? chombos
     : new Array<string | null>(chombos).fill(null);
 
-  const chomboTxns = chomboDescriptions.map((description, index) => ({
+  const chomboTxns = chomboDescriptions.map((description) => ({
     type: TransactionType.CHOMBO,
     userId: playerId,
     leagueId,
-    delta: index < (freeChombos ?? 0) ? new Decimal(0) : chomboDelta,
+    delta: chomboDelta,
     time,
     description,
     userMatchMatchId: matchId,

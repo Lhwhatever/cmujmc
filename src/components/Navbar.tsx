@@ -1,4 +1,3 @@
-import React from 'react';
 import { signIn, signOut, useSession } from 'next-auth/react';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import { Session } from 'next-auth';
@@ -16,9 +15,9 @@ const LoginButton = () => {
   );
 };
 
-type ProfileButtonProps = {
+interface ProfileButtonProps {
   session: Session;
-};
+}
 
 const ProfileButton = ({ session }: ProfileButtonProps) => {
   return (
@@ -31,9 +30,21 @@ const ProfileButton = ({ session }: ProfileButtonProps) => {
           anchor="bottom end"
           className="[--anchor-gap:.5em] bg-lime-200 rounded-lg shadow w-48 mt-2 flex flex-col"
         >
+          {session?.user?.role === 'admin' && (
+            <MenuItem>
+              <div className="block px-4 py-2 text-left hover:bg-lime-400">
+                <Link href="/admin">Admin Dashboard</Link>
+              </div>
+            </MenuItem>
+          )}
           <MenuItem>
             <div className="block px-4 py-2 text-left hover:bg-lime-400">
               <Link href="/profile/edit">Update Profile</Link>
+            </div>
+          </MenuItem>
+          <MenuItem>
+            <div className="block px-4 py-2 text-left hover:bg-lime-400">
+              <Link href="/wwyd">WWYD Quizzes</Link>
             </div>
           </MenuItem>
           <MenuItem>
@@ -54,7 +65,7 @@ export default function Navbar() {
   const session = useSession();
 
   return (
-    <nav className="relative flex w-full flex-wrap items-center justify-between bg-lime-950 py-2 shadow-dark-mild lg:py-4">
+    <nav className="relative flex w-dvw flex-wrap items-center justify-between bg-lime-950 py-2 shadow-dark-mild lg:py-4">
       <div className="flex w-full flex-wrap items-center justify-between">
         <div className="ms-2 ml-3">
           <Link className="text-xl text-black dark:text-white" href="/">

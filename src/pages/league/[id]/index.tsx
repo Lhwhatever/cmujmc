@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Page from '../../../components/Page';
 import Heading from '../../../components/Heading';
 import { useRouter } from 'next/router';
@@ -9,7 +9,6 @@ import DateTimeRange from '../../../components/DateTimeRange';
 import Accordion, { AccordionSegment } from '../../../components/Accordion';
 import { signIn, useSession } from 'next-auth/react';
 import Button from '../../../components/Button';
-import { PlusIcon } from '@heroicons/react/16/solid';
 import Dialog from '../../../components/Dialog';
 import { Fieldset } from '@headlessui/react';
 import InputField from '../../../components/form/InputField';
@@ -18,7 +17,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { AdminUserError } from '../../../protocol/errors';
-import { redirect, usePathname } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import RankedEventDetails, {
   RankedEvent,
 } from '../../../components/display/RankedEventDetails';
@@ -48,7 +47,9 @@ const partitionEvents = (refTime: number, events: RankedEvent[]) => {
   return [closed, ongoing, future];
 };
 
-type EventCreatorProps = { leagueId: number };
+interface EventCreatorProps {
+  leagueId: number;
+}
 
 const eventCreationSchema = schema.event.create.omit({ leagueId: true });
 type EventCreationParams = z.infer<typeof eventCreationSchema>;
@@ -94,12 +95,7 @@ const EventCreator = ({ leagueId }: EventCreatorProps) => {
 
   return (
     <>
-      <Button
-        color="green"
-        fill="filled"
-        leftIcon={<PlusIcon className="size-4" />}
-        onClick={() => setDialogOpen(true)}
-      >
+      <Button color="green" fill="filled" onClick={() => setDialogOpen(true)}>
         Create
       </Button>
       <Dialog
@@ -155,10 +151,10 @@ const EventCreator = ({ leagueId }: EventCreatorProps) => {
   );
 };
 
-type EventsSectionProps = {
+interface EventsSectionProps {
   leagueId: number;
   registered: boolean;
-};
+}
 
 const EventsSection = ({ leagueId, registered }: EventsSectionProps) => {
   const [now, setNow] = useState(() => new Date());
@@ -168,13 +164,13 @@ const EventsSection = ({ leagueId, registered }: EventsSectionProps) => {
 
   const query = trpc.events.getByLeague.useQuery({ leagueId });
 
-  if (query.isLoading) {
+  if (query.isLoading || !query.data) {
     return <Loading />;
   }
 
   const [closed, ongoing, future] = partitionEvents(
     Date.now(),
-    query.data!.events,
+    query.data.events,
   );
 
   if (closed.length === 0 && ongoing.length === 0 && future.length === 0) {
@@ -251,34 +247,35 @@ const EventsSection = ({ leagueId, registered }: EventsSectionProps) => {
   );
 };
 
-export default function League() {
+interface LeagueContentsProps {
+  leagueId: number;
+}
+
+const LeagueContents = ({ leagueId }: LeagueContentsProps) => {
   const router = useRouter();
   const pathname = usePathname();
-  const id = parseInt(router.query.id as string);
 
   const utils = trpc.useUtils();
-  const query = trpc.leagues.get.useQuery(id, { retry: 3 });
+  const query = trpc.leagues.get.useQuery(leagueId, { retry: 3 });
   const register = trpc.leagues.register.useMutation({
     onSuccess() {
       return Promise.all([
-        utils.leagues.get.invalidate(id),
-        utils.leagues.scoreHistory.invalidate(id),
-        utils.leagues.leaderboard.invalidate({ leagueId: id }),
+        utils.leagues.get.invalidate(leagueId),
+        utils.leagues.scoreHistory.invalidate(leagueId),
+        utils.leagues.leaderboard.invalidate({ leagueId }),
       ]);
     },
   });
 
-  const session = useSession();
-  if (query.isPending) {
-    return (
-      <Page>
-        <Loading />
-      </Page>
-    );
-  }
+  useEffect(() => {
+    if (query.isError) {
+      void router.push('/');
+    }
+  }, [query.isError, router]);
 
-  if (query.isError) {
-    redirect('/');
+  const session = useSession();
+  if (!query.data) {
+    return <Loading />;
   }
 
   const { league, userInfo } = query.data;
@@ -287,108 +284,119 @@ export default function League() {
     void signIn();
   };
 
-  const handleJoinScoreboard = () => register.mutate({ leagueId: id });
+  const handleJoinScoreboard = () => register.mutate({ leagueId });
+
+  return (
+    <div className="flex flex-col gap-8">
+      <div>
+        <Heading level="h2" className="mb-1">
+          {league.name}
+        </Heading>
+        {(league.startDate !== null || league.endDate !== null) && (
+          <p className="text-md text-gray-600">
+            <DateTimeRange
+              startDate={league.startDate}
+              endDate={league.endDate}
+            />
+          </p>
+        )}
+        {league.invitational && <Text>Invite-only</Text>}
+        <Text>{league.description}</Text>
+        {session.data && userInfo && (
+          <Text>You are on the scoreboard for this event!</Text>
+        )}
+        {session.data && !userInfo && (
+          <Button color="green" fill="filled" onClick={handleJoinScoreboard}>
+            Join Scoreboard
+          </Button>
+        )}
+        {!session.data && (
+          <Button color="green" fill="filled" onClick={handleLogIn}>
+            Login
+          </Button>
+        )}
+      </div>
+      <div>
+        <Heading level="h3">Ruleset</Heading>
+        <Heading level="h4">{league.defaultRuleset.name}</Heading>
+      </div>
+      <div>
+        <Heading level="h3">Events</Heading>
+        {session.data?.user.role === 'admin' && (
+          <EventCreator leagueId={leagueId} />
+        )}
+        <EventsSection leagueId={leagueId} registered={!!userInfo} />
+      </div>
+      {session.data && (
+        <div>
+          <Heading level="h3">{session.data.user?.name}&apos;s Stats</Heading>
+          {userInfo && (
+            <PersonalStats
+              leagueId={leagueId}
+              freeChombos={userInfo.freeChombos}
+              softPenaltyCutoff={league.softPenaltyCutoff}
+            />
+          )}
+          {!userInfo && (
+            <>
+              <p>Join the scoreboard to see your personal stats!</p>
+              <Button
+                color="green"
+                fill="filled"
+                onClick={handleJoinScoreboard}
+              >
+                Join Scoreboard
+              </Button>
+            </>
+          )}
+        </div>
+      )}
+      <div>
+        <Heading level="h3">Leaderboard</Heading>
+        <Leaderboard leagueId={leagueId} />
+        <p className="text-gray-700">
+          You need to play at least {league.matchesRequired} matches to have a
+          rank. New players start with{' '}
+          <span className="font-bold">{league.startingPoints.toString()}</span>{' '}
+          rating. It may take a few minutes before the result of recent matches
+          are shown.
+        </p>
+      </div>
+      {session.data && userInfo && (
+        <div>
+          <Heading level="h3">{session.data.user?.name}&apos;s History</Heading>
+          <ScoreHistory leagueId={leagueId} />
+        </div>
+      )}
+      <div>
+        <Heading level="h3">All Matches</Heading>
+        <p>
+          See a full list of matches{' '}
+          <Link
+            href={`${pathname}/matches`}
+            className="text-green-700 underline"
+          >
+            here
+          </Link>
+        </p>
+      </div>
+    </div>
+  );
+};
+
+export default function League() {
+  const router = useRouter();
+  const id = parseInt(router.query.id as string);
+
+  useEffect(() => {
+    if (Number.isNaN(id)) {
+      void router.push('/');
+    }
+  }, [router, id]);
 
   return (
     <Page>
-      <div className="flex flex-col gap-8">
-        <div>
-          <Heading level="h2" className="mb-1">
-            {league.name}
-          </Heading>
-          {(league.startDate !== null || league.endDate !== null) && (
-            <p className="text-md text-gray-600">
-              <DateTimeRange
-                startDate={league.startDate}
-                endDate={league.endDate}
-              />
-            </p>
-          )}
-          {league.invitational && <Text>Invite-only</Text>}
-          <Text>{league.description}</Text>
-          {session.data && userInfo && (
-            <Text>You are on the scoreboard for this event!</Text>
-          )}
-          {session.data && !userInfo && (
-            <Button color="green" fill="filled" onClick={handleJoinScoreboard}>
-              Join Scoreboard
-            </Button>
-          )}
-          {!session.data && (
-            <Button color="green" fill="filled" onClick={handleLogIn}>
-              Login
-            </Button>
-          )}
-        </div>
-        <div>
-          <Heading level="h3">Ruleset</Heading>
-          <Heading level="h4">{league.defaultRuleset.name}</Heading>
-        </div>
-        <div>
-          <Heading level="h3">Events</Heading>
-          {session.data?.user.role === 'admin' && (
-            <EventCreator leagueId={id} />
-          )}
-          <EventsSection leagueId={id} registered={!!userInfo} />
-        </div>
-        {session.data && (
-          <div>
-            <Heading level="h3">{session.data.user?.name}&apos;s Stats</Heading>
-            {userInfo && (
-              <PersonalStats
-                leagueId={id}
-                freeChombos={userInfo.freeChombos}
-                softPenaltyCutoff={league.softPenaltyCutoff}
-              />
-            )}
-            {!userInfo && (
-              <>
-                <p>Join the scoreboard to see your personal stats!</p>
-                <Button
-                  color="green"
-                  fill="filled"
-                  onClick={handleJoinScoreboard}
-                >
-                  Join Scoreboard
-                </Button>
-              </>
-            )}
-          </div>
-        )}
-        <div>
-          <Heading level="h3">Leaderboard</Heading>
-          <Leaderboard leagueId={id} />
-          <p className="text-gray-700">
-            You need to play at least {league.matchesRequired} matches to have a
-            rank. New players start with{' '}
-            <span className="font-bold">
-              {league.startingPoints.toString()}
-            </span>{' '}
-            rating. It may take a few minutes before the result of recent
-            matches are shown.
-          </p>
-        </div>
-        {session.data && userInfo && (
-          <div>
-            <Heading level="h3">
-              {session.data.user?.name}&apos;s History
-            </Heading>
-            <ScoreHistory leagueId={id} />
-          </div>
-        )}
-        <div>
-          <Heading level="h3">All Matches</Heading>
-          <p>
-            See a full list of matches{' '}
-            <Link
-              href={`${pathname}/matches`}
-              className="text-green-700 underline"
-            >
-              here
-            </Link>
-          </p>
-        </div>
-      </div>
+      {Number.isNaN(id) ? <Loading /> : <LeagueContents leagueId={id} />}
     </Page>
   );
 }

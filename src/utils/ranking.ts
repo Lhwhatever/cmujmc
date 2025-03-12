@@ -1,6 +1,8 @@
 import { createHash, BinaryLike } from 'crypto';
 import { Prisma, TransactionType } from '@prisma/client';
 import Decimal from 'decimal.js';
+import assertNonNull, { assertRequired } from './nullcheck';
+import { prisma } from '../server/prisma';
 
 export const txnsSelector = Prisma.validator<Prisma.UserLeague$txnsArgs>()({
   select: {
@@ -17,32 +19,89 @@ export const txnsSelector = Prisma.validator<Prisma.UserLeague$txnsArgs>()({
   },
 });
 
-export type TxnAggregate = {
+export interface TxnAggregate {
   score: Decimal;
   numMatches: number;
-  highscore: number | null;
-  placements: Record<number, number>;
+  highscore: number;
+  placements: Map<number, number>;
+  lastActivityDate: number;
+}
+
+type UserLeagueTransaction = Prisma.Result<
+  typeof prisma.userLeagueTransaction,
+  typeof txnsSelector,
+  'findFirstOrThrow'
+>;
+
+export const aggregateEmpty: TxnAggregate = {
+  score: new Decimal(0),
+  numMatches: 0,
+  highscore: Number.NEGATIVE_INFINITY,
+  placements: new Map<number, number>(),
+  lastActivityDate: Number.NEGATIVE_INFINITY,
 };
 
-export const aggregateTxns = (
-  txns: Prisma.UserLeagueTransactionGetPayload<typeof txnsSelector>[],
+export const aggregateSingleTxn = (
+  txn: UserLeagueTransaction,
 ): TxnAggregate => {
-  let score = new Decimal(0);
-  let highscore: number | null = null;
-  let numMatches = 0;
-  const placements: Record<number, number> = {};
-  for (const { delta, type, match } of txns) {
-    score = score.add(delta);
-    if (type === TransactionType.MATCH_RESULT) {
-      ++numMatches;
-      const { rawScore, placementMin, placementMax } = match!;
-      highscore = Math.max(highscore ?? Number.MIN_VALUE, rawScore!);
-      if (placementMin === placementMax) {
-        placements[placementMin!] = 1 + (placements[placementMin!] ?? 0);
-      }
+  if (txn.type === TransactionType.MATCH_RESULT) {
+    const { rawScore, placementMin, placementMax } = assertRequired(
+      assertNonNull(txn.match, 'match'),
+    );
+
+    const placements = new Map<number, number>();
+    if (placementMin === placementMax) {
+      placements.set(placementMin, 1);
+    }
+
+    return {
+      highscore: rawScore,
+      lastActivityDate: txn.time.getTime(),
+      numMatches: 1,
+      placements,
+      score: txn.delta,
+    };
+  }
+  return {
+    highscore: Number.NEGATIVE_INFINITY,
+    lastActivityDate: txn.time.getTime(),
+    numMatches: 0,
+    placements: new Map(),
+    score: txn.delta,
+  };
+};
+
+export const reduceAggregates = (
+  a: TxnAggregate,
+  b: TxnAggregate,
+): TxnAggregate => {
+  const placements = new Map<number, number>();
+  for (const p of [a, b]) {
+    for (const [placement, count] of p.placements.entries()) {
+      placements.set(placement, (placements.get(placement) ?? 0) + count);
     }
   }
-  return { score, highscore, numMatches, placements };
+
+  return {
+    highscore: Math.max(a.highscore, b.highscore),
+    lastActivityDate: Math.max(a.lastActivityDate, b.lastActivityDate),
+    numMatches: a.numMatches + b.numMatches,
+    placements,
+    score: a.score.add(b.score),
+  };
+};
+
+export const aggregateTxnArray = (a: UserLeagueTransaction[]) =>
+  a.reduce(
+    (acc, curr) => reduceAggregates(acc, aggregateSingleTxn(curr)),
+    aggregateEmpty,
+  );
+
+export const aggregateTxns = (txns: UserLeagueTransaction[]): TxnAggregate => {
+  return txns.reduce(
+    (prev, curr) => reduceAggregates(prev, aggregateSingleTxn(curr)),
+    aggregateEmpty,
+  );
 };
 
 export interface IRankableUser {
@@ -70,12 +129,12 @@ const compareUsers =
     if (c2 !== 0) return c2;
 
     // 1sts: Higher is better
-    const c4 = (b.agg.placements[1] ?? 0) - (a.agg.placements[1] ?? 0);
+    const c4 = (b.agg.placements.get(1) ?? 0) - (a.agg.placements.get(1) ?? 0);
     if (c4 !== 0) return c4;
 
     // Highscore: Higher is better
-    const c5 = b.agg.highscore! - a.agg.highscore!;
-    if (c5 !== 0) return c5;
+    const c5 = b.agg.highscore - a.agg.highscore;
+    if (!Number.isNaN(c5) && c5 !== 0) return c5;
 
     // Final Tiebreaker
     return saltedHash(a.user.id, hashTiebreakerSalt).localeCompare(
@@ -115,7 +174,7 @@ export const orderUnrankedUsers = <T extends IRankableUser>(users: T[]) =>
     const c1 = b.agg.numMatches - a.agg.numMatches;
     if (c1 !== 0) return c1;
 
-    const c2 = a.agg.score.cmp(b.agg.score);
+    const c2 = b.agg.score.cmp(a.agg.score);
     if (c2 !== 0) return c2;
 
     return (a.user.name ?? '').localeCompare(b.user.name ?? '');

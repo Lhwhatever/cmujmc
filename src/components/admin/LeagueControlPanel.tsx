@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Table, { TableCell, TableHeading, TableRow } from '../Table';
 import { RouterOutputs, trpc } from '../../utils/trpc';
 import Button from '../Button';
@@ -15,12 +15,11 @@ import { useRouter } from 'next/router';
 import schema from '../../protocol/schema';
 import DateTimeRange from '../DateTimeRange';
 import Dialog from '../Dialog';
-import { PlusIcon } from '@heroicons/react/16/solid';
 import Loading from '../Loading';
 
-type LeagueTableProps = {
+interface LeagueTableProps {
   data: RouterOutputs['leagues']['list']['leagues'];
-};
+}
 
 const LeagueTable = ({ data }: LeagueTableProps) => {
   const router = useRouter();
@@ -63,18 +62,18 @@ const LeagueTable = ({ data }: LeagueTableProps) => {
   );
 };
 
-type LeagueCreationDialogProps = {
+interface LeagueCreationDialogProps {
   open: boolean;
   onClose: () => void;
-};
+}
 
 type Ruleset = RouterOutputs['rulesets']['list']['rulesets'][number];
 
 const filterRulesets = (
   query: string,
   rulesets?: Ruleset[],
-): Ruleset[] | null => {
-  if (rulesets === undefined) return null;
+): Ruleset[] | undefined => {
+  if (rulesets === undefined) return undefined;
   if (!query) return rulesets;
   const fuse = new Fuse(rulesets, { keys: ['name'] });
   return fuse.search(query).map((r: FuseResult<Ruleset>) => r.item);
@@ -91,7 +90,6 @@ const defaultLeagueCreationParamValues: LeagueCreationParams = {
   name: '',
   startingPoints: 500.0,
   matchesRequired: 3,
-  softPenaltyCutoff: 3,
   description: '',
   startDate: undefined,
   endDate: undefined,
@@ -126,18 +124,22 @@ const LeagueCreationDialog = ({ open, onClose }: LeagueCreationDialogProps) => {
 
   const onSubmit = async (data: LeagueCreationParams) => {
     if (ruleset === null) return;
-    try {
-      await mutation.mutateAsync({
+    mutation.mutate(
+      {
         ...data,
         invitational,
         singleEvent,
         defaultRulesetId: ruleset.id,
-      });
-      onClose();
-    } catch (e) {
-      // TODO
-      console.error(e);
-    }
+      },
+      {
+        onSuccess() {
+          onClose();
+        },
+        onError(e) {
+          alert(e.message);
+        },
+      },
+    );
   };
 
   return (
@@ -169,15 +171,6 @@ const LeagueCreationDialog = ({ open, onClose }: LeagueCreationDialogProps) => {
           type="number"
           step={1}
         />
-        <InputField
-          name="softPenaltyCutoff"
-          label="Cutoff for soft penalty"
-          register={register}
-          errors={formState.errors}
-          required
-          type="number"
-          step={1}
-        />
         <ComboboxField
           required
           label="Ruleset"
@@ -187,6 +180,7 @@ const LeagueCreationDialog = ({ open, onClose }: LeagueCreationDialogProps) => {
           onChange={setRuleset}
           displayValue={displayRuleset}
           options={filteredRulesets}
+          isLoading={allRulesets.isLoading}
         />
         <InputField
           name="startDate"
@@ -248,7 +242,6 @@ export default function LeagueControlPanel() {
           color="green"
           fill="filled"
           onClick={() => setCreateDialogOpen(true)}
-          leftIcon={<PlusIcon className="size-4" />}
         >
           Add
         </Button>

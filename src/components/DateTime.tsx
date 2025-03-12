@@ -1,32 +1,51 @@
-import React from 'react';
-import {
-  useFormatter,
-  DateTimeFormatOptions,
-  NextIntlClientProvider,
-} from 'next-intl';
+import { useFormatter, DateTimeFormatOptions, useNow } from 'next-intl';
 
-type RelativeVariant = {
-  relative: true;
-};
-
-type AbsoluteVariant = {
+interface AbsoluteVariantProps {
+  date: Date;
   relative?: false;
   format?: DateTimeFormatOptions;
+}
+
+const AbsoluteVariant = ({ date, format }: AbsoluteVariantProps) => {
+  const formatter = useFormatter();
+  return <>{formatter.dateTime(date, format)}</>;
 };
 
-type Variants = RelativeVariant | AbsoluteVariant;
+interface RelativeVariantProps {
+  date: Date;
+  relative: true;
+  format?: DateTimeFormatOptions;
+  refreshMs?: number;
+}
 
-export type DateTimeProps = Variants & { date: Date };
+const RelativeVariant = ({
+  date,
+  format,
+  refreshMs = 100,
+}: RelativeVariantProps) => {
+  const formatter = useFormatter();
+  const now = useNow({ updateInterval: refreshMs });
+
+  return <>{formatter.relativeTime(date, { now, ...format })}</>;
+};
+
+type Variants = RelativeVariantProps | AbsoluteVariantProps;
+
+export type DateTimeProps = Variants;
 
 export default function DateTime(props: DateTimeProps) {
-  const formatter = useFormatter();
   return (
-    <NextIntlClientProvider locale="en">
-      <time dateTime={props.date.toISOString()}>
-        {props.relative
-          ? formatter.relativeTime(props.date)
-          : formatter.dateTime(props.date, props.format)}
-      </time>
-    </NextIntlClientProvider>
+    <time dateTime={props.date.toISOString()}>
+      {props.relative ? (
+        <RelativeVariant
+          date={props.date}
+          relative={true}
+          refreshMs={props.refreshMs}
+          format={props.format}
+        />
+      ) : (
+        <AbsoluteVariant date={props.date} format={props.format} />
+      )}
+    </time>
   );
 }

@@ -11,12 +11,12 @@ const timeOnlyFormat: DateTimeFormatOptions = {
   timeStyle: 'short',
 };
 
-type TimeRangeProps = {
+export interface TimeRangeProps {
   locales?: Intl.LocalesArgument;
   startDate: Date | null;
   endDate: Date | null;
   className?: string;
-};
+}
 
 export default function DateTimeRange({
   startDate,

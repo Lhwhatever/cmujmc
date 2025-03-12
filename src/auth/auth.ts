@@ -8,6 +8,10 @@ import {
   NextApiRequest,
   NextApiResponse,
 } from 'next';
+import process from 'node:process';
+import { updateUserInvalidateCache } from '../server/cache/userGroups';
+import { invalidateUserCache } from '../server/cache/users';
+import { withCache } from '../server/cache/glide';
 
 const andrewPattern = new RegExp('([A-Za-z0-9]+)@(andrew|alumni).cmu.edu');
 
@@ -18,16 +22,18 @@ const tryExtractAndrewId = (email: string) => {
 
 export const adapter: Adapter = {
   ...PrismaAdapter(prisma),
-  createUser: async ({ id: _, ...user }: AdapterUser) => {
-    return prisma.user.create({
+  createUser: async ({ name, email, emailVerified }: AdapterUser) => {
+    const result = await prisma.user.create({
       data: {
-        displayName: user.name,
-        name: user.name,
-        email: user.email,
-        andrew: tryExtractAndrewId(user.email),
-        emailVerified: user.emailVerified,
+        displayName: name,
+        name,
+        email,
+        andrew: tryExtractAndrewId(email),
+        emailVerified,
       },
     });
+    await withCache(invalidateUserCache);
+    return result;
   },
   getUserByEmail: async (email: string) => {
     const andrew = tryExtractAndrewId(email);
@@ -38,10 +44,11 @@ export const adapter: Adapter = {
   },
   updateUser: async ({ id, ...data }) => {
     const andrew = (data.email && tryExtractAndrewId(data.email)) ?? undefined;
-    return prisma.user.update({
-      where: { id },
-      data: { displayName: data.name, andrew, ...data },
-    });
+    return withCache((cache) =>
+      updateUserInvalidateCache(cache, id, {
+        data: { displayName: data.name, andrew, ...data },
+      }),
+    );
   },
   linkAccount: async ({
     type,
@@ -50,8 +57,6 @@ export const adapter: Adapter = {
     refresh_token: refreshToken,
     access_token: accessToken,
     expires_at: accessTokenExpires,
-    scope: _scope,
-    session_state: _session_state,
     userId,
   }: AdapterAccount) => {
     await prisma.account.create({
@@ -82,12 +87,24 @@ declare module 'next-auth' {
   }
 }
 
+const getEnv = <T extends keyof typeof process.env>(
+  key: T,
+): NonNullable<NodeJS.ProcessEnv[T]> => {
+  const value = process.env[key];
+  if (value === undefined) {
+    throw new Error(
+      `Did not find value for required environment variable: ${key}`,
+    );
+  }
+  return value;
+};
+
 const authOptions = {
   adapter,
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      clientId: getEnv('GOOGLE_CLIENT_ID'),
+      clientSecret: getEnv('GOOGLE_CLIENT_SECRET'),
       allowDangerousEmailAccountLinking: true,
     }),
   ],

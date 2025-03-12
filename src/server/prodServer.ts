@@ -48,4 +48,10 @@ void app.prepare().then(() => {
       dev ? 'development' : process.env.NODE_ENV
     }`,
   );
+
+  if (process.env.VALKEY_URL !== undefined) {
+    console.log(`> Using cache at ${process.env.VALKEY_URL}`);
+  } else {
+    console.log('> Defaulting to cache at localhost:6379');
+  }
 });

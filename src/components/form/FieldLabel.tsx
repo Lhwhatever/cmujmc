@@ -1,10 +1,10 @@
 import React from 'react';
 import { Label } from '@headlessui/react';
 
-export type FieldLabelProps = {
+export interface FieldLabelProps {
   label?: React.ReactNode;
   required?: boolean;
-};
+}
 
 export default function FieldLabel({ label, required }: FieldLabelProps) {
   return (

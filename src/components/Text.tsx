@@ -1,9 +1,9 @@
 import clsx from 'clsx';
 
-export type ParagraphProps = {
+export interface ParagraphProps {
   className?: string;
   children: string | undefined | null;
-};
+}
 
 export default function Text({ children, className }: ParagraphProps) {
   const lines = children?.split('\n');

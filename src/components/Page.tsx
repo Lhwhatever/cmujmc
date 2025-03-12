@@ -3,12 +3,13 @@ import Head from 'next/head';
 import Navbar from './Navbar';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 
-export type PageProps = {
+export interface PageProps {
   title?: string;
   children?: React.ReactNode;
-};
+  className?: string;
+}
 
-export default function Page({ children, title }: PageProps) {
+export default function Page({ children, title, className }: PageProps) {
   return (
     <>
       <Head>
@@ -20,7 +21,7 @@ export default function Page({ children, title }: PageProps) {
           <Navbar />
         </header>
       </div>
-      <main className="container mx-auto px-2 py-4 mt-16">
+      <main className={className ?? 'container mx-auto px-2 py-4 mt-16'}>
         {children}
         {process.env.NODE_ENV !== 'production' && (
           <div className="md:block">

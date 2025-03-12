@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import Page from '../../../components/Page';
 import { useRouter } from 'next/router';
 import { trpc } from '../../../utils/trpc';
@@ -7,12 +7,11 @@ import Loading from '../../../components/Loading';
 import DateTime from '../../../components/DateTime';
 import PlacementRange from '../../../components/display/PlacementRange';
 import MatchPlayerName from '../../../components/display/MatchPlayerName';
-import { redirect } from 'next/navigation';
 import Heading from '../../../components/Heading';
 
-type ContentProps = {
+interface ContentProps {
   leagueId: number;
-};
+}
 
 const Content = ({ leagueId }: ContentProps) => {
   const league = trpc.matches.getCompletedByLeague.useQuery(leagueId);
@@ -52,16 +51,14 @@ const Content = ({ leagueId }: ContentProps) => {
               unregisteredPlaceholder,
             }) => (
               <React.Fragment key={playerPosition}>
-                <PlacementRange min={placementMin!} max={placementMax!} />
+                <PlacementRange min={placementMin} max={placementMax} />
                 <div>
                   <MatchPlayerName
                     player={player}
                     unregisteredPlaceholder={unregisteredPlaceholder}
                   />
                 </div>
-                <div className="text-right mr-2">
-                  {rawScore !== null ? format.number(rawScore) : '???'}
-                </div>
+                <div className="text-right mr-2">{format.number(rawScore)}</div>
               </React.Fragment>
             ),
           )}
@@ -77,16 +74,18 @@ export default function Matches() {
 
   const query = trpc.leagues.get.useQuery(id, { retry: 3 });
 
-  if (query.isPending) {
+  useEffect(() => {
+    if (query.isError) {
+      void router.push('/');
+    }
+  }, [router, query.isError]);
+
+  if (!query.data) {
     return (
       <Page>
         <Loading />
       </Page>
     );
-  }
-
-  if (query.isError) {
-    redirect('/');
   }
 
   const { league } = query.data;
