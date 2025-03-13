@@ -13,6 +13,7 @@ import TextareaField from '../../../components/form/TextareaField';
 import Button from '../../../components/Button';
 import { z } from 'zod';
 import wwydQuizSchema from '../../../utils/wwyd/basicSchema';
+import ButtonLink from '../../../components/ButtonLink';
 
 const wwydFormSchema = z.object({
   name: z.string(),
@@ -92,7 +93,10 @@ const WwydForm = ({ id, name, schema }: WwydFormProps) => {
           register={register}
           errors={formState.errors}
         />
-        <div>
+        <div className="flex flex-row gap-2">
+          <ButtonLink color="red" fill="outlined" href="/wwyd/template">
+            Back
+          </ButtonLink>
           <Button color="green" fill="filled" onClick={onSubmit}>
             Submit
           </Button>

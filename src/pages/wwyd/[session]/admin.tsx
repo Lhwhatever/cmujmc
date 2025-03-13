@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import Loading from '../../../components/Loading';
 import Button from '../../../components/Button';
 import { WwydScenarioWrapper } from './index';
+import ButtonLink from '../../../components/ButtonLink';
 
 interface WwydAdminProps {
   quizId: number;
@@ -27,6 +28,9 @@ const WwydAdmin = ({ quizId }: WwydAdminProps) => {
   return (
     <div className="flex flex-col gap-4 w-full">
       <div className="flex flex-row gap-2">
+        <ButtonLink color="red" fill="outlined" href="/wwyd">
+          Back
+        </ButtonLink>
         <Button
           color="blue"
           fill="outlined"

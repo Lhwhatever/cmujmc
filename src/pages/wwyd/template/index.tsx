@@ -91,9 +91,9 @@ export default function WwydTemplateList() {
     <Page>
       <div className="flex flex-col">
         <div className="flex flex-row mb-2 gap-4">
-          <Button color="yellow" fill="filled" onClick={() => router.back()}>
+          <ButtonLink color="yellow" fill="filled" href="/wwyd">
             Back
-          </Button>
+          </ButtonLink>
           <Button color="green" fill="filled" onClick={handleCreate}>
             Create
           </Button>
