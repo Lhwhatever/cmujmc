@@ -26,35 +26,49 @@ const computeTileWidth = (width: number, height: number) => {
 interface InstructionProps {
   tiles: MahjongTiles.Tile[];
   tileWidth: number;
+  doRiichi: boolean;
   selectedTileIdx: number | null;
   confirmedTileIdx: number | null;
-  doRiichi: boolean;
 }
 
 const Instruction = ({
   tiles,
   tileWidth,
+  doRiichi,
   selectedTileIdx,
   confirmedTileIdx,
 }: InstructionProps) => {
   if (confirmedTileIdx !== null) return 'Your choice has been submitted!';
 
   if (selectedTileIdx === null)
-    return "Double-tap a tile to submit your move. We won't prevent illegal moves, so think carefully!";
-
-  if (selectedTileIdx < 0)
-    return "Tap on the drawn tile again to submit your move. We won't prevent illegal moves, so think carefully!";
+    return (
+      <>
+        <div>First, decide whether to Riichi by toggling the option below.</div>
+        <div>
+          Then, double-tap a tile to submit your move. We won&apos;t prevent
+          illegal moves, so think carefully!
+        </div>
+      </>
+    );
 
   return (
     <>
-      Tap on the selected{' '}
-      <Tile
-        tile={tiles[selectedTileIdx]}
-        tileWidth={tileWidth}
-        style={{ display: 'inline-block', marginLeft: 2, marginRight: 2 }}
-      />{' '}
-      again to submit your move! We won&lsquo;t prevent illegal moves, so think
-      carefully!
+      <div>
+        Your current choice is to
+        {doRiichi
+          ? ' declare Riichi, discarding '
+          : ' not declare Riichi and discard '}
+        {selectedTileIdx < 0 ? (
+          'the tile you just drew (tsumogiri).'
+        ) : (
+          <Tile
+            tile={tiles[selectedTileIdx]}
+            tileWidth={tileWidth}
+            style={{ display: 'inline-block', marginLeft: 2, marginRight: 2 }}
+          />
+        )}
+      </div>
+      <div>To confirm and submit your choice, tap again on the same tile.</div>
     </>
   );
 };
