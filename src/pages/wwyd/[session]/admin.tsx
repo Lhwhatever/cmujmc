@@ -17,11 +17,11 @@ const WwydAdmin = ({ quizId }: WwydAdminProps) => {
     trpc.wwyd.quiz.admin.revealResponses.useMutation();
 
   const numParticipants = trpc.wwyd.quiz.countParticipants.useQuery(quizId, {
-    refetchInterval: 1000,
+    refetchInterval: 2500,
   });
 
   const numResponses = trpc.wwyd.quiz.countResponses.useQuery(quizId, {
-    refetchInterval: 1000,
+    refetchInterval: 2500,
   });
 
   return (
