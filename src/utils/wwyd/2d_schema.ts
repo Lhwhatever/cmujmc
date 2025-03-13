@@ -7,9 +7,9 @@ export const v1_schema = z.object({
   hand: z.object({
     tiles: Tile.mpszHandValidator,
     draw: Tile.mpszTileValidator.optional(),
-    calls: z.array(z.any()).optional(),
+    calls: z.array(Tile.callChomboNotationValidator).optional(),
   }),
-  dora: z.array(Tile.mpszHandValidator),
+  dora: z.array(Tile.mpszTileValidator),
   handNumber: z.object({
     prevalentWind: winds,
     dealerNumber: z.union([

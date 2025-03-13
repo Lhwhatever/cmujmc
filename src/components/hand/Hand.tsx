@@ -81,8 +81,8 @@ const Call = ({ call, tileWidth, tileHeight }: CallProps) => {
           }}
         >
           <Tile tileWidth={tileWidth} />
-          <Tile tile={call.tile[0]} tileWidth={tileWidth} />
           <Tile tile={call.tile[1]} tileWidth={tileWidth} />
+          <Tile tile={call.tile[2]} tileWidth={tileWidth} />
           <Tile tileWidth={tileWidth} />
         </div>
       );

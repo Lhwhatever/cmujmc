@@ -71,28 +71,19 @@ const offsets = {
   s: 20,
 };
 
-const mpszTileTransformer = (s: string, ctx: z.RefinementCtx) => {
-  if (s.length !== 2) {
-    ctx.addIssue({
-      code: 'custom',
-      message: `Expected 2 characters, received ${s.length}`,
-    });
-    return null;
+const charCodeToNum = (charCode: number): number | null => {
+  if (0x30 <= charCode && charCode <= 0x39) {
+    return charCode - 0x30;
   }
+  return null;
+};
 
-  const charCode = s.charCodeAt(0);
-  if (!(0x30 <= charCode && charCode <= 0x39)) {
-    // 0-9
-    ctx.addIssue({
-      code: 'custom',
-      message: `Expected numeric first character, received ${s.charAt(0)}`,
-    });
-    return null;
-  }
-  const num = charCode - 0x30;
-
-  const char = s.charAt(1);
-  switch (char) {
+const makeTile = (
+  num: number,
+  letter: string,
+  ctx: z.RefinementCtx,
+): Tile | null => {
+  switch (letter) {
     case 'm':
       return (Tile.TILE_0M + num) as Tile;
     case 'p':
@@ -114,10 +105,32 @@ const mpszTileTransformer = (s: string, ctx: z.RefinementCtx) => {
     default:
       ctx.addIssue({
         code: 'custom',
-        message: `Illegal suit ${char}`,
+        message: `Illegal suit ${letter}`,
       });
       return null;
   }
+};
+
+const mpszTileTransformer = (s: string, ctx: z.RefinementCtx) => {
+  if (s.length !== 2) {
+    ctx.addIssue({
+      code: 'custom',
+      message: `Expected 2 characters, received ${s.length}`,
+    });
+    return null;
+  }
+
+  const num = charCodeToNum(s.charCodeAt(0));
+  if (num === null) {
+    // 0-9
+    ctx.addIssue({
+      code: 'custom',
+      message: `Expected numeric first character, received ${s.charAt(0)}`,
+    });
+    return null;
+  }
+
+  return makeTile(num, s.charAt(1), ctx);
 };
 
 export const mpszTileResolver = z
@@ -130,65 +143,34 @@ const mpszHandTransformer = (hand: string, ctx: z.RefinementCtx) => {
   let buffer: number[] = [];
 
   for (let i = 0, n = hand.length; i < n; i++) {
-    const charCode = hand.charCodeAt(i);
-    if (0x30 <= charCode && charCode <= 0x39) {
-      // 0-9
-      buffer.push(charCode - 0x30);
+    const num = charCodeToNum(hand.charCodeAt(i));
+    if (num !== null) {
+      buffer.push(num);
       continue;
     }
 
     const char = hand.charAt(i);
-    if (char === 'm' || char === 'p' || char === 's') {
-      if (buffer.length === 0) {
-        ctx.addIssue({
-          code: 'custom',
-          message: `${char} not preceded by number`,
-        });
-      }
-      for (const num of buffer) {
-        result.push((offsets[char] + num) as Tile);
-      }
-      buffer = [];
-      continue;
+    if (buffer.length === 0) {
+      ctx.addIssue({
+        code: 'custom',
+        message: `Expected digit preceding ${char} at position ${i}`,
+      });
     }
 
-    if (char === 'z') {
-      if (buffer.length === 0) {
-        ctx.addIssue({
-          code: 'custom',
-          message: `z not preceded by number`,
-        });
-      }
-      for (const num of buffer) {
-        switch (num) {
-          case 1:
-          case 2:
-          case 3:
-          case 4:
-            result.push(Tile.TILE_1Z + num - 1);
-            break;
-          case 5:
-          case 6:
-          case 7:
-            result.push(Tile.TILE_5Z + num - 5);
-            break;
-          default:
-            ctx.addIssue({
-              code: 'custom',
-              message: `Illegal number before z: ${num}`,
-            });
-            break;
-        }
-      }
-      buffer = [];
-      continue;
+    for (const num of buffer) {
+      const tile = makeTile(num, char, ctx);
+      if (tile === null) return null;
+      result.push(tile);
     }
+    buffer = [];
+  }
 
+  if (buffer.length > 0) {
     ctx.addIssue({
       code: 'custom',
-      message: `Unrecognized character ${char}`,
+      message: `Trailing digits found: ${buffer.join()}`,
     });
-    return z.NEVER;
+    return null;
   }
 
   return result;
@@ -222,31 +204,483 @@ export enum SeatRelative {
   KAMICHA = 3,
 }
 
+export type OpponentSeatRelative =
+  | SeatRelative.SHIMOCHA
+  | SeatRelative.TOIMEN
+  | SeatRelative.KAMICHA;
+
+export interface CallPon {
+  type: 'pon';
+  discard: Tile;
+  support: [Tile, Tile];
+  source: OpponentSeatRelative;
+}
+
+export interface CallDaiminkan {
+  type: 'daiminkan';
+  discard: Tile;
+  support: [Tile, Tile, Tile];
+  source: OpponentSeatRelative;
+}
+
+export interface CallShouminkan {
+  type: 'shouminkan';
+  discard: Tile;
+  kanTile: Tile;
+  support: [Tile, Tile];
+  source: SeatRelative.SHIMOCHA | SeatRelative.TOIMEN | SeatRelative.KAMICHA;
+}
+
 export type Call =
   | { type: 'chii'; discard: Tile; support: [Tile, Tile] }
-  | {
-      type: 'pon';
-      discard: Tile;
-      support: [Tile, Tile];
-      source: 1 | 2 | 3;
-    }
-  | {
-      type: 'daiminkan';
-      discard: Tile;
-      support: [Tile, Tile, Tile];
-      source: SeatRelative;
-    }
-  | {
-      type: 'shouminkan';
-      discard: Tile;
-      kanTile: Tile;
-      support: [Tile, Tile];
-      source: SeatRelative;
-    }
+  | CallPon
+  | CallDaiminkan
+  | CallShouminkan
   | {
       type: 'ankan';
       tile: [Tile, Tile, Tile, Tile];
     };
+
+const normalizeAka = (n: number) => (n === 0 ? 5 : n);
+const asteriskCode = 0x2a;
+const questionMarkCode = 0x3f;
+
+const expectAnotherTile = (
+  expectedNorm: number,
+  s: string,
+  index: number,
+  ctx: z.RefinementCtx,
+): number | null => {
+  const num = charCodeToNum(s.charCodeAt(index));
+  if (num === null) {
+    ctx.addIssue({
+      code: 'custom',
+      message: `Inferred there should be a digit at index ${index}, got ${s.charAt(
+        index,
+      )}`,
+    });
+    return null;
+  }
+
+  if (normalizeAka(num) !== expectedNorm) {
+    ctx.addIssue({
+      code: 'custom',
+      message: `Expected num of type ${expectedNorm}, but got ${num}`,
+    });
+    return null;
+  }
+
+  return num;
+};
+
+const expectDiscardMarker = (
+  s: string,
+  i: number,
+  ctx: z.RefinementCtx,
+): boolean => {
+  const charCodeA = s.charCodeAt(i);
+  const success = charCodeA === asteriskCode;
+  if (!success) {
+    ctx.addIssue({
+      code: 'custom',
+      message: `Inferred to be call from shimocha from leading characters, from length, expected * marker at index ${i}`,
+    });
+  }
+  return success;
+};
+
+const expectKanTileMarker = (
+  s: string,
+  i: number,
+  ctx: z.RefinementCtx,
+): boolean => {
+  const charCodeA = s.charCodeAt(i);
+  const charCodeB = s.charCodeAt(i + 1);
+  const success = charCodeA === asteriskCode && charCodeB === asteriskCode;
+  if (!success) {
+    ctx.addIssue({
+      code: 'custom',
+      message: `Inferred to be shouminkan from length 8, from position of discard tile, expected ** marker at indices ${i}-${
+        i + 1
+      }`,
+    });
+  }
+  return success;
+};
+
+const makePon = (
+  discardNum: number,
+  firstSupportNum: number,
+  secondSupportNum: number,
+  letter: string,
+  source: OpponentSeatRelative,
+  ctx: z.RefinementCtx,
+): CallPon | null => {
+  const discard = makeTile(discardNum, letter, ctx);
+  const firstSupport = makeTile(firstSupportNum, letter, ctx);
+  const secondSupport = makeTile(secondSupportNum, letter, ctx);
+
+  if (discard === null || firstSupport === null || secondSupport === null) {
+    return null;
+  }
+
+  return {
+    type: 'pon',
+    discard,
+    support: [firstSupport, secondSupport],
+    source,
+  };
+};
+
+const makeDaiminkan = (
+  discardNum: number,
+  firstSupportNum: number,
+  secondSupportNum: number,
+  thirdSupportNum: number,
+  letter: string,
+  source: OpponentSeatRelative,
+  ctx: z.RefinementCtx,
+): CallDaiminkan | null => {
+  const discard = makeTile(discardNum, letter, ctx);
+  const firstSupport = makeTile(firstSupportNum, letter, ctx);
+  const secondSupport = makeTile(secondSupportNum, letter, ctx);
+  const thirdSupport = makeTile(thirdSupportNum, letter, ctx);
+
+  if (
+    discard === null ||
+    firstSupport === null ||
+    secondSupport === null ||
+    thirdSupport === null
+  ) {
+    return null;
+  }
+
+  return {
+    type: 'daiminkan',
+    discard,
+    support: [firstSupport, secondSupport, thirdSupport],
+    source,
+  };
+};
+
+const makeShouminkan = (
+  discardNum: number,
+  kanTileNum: number,
+  firstSupportNum: number,
+  secondSupportNum: number,
+  letter: string,
+  source: OpponentSeatRelative,
+  ctx: z.RefinementCtx,
+): CallShouminkan | null => {
+  const discard = makeTile(discardNum, letter, ctx);
+  const kanTile = makeTile(kanTileNum, letter, ctx);
+  const firstSupport = makeTile(firstSupportNum, letter, ctx);
+  const secondSupport = makeTile(secondSupportNum, letter, ctx);
+
+  if (
+    discard === null ||
+    kanTile === null ||
+    firstSupport === null ||
+    secondSupport === null
+  ) {
+    return null;
+  }
+
+  return {
+    type: 'shouminkan',
+    discard,
+    kanTile,
+    support: [firstSupport, secondSupport],
+    source,
+  };
+};
+
+const callChomboNotationTransformer = (
+  call: string,
+  ctx: z.RefinementCtx,
+): Call | null => {
+  if (call.length !== 5 && call.length !== 6 && call.length !== 8) {
+    ctx.addIssue({
+      code: 'custom',
+      message: `Expected representation of call to have length 5, 6 or 8`,
+    });
+    return null;
+  }
+
+  const firstCharCode = call.charCodeAt(0);
+  if (firstCharCode === questionMarkCode) {
+    // it's ANKAN
+    const firstNum = charCodeToNum(call.charCodeAt(1));
+    const secondNum = charCodeToNum(call.charCodeAt(2));
+    if (firstNum === null || secondNum === null) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Expected two numbers to follow ? for ankan',
+      });
+      return null;
+    }
+
+    if (normalizeAka(firstNum) !== normalizeAka(secondNum)) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Expected ankan to use the same tile',
+      });
+      return null;
+    }
+
+    const letter = call.charAt(3);
+    const firstTile = makeTile(firstNum, letter, ctx);
+    const secondTile = makeTile(secondNum, letter, ctx);
+    if (firstTile === null || secondTile === null) {
+      return null;
+    }
+
+    if (call.charCodeAt(4) !== questionMarkCode || call.length > 5) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Expected ? to be last character of ankan representation',
+      });
+      return null;
+    }
+
+    return {
+      type: 'ankan',
+      tile:
+        firstTile === secondTile
+          ? [firstTile, firstTile, firstTile, firstTile]
+          : firstNum === 0
+          ? [secondTile, firstTile, secondTile, secondTile]
+          : [firstTile, firstTile, secondTile, firstTile],
+    };
+  }
+
+  const firstNum = charCodeToNum(firstCharCode);
+  if (firstNum === null) {
+    ctx.addIssue({
+      code: 'custom',
+      message: `Expected first character to be numeric or ?`,
+    });
+    return null;
+  }
+  const firstNumNorm = normalizeAka(firstNum);
+
+  const secondCharCode = call.charCodeAt(1);
+  if (secondCharCode === asteriskCode) {
+    // from KAMICHA
+    const secondNum = charCodeToNum(call.charCodeAt(2));
+    if (secondNum === null) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Expected number to follow *',
+      });
+      return null;
+    }
+    const secondNumNorm = normalizeAka(secondNum);
+
+    if (firstNumNorm !== secondNumNorm) {
+      // it's a CHII
+      const thirdNum = charCodeToNum(call.charCodeAt(3));
+      if (thirdNum === null) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'Expected a third digit',
+        });
+        return null;
+      }
+
+      const thirdNumNorm = normalizeAka(thirdNum);
+      const nums = [firstNumNorm, secondNumNorm, thirdNumNorm].sort();
+      if (nums[1] != nums[0] + 1 || nums[2] != nums[0] + 2) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `Can't form sequence with ${nums.join()}`,
+        });
+        return null;
+      }
+
+      if (call.length !== 5) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `Trailing characters: ${call.slice(5)}`,
+        });
+        return null;
+      }
+
+      const letter = call.charAt(4);
+      if (letter === 'm' || letter === 'p' || letter === 's') {
+        const discard = makeTile(firstNum, letter, ctx);
+        const firstSupport = makeTile(secondNum, letter, ctx);
+        const secondSupport = makeTile(thirdNum, letter, ctx);
+        if (
+          discard === null ||
+          firstSupport === null ||
+          secondSupport === null
+        ) {
+          return null;
+        }
+
+        return {
+          type: 'chii',
+          discard,
+          support: [firstSupport, secondSupport],
+        };
+      }
+
+      ctx.addIssue({
+        code: 'custom',
+        message: `Illegal character following third number: ${letter}`,
+      });
+      return null;
+    }
+
+    switch (call.length) {
+      case 5: {
+        const thirdNum = expectAnotherTile(firstNumNorm, call, 3, ctx);
+        if (thirdNum === null) return null;
+        return makePon(
+          firstNum,
+          secondNum,
+          thirdNum,
+          call.charAt(4),
+          SeatRelative.KAMICHA,
+          ctx,
+        );
+      }
+      case 6: {
+        const thirdNum = expectAnotherTile(firstNumNorm, call, 3, ctx);
+        const fourthNum = expectAnotherTile(firstNumNorm, call, 4, ctx);
+        if (thirdNum === null || fourthNum === null) return null;
+        return makeDaiminkan(
+          firstNum,
+          secondNum,
+          thirdNum,
+          fourthNum,
+          call.charAt(5),
+          SeatRelative.KAMICHA,
+          ctx,
+        );
+      }
+      case 8: {
+        if (!expectKanTileMarker(call, 3, ctx)) return null;
+        const thirdNum = expectAnotherTile(firstNumNorm, call, 5, ctx);
+        const fourthNum = expectAnotherTile(firstNumNorm, call, 6, ctx);
+        if (thirdNum === null || fourthNum === null) return null;
+        return makeShouminkan(
+          firstNum,
+          secondNum,
+          thirdNum,
+          fourthNum,
+          call.charAt(7),
+          SeatRelative.KAMICHA,
+          ctx,
+        );
+      }
+    }
+  }
+
+  const secondNum = expectAnotherTile(firstNumNorm, call, 1, ctx);
+  if (secondNum === null) return null;
+
+  const thirdCharCode = call.charCodeAt(2);
+  if (thirdCharCode === asteriskCode) {
+    // from TOIMEN
+    const thirdNum = expectAnotherTile(firstNumNorm, call, 3, ctx);
+    if (thirdNum === null) return null;
+
+    switch (call.length) {
+      case 5:
+        return makePon(
+          secondNum,
+          firstNum,
+          thirdNum,
+          call.charAt(4),
+          SeatRelative.TOIMEN,
+          ctx,
+        );
+      case 6: {
+        const fourthNum = expectAnotherTile(firstNumNorm, call, 4, ctx);
+        if (fourthNum === null) return null;
+        return makeDaiminkan(
+          secondNum,
+          firstNum,
+          thirdNum,
+          fourthNum,
+          call.charAt(5),
+          SeatRelative.TOIMEN,
+          ctx,
+        );
+      }
+      case 8: {
+        if (!expectKanTileMarker(call, 4, ctx)) return null;
+        const fourthNum = expectAnotherTile(firstNum, call, 6, ctx);
+        if (fourthNum === null) return null;
+        return makeShouminkan(
+          secondNum,
+          firstNum,
+          thirdNum,
+          fourthNum,
+          call.charAt(7),
+          SeatRelative.TOIMEN,
+          ctx,
+        );
+      }
+    }
+  }
+
+  // from SHIMOCHA
+  const thirdNum = expectAnotherTile(firstNum, call, 2, ctx);
+  if (thirdNum === null) return null;
+
+  switch (call.length) {
+    case 5:
+      if (!expectDiscardMarker(call, 3, ctx)) return null;
+      return makePon(
+        thirdNum,
+        firstNum,
+        secondNum,
+        call.charAt(4),
+        SeatRelative.SHIMOCHA,
+        ctx,
+      );
+    case 6: {
+      const fourthNum = expectAnotherTile(firstNum, call, 3, ctx);
+      if (fourthNum === null) return null;
+      if (!expectDiscardMarker(call, 4, ctx)) return null;
+      return makeDaiminkan(
+        fourthNum,
+        firstNum,
+        secondNum,
+        thirdNum,
+        call.charAt(5),
+        SeatRelative.SHIMOCHA,
+        ctx,
+      );
+    }
+    case 8: {
+      if (!expectDiscardMarker(call, 3, ctx)) return null;
+      const fourthNum = expectAnotherTile(firstNum, call, 4, ctx);
+      if (fourthNum === null) return null;
+      if (!expectDiscardMarker(call, 5, ctx)) return null;
+      return makeShouminkan(
+        thirdNum,
+        fourthNum,
+        firstNum,
+        secondNum,
+        call.charAt(7),
+        SeatRelative.SHIMOCHA,
+        ctx,
+      );
+    }
+  }
+};
+
+export const callChomboNotationResolver = z
+  .string()
+  .transform((s, ctx) => callChomboNotationTransformer(s, ctx) ?? z.NEVER);
+
+export const callChomboNotationValidator = z
+  .string()
+  .superRefine(callChomboNotationTransformer);
 
 export interface Hand {
   tiles: Tile[];
