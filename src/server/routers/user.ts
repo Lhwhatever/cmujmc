@@ -35,7 +35,6 @@ const userRouter = router({
     .mutation(async ({ input, ctx }) => {
       await withCache((cache) =>
         updateUserInvalidateCache(cache, ctx.user.id, {
-          select: {},
           data: {
             name: processPartialField(input.name),
             displayName: processPartialField(input.displayName),

@@ -9,6 +9,7 @@ import { useMeasure } from 'react-use';
 import { z } from 'zod';
 import v1_schema from '../../utils/wwyd/2d_schema';
 import {
+  callChomboNotationResolver,
   mpszHandResolver,
   mpszTileResolver,
   toMpsz,
@@ -146,7 +147,9 @@ export default function Scenario2D({
     draw: scenario.hand.draw
       ? mpszTileResolver.parse(serializedHand.draw)
       : undefined,
-    calls: [],
+    calls:
+      scenario.hand.calls?.map((s) => callChomboNotationResolver.parse(s)) ??
+      [],
   };
 
   const handleConfirm = async (idx: number) => {
