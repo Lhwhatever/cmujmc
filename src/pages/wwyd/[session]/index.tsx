@@ -18,7 +18,7 @@ interface NotReadyScreenProps {
 
 const FalloverScreen = ({ quizId, isDone }: NotReadyScreenProps) => {
   const query = trpc.wwyd.quiz.countParticipants.useQuery(quizId, {
-    refetchInterval: 2500,
+    refetchInterval: 5000,
   });
 
   return (

@@ -49,9 +49,11 @@ void app.prepare().then(() => {
     }`,
   );
 
-  if (process.env.VALKEY_URL !== undefined) {
-    console.log(`> Using cache at ${process.env.VALKEY_URL}`);
-  } else {
-    console.log('> Defaulting to cache at localhost:6379');
+  if (process.env.VALKEY_HOST !== undefined) {
+    console.log(
+      `> Using cache at ${process.env.VALKEY_HOST ?? '[default]'}:${
+        process.env.VALKEY_PORT ?? '[default port]'
+      }`,
+    );
   }
 });

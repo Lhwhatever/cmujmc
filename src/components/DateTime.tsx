@@ -21,7 +21,7 @@ interface RelativeVariantProps {
 const RelativeVariant = ({
   date,
   format,
-  refreshMs = 100,
+  refreshMs = 60000,
 }: RelativeVariantProps) => {
   const formatter = useFormatter();
   const now = useNow({ updateInterval: refreshMs });

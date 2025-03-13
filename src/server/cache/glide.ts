@@ -52,9 +52,9 @@ export type inferKeyMap<T> = T extends ReturnType<
   ? U
   : never;
 
-const streamId = /^(\d+)-(\d+)$/g;
+const streamId = /^(\d+)-(\d+)$/;
 const parseStreamId = (id: string): [number, number] => {
-  const result = assertNonNull(streamId.exec(id), 'parseStreamId');
+  const result = assertNonNull(streamId.exec(id), `streamId of ${id}`);
   return [parseInt(result[1]), parseInt(result[2])];
 };
 

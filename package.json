@@ -111,7 +111,8 @@
     "onlyBuiltDependencies": [
       "@prisma/client",
       "@prisma/engines",
-      "prisma"
+      "prisma",
+      "protobufjs"
     ]
   }
 }
