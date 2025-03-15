@@ -39,7 +39,7 @@ const MatchCreationForm = ({
   gameMode,
   onClose,
   onRefresh,
-  onSuccess,
+  onSuccess: onMatchCreationSuccess,
   eventId,
   hidden,
 }: MatchCreationFormProps) => {
@@ -52,7 +52,15 @@ const MatchCreationForm = ({
   };
   const [errors, setErrors] = useState('');
 
-  const createMatchMutation = trpc.matches.create.useMutation();
+  const createMatchMutation = trpc.matches.create.useMutation({
+    onSuccess(result) {
+      onMatchCreationSuccess(result);
+    },
+    onError(e) {
+      setErrors(e.message);
+    },
+  });
+
   const userListQuery = trpc.user.listAll.useInfiniteQuery(
     {},
     {
@@ -64,7 +72,6 @@ const MatchCreationForm = ({
 
   useEffect(() => {
     if (!userListQuery.isFetching && userListQuery.hasNextPage) {
-      console.log('fetching next page');
       void userListQuery.fetchNextPage();
     }
   }, [
@@ -77,36 +84,17 @@ const MatchCreationForm = ({
   const users = userListQuery.data?.pages?.flatMap((r) => r.users);
 
   const handleSubmit = () => {
-    void (async () => {
-      if (players.every((p) => p !== null)) {
-        try {
-          onSuccess(
-            await createMatchMutation.mutateAsync(
-              {
-                eventId,
-                players: players.map(({ type, payload }) => ({
-                  type,
-                  payload: type === 'registered' ? payload.id : payload,
-                })),
-              },
-              {
-                onError(error) {
-                  try {
-                    setErrors(JSON.parse(error.message)[0].message);
-                  } catch (e) {
-                    console.error(e);
-                  }
-                },
-              },
-            ),
-          );
-        } catch (_) {
-          // TODO: process match creation errors
-        }
-      } else {
-        setErrors('');
-      }
-    })();
+    if (players.every((p) => p !== null)) {
+      createMatchMutation.mutate({
+        eventId,
+        players: players.map(({ type, payload }) => ({
+          type,
+          payload: type === 'registered' ? payload.id : payload,
+        })),
+      });
+    } else {
+      setErrors('Every player must be specified!');
+    }
   };
 
   const outerClass = hidden ? 'hidden' : '';

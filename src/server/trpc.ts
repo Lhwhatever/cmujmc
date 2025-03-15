@@ -45,7 +45,7 @@ export class AuthorizationError extends TRPCError {
   params: AuthorizationErrorParams;
 
   constructor(params: AuthorizationErrorParams) {
-    super({ code: 'UNAUTHORIZED' });
+    super({ code: 'UNAUTHORIZED', message: params.reason });
     this.params = params;
   }
 

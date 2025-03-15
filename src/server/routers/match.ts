@@ -68,9 +68,11 @@ const validateCreateMatchPlayers = async (
   }
 
   if (requester.role !== 'admin' && !hasSubmittingPlayer) {
-    new AuthorizationError({
-      reason: 'Cannot submit on behalf of other players as non-admin',
-    }).logAndThrow();
+    throw new TRPCError({
+      code: 'UNAUTHORIZED',
+      message:
+        "You don't have the permission to record a match which you did not play in.",
+    });
   }
 
   if (
