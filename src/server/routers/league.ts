@@ -20,10 +20,10 @@ import { cachedGetUserGroups } from '../cache/userGroups';
 import {
   cachedGetLeaderboard,
   getLastLeaderboardUpdate,
-  updateLeaderboardEntries,
+  recomputePlayersOnLeaderboard,
 } from '../cache/leaderboard';
 import { cachedGetUsers } from '../cache/users';
-import { aggregateTxnArray, txnsSelector } from '../../utils/ranking';
+import { txnsSelector } from '../../utils/ranking';
 import { withCache } from '../cache/glide';
 
 const leagueRouter = router({
@@ -115,9 +115,9 @@ const leagueRouter = router({
 
   register: authedProcedure
     .input(schema.league.register)
-    .mutation(async ({ input, ctx }) => {
-      const { leagueId } = input;
-      const txnResult = await prisma.$transaction(async (tx) => {
+    .mutation(({ input, ctx }) =>
+      prisma.$transaction(async (tx) => {
+        const { leagueId } = input;
         const league = await tx.league.findUnique({
           where: { id: leagueId },
           select: {
@@ -201,7 +201,7 @@ const leagueRouter = router({
               rawScore: assertNonNull(rawScore, 'rawScore'),
               placementMin: assertNonNull(placementMin, 'placementMin'),
               placementMax: assertNonNull(placementMax, 'placementMax'),
-            }).txns,
+            }),
         );
 
         await tx.userLeague.create({
@@ -211,26 +211,22 @@ const leagueRouter = router({
           },
         });
 
-        return {
-          matchesRequiredForRank: league.matchesRequired,
-          aggregate: aggregateTxnArray(
-            await tx.userLeagueTransaction.createManyAndReturn({
-              data: [initialTxn, ...txns],
-              select: txnsSelector.select,
-            }),
-          ),
-        };
-      });
+        await tx.userLeagueTransaction.createManyAndReturn({
+          data: [initialTxn, ...txns],
+          select: txnsSelector.select,
+        });
 
-      await withCache((cache) =>
-        updateLeaderboardEntries(
-          cache,
-          leagueId,
-          txnResult.matchesRequiredForRank,
-          [{ userId: ctx.user.id, aggregate: txnResult.aggregate }],
-        ),
-      );
-    }),
+        await withCache((cache) =>
+          recomputePlayersOnLeaderboard(
+            cache,
+            tx,
+            leagueId,
+            league.matchesRequired,
+            [ctx.user.id],
+          ),
+        );
+      }),
+    ),
 
   leaderboard: publicProcedure
     .input(schema.league.leaderboard)

@@ -62,7 +62,7 @@ export const ScoreEntryForm = ({
     })();
   };
 
-  const record = trpc.matches.record.useMutation({
+  const editMatchMutation = trpc.matches.editMatch.useMutation({
     onSuccess() {
       onClose();
       return Promise.all([
@@ -77,7 +77,7 @@ export const ScoreEntryForm = ({
   });
 
   const handleComplete = (chombos?: [number, string][]) => {
-    record.mutate({
+    editMatchMutation.mutate({
       matchId: targetMatch.id,
       leftoverBets: getValues('leftoverBets'),
       players: getValues('players').map((score, index) => ({

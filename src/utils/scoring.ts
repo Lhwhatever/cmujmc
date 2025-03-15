@@ -68,8 +68,8 @@ export const computeTransactions = ({
   chombos,
   chomboDelta,
   ...playerPtArg
-}: ComputeUserLeagueTxnArgs) => {
-  const matchResultTxn: Prisma.UserLeagueTransactionCreateManyInput = {
+}: ComputeUserLeagueTxnArgs): Prisma.UserLeagueTransactionCreateManyInput[] => {
+  const matchResultTxn = {
     type: TransactionType.MATCH_RESULT,
     userId: playerId,
     leagueId,
@@ -94,8 +94,5 @@ export const computeTransactions = ({
     userMatchPlayerPosition: playerPosition,
   }));
 
-  return {
-    txns: [matchResultTxn, ...chomboTxns],
-    chombos: chomboTxns.length,
-  };
+  return [matchResultTxn, ...chomboTxns];
 };

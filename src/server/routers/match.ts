@@ -11,12 +11,7 @@ import { GameMode, Prisma, Status } from '@prisma/client';
 import { TRPCError } from '@trpc/server';
 import { getNumPlayers } from '../../utils/gameModes';
 import { z } from 'zod';
-import {
-  computePlacements,
-  computeTransactions,
-  sumTableScores,
-  umaSelector,
-} from '../../utils/scoring';
+import { computePlacements } from '../../utils/scoring';
 import {
   coalesceNames,
   maskNames,
@@ -26,17 +21,15 @@ import {
 import { Session } from 'next-auth';
 import assertNonNull from '../../utils/nullcheck';
 import { cachedGetUserGroups } from '../cache/userGroups';
-import {
-  aggregateTxnArray,
-  TxnAggregate,
-  txnsSelector,
-} from '../../utils/ranking';
-import {
-  recomputePlayersOnLeaderboard,
-  updateLeaderboardEntries,
-  UpdateLeaderboardPlayerRecord,
-} from '../cache/leaderboard';
+import { recomputePlayersOnLeaderboard } from '../cache/leaderboard';
 import { withCache } from '../cache/glide';
+import {
+  matchPlayerToPrisma,
+  currMatchSelector,
+  CurrentMatch,
+} from '../scoreRecords/types';
+import validateMatchScoreSum from '../scoreRecords/validateScores';
+import regenerateTransactions from '../scoreRecords/regenerateTransactions';
 
 //==================== for create ====================
 
@@ -88,28 +81,21 @@ const validateCreateMatchPlayers = async (
 
 //==================== for record ====================
 
-const matchSelectorInRecord = Prisma.validator<Prisma.MatchSelect>()({
-  status: true,
-  players: { select: { playerId: true, txns: true } },
-  parent: { select: { parent: { select: { id: true } } } },
-  ruleset: {
-    select: {
-      startPts: true,
-      returnPts: true,
-      chomboDelta: true,
-      uma: umaSelector,
-    },
-  },
-});
-
-const recordCheckAuthorizations = (
-  match: Prisma.MatchGetPayload<{ select: typeof matchSelectorInRecord }>,
-  input: z.infer<typeof schema.match.record>,
+const checkEditMatchPermissions = (
+  match: CurrentMatch,
+  input: z.infer<typeof schema.match.editMatch>,
   requesterId: string,
 ): AuthorizationError | undefined => {
   if (match.status !== Status.PENDING) {
     return new AuthorizationError({
       reason: "You don't have the permissions to update a non-pending match.",
+    });
+  }
+
+  if (input.players.some(({ player }) => player !== undefined)) {
+    return new AuthorizationError({
+      reason:
+        "You don't have the permissions to edit the list of players in this match.",
     });
   }
 
@@ -136,30 +122,6 @@ const recordCheckAuthorizations = (
         "You don't have the permissions to set an arbitrary time for the match.",
     });
   }
-};
-
-const recordCheckInputScores = (
-  match: Prisma.MatchGetPayload<{ select: typeof matchSelectorInRecord }>,
-  input: z.infer<typeof schema.match.record>,
-) => {
-  if (input.players.length !== match.players.length) {
-    throw new TRPCError({
-      code: 'BAD_REQUEST',
-      message: 'Number of players does not match',
-    });
-  }
-
-  const scores = input.players.map(({ score }) => score);
-  if (
-    sumTableScores(scores, input.leftoverBets) !==
-    match.ruleset.startPts * scores.length
-  ) {
-    throw new TRPCError({
-      code: 'BAD_REQUEST',
-      message: 'Total score does not add up',
-    });
-  }
-  return scores;
 };
 
 //==================== for the rest ====================
@@ -227,20 +189,10 @@ const matchRouter = router({
           parent: { connect: { id: input.eventId } },
           players: {
             createMany: {
-              data: input.players.map((player, index) => {
-                switch (player.type) {
-                  case 'registered':
-                    return {
-                      playerPosition: index + 1,
-                      playerId: player.payload,
-                    };
-                  case 'unregistered':
-                    return {
-                      playerPosition: index + 1,
-                      unregisteredPlaceholder: player.payload,
-                    };
-                }
-              }),
+              data: input.players.map((player, index) => ({
+                playerPosition: index + 1,
+                ...matchPlayerToPrisma(player),
+              })),
             },
           },
         },
@@ -264,185 +216,6 @@ const matchRouter = router({
         throw new NotFoundError('match', id);
       }
       return { match: transformMatch(match, userGroups) };
-    }),
-
-  record: authedProcedure
-    .input(schema.match.record)
-    .mutation(async ({ ctx, input }) => {
-      const txnResult = await prisma.$transaction(async (tx) => {
-        const { matchId, players } = input;
-        const match = await tx.match.findUnique({
-          where: { id: matchId },
-          select: matchSelectorInRecord,
-        });
-
-        if (match === null) {
-          throw new NotFoundError('match', matchId);
-        }
-
-        if (ctx.user.role !== 'admin' && input.commit) {
-          const error = recordCheckAuthorizations(match, input, ctx.user.id);
-          if (error) error.logAndThrow();
-        }
-
-        // validation
-        const scores = recordCheckInputScores(match, input);
-
-        // compute and update match results
-        const time = input.time ?? new Date();
-        const placements = computePlacements(scores);
-
-        const uma = match.ruleset.uma.map(({ value }) => value);
-
-        if (input.commit) {
-          await tx.match.update({
-            where: { id: matchId },
-            data: { status: Status.COMPLETE, time },
-          });
-        }
-
-        for (let i = 0; i < scores.length; ++i) {
-          await tx.userMatch.update({
-            where: {
-              matchId_playerPosition: { matchId, playerPosition: i + 1 },
-            },
-            data: {
-              ...placements[i],
-              rawScore: scores[i],
-              chombos:
-                players[i].chombos?.length ?? (input.commit ? 0 : undefined),
-            },
-          });
-        }
-
-        if (!input.commit) return;
-
-        // update league scores
-        const leagueId = match.parent?.parent.id;
-        if (leagueId === undefined) return;
-
-        const { chomboDelta } = match.ruleset;
-
-        const { matchesRequired, users: userLeagues } =
-          await tx.league.findUniqueOrThrow({
-            where: { id: leagueId },
-            select: {
-              matchesRequired: true,
-              users: {
-                where: {
-                  userId: {
-                    in: match.players.flatMap(({ playerId }) =>
-                      playerId === null ? [] : [playerId],
-                    ),
-                  },
-                },
-                select: { userId: true },
-              },
-            },
-          });
-
-        const existingTxns = await tx.userLeagueTransaction.findMany({
-          where: { userMatchMatchId: matchId },
-          select: { userId: true },
-        });
-
-        const leaderboardUpdateActions = new Map<
-          string,
-          { type: 'recompute' } | { type: 'apply'; payload: TxnAggregate }
-        >();
-
-        if (existingTxns.length > 0) {
-          await tx.userLeagueTransaction.deleteMany({
-            where: { userMatchMatchId: matchId },
-          });
-        } else {
-          for (const { userId } of existingTxns) {
-            leaderboardUpdateActions.set(userId, { type: 'recompute' });
-          }
-        }
-
-        for (let i = 0; i < match.players.length; ++i) {
-          const { playerId } = match.players[i];
-
-          // only for registered players
-          if (playerId === null) continue;
-          const userLeague = userLeagues.find(
-            ({ userId }) => userId === playerId,
-          );
-          if (userLeague === undefined) continue;
-
-          const { txns } = computeTransactions({
-            playerId,
-            matchId,
-            playerPosition: i + 1,
-            leagueId,
-            time,
-            chombos: players[i].chombos ?? [],
-            chomboDelta,
-            rawScore: scores[i],
-            returnPts: match.ruleset.returnPts,
-            uma,
-            ...placements[i],
-          });
-
-          const createdTxns =
-            await tx.userLeagueTransaction.createManyAndReturn({
-              data: txns,
-              select: txnsSelector.select,
-            });
-
-          if (!leaderboardUpdateActions.has(playerId)) {
-            leaderboardUpdateActions.set(playerId, {
-              type: 'apply',
-              payload: aggregateTxnArray(createdTxns),
-            });
-          }
-        }
-
-        return {
-          leagueId,
-          matchesRequired,
-          leaderboardUpdateActions,
-        };
-      });
-
-      if (txnResult !== undefined) {
-        const playersToRecompute: string[] = [];
-        const leaderboardEntriesToUpdate: UpdateLeaderboardPlayerRecord[] = [];
-
-        for (const [userId, action] of txnResult.leaderboardUpdateActions) {
-          switch (action.type) {
-            case 'recompute':
-              playersToRecompute.push(userId);
-              break;
-            case 'apply':
-              leaderboardEntriesToUpdate.push({
-                userId,
-                aggregate: action.payload,
-              });
-              break;
-          }
-        }
-
-        await withCache(async (cache) => {
-          if (playersToRecompute.length > 0) {
-            await recomputePlayersOnLeaderboard(
-              cache,
-              txnResult.leagueId,
-              playersToRecompute,
-            );
-          }
-
-          if (leaderboardEntriesToUpdate.length > 0) {
-            await updateLeaderboardEntries(
-              cache,
-              txnResult.leagueId,
-              txnResult.matchesRequired,
-              leaderboardEntriesToUpdate,
-            );
-          }
-        });
-      }
     }),
 
   getCompletedByLeague: publicProcedure
@@ -490,6 +263,92 @@ const matchRouter = router({
       return {
         matches: matches.map((match) => transformMatch(match, userGroups)),
       };
+    }),
+
+  editMatch: authedProcedure
+    .input(schema.match.editMatch)
+    .mutation(async ({ input, ctx }) => {
+      await prisma.$transaction(async (tx) => {
+        const currMatch = await tx.match.findUnique({
+          where: { id: input.matchId },
+          select: currMatchSelector,
+        });
+
+        if (currMatch === null) {
+          throw new NotFoundError('match', input.matchId);
+        }
+
+        if (ctx.user.role !== 'admin' && input.commit) {
+          const error = checkEditMatchPermissions(
+            currMatch,
+            input,
+            ctx.user.id,
+          );
+          if (error) error.logAndThrow();
+        }
+
+        const scores = validateMatchScoreSum(currMatch.ruleset, input);
+
+        const updatedPlayers = input.players.map(
+          ({ player }, index) => player ?? currMatch,
+        );
+
+        // compute and update match, userMatch entries
+        const time = input.time ?? new Date();
+        const placements = computePlacements(scores);
+
+        await tx.match.update({
+          where: { id: input.matchId },
+          data: { status: input.commit ? Status.COMPLETE : undefined, time },
+        });
+
+        const updatedUserMatches = await Promise.all(
+          input.players.map(({ player, chombos, score }, i) =>
+            tx.userMatch.update({
+              where: {
+                matchId_playerPosition: {
+                  matchId: input.matchId,
+                  playerPosition: i + 1,
+                },
+              },
+              data: {
+                ...placements[i],
+                ...(player ? matchPlayerToPrisma(player) : {}),
+                rawScore: score,
+                chombos: chombos?.length ?? (input.commit ? 0 : undefined),
+              },
+            }),
+          ),
+        );
+
+        if (!input.commit) return;
+
+        // check if this is ranked
+        const league = currMatch.parent?.parent;
+        if (league === undefined) return;
+
+        const affectedPlayers = await regenerateTransactions(tx, {
+          leagueId: league.id,
+          time,
+          input,
+          currMatch,
+          updatedUserMatches,
+          placements,
+        });
+        for (const { playerId } of currMatch.players) {
+          if (playerId !== null) affectedPlayers.add(playerId);
+        }
+
+        await withCache((cache) =>
+          recomputePlayersOnLeaderboard(
+            cache,
+            tx,
+            league.id,
+            league.matchesRequired,
+            Array.from(affectedPlayers),
+          ),
+        );
+      });
     }),
 });
 

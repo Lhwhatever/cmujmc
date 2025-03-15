@@ -8,6 +8,7 @@ import { GameMode } from '@prisma/client';
 import { getNumPlayers } from '../../utils/gameModes';
 import { RankedEvent } from '../display/RankedEventDetails';
 import { ScoreEntryForm } from './ScoreEntryForm';
+import { z } from 'zod';
 
 type MatchCreationResult = RouterOutputs['matches']['create'];
 export type RankedMatch = NonNullable<
@@ -38,14 +39,20 @@ const MatchCreationForm = ({
   const updateUser = (i: number) => (player: UserOption | null) => {
     setPlayers(players.map((p, j) => (i === j ? player : p)));
   };
-  const [errors, setErrors] = useState('');
+  const [errors, setErrors] = useState<string[]>([]);
 
   const createMatchMutation = trpc.matches.create.useMutation({
     onSuccess(result) {
       onMatchCreationSuccess(result);
     },
     onError(e) {
-      setErrors(e.message);
+      if (e.data?.zodError) {
+        setErrors(
+          Object.values(e.data.zodError.fieldErrors).flatMap((e) => e ?? []),
+        );
+      } else {
+        setErrors([e.message]);
+      }
     },
   });
 
@@ -81,7 +88,7 @@ const MatchCreationForm = ({
         })),
       });
     } else {
-      setErrors('Every player must be specified!');
+      setErrors(['Every player must be specified!']);
     }
   };
 
@@ -101,8 +108,12 @@ const MatchCreationForm = ({
             required
           />
         ))}
-        {errors && <div className="text-xs text-red-500">{errors}</div>}
-        <div className="flex flex-row gap-1">
+        {errors.map((error, index) => (
+          <div key={index} className="text-xs text-red-500">
+            {error}
+          </div>
+        ))}
+        <div className="flex flex-row gap-1 pt-2">
           <Button color="red" fill="filled" onClick={onClose}>
             Cancel
           </Button>
