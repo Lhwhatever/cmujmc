@@ -5,20 +5,21 @@ import { renderAliases } from '../../utils/usernames';
 import { Suspense, useEffect } from 'react';
 
 const UserTable = () => {
-  const [{ pages }, query] = trpc.user.listAll.useSuspenseInfiniteQuery(
-    {},
-    {
-      getNextPageParam(s) {
-        return s.nextCursor;
+  const [{ pages }, { isFetching, hasNextPage, fetchNextPage }] =
+    trpc.user.listAll.useSuspenseInfiniteQuery(
+      {},
+      {
+        getNextPageParam(s) {
+          return s.nextCursor;
+        },
       },
-    },
-  );
+    );
 
   useEffect(() => {
-    if (!query.isFetching && query.hasNextPage) {
-      void query.fetchNextPage();
+    if (!isFetching && hasNextPage) {
+      void fetchNextPage();
     }
-  }, [query.isFetching, query.hasNextPage, query.fetchNextPage]);
+  }, [isFetching, hasNextPage, fetchNextPage]);
 
   const users = pages.flatMap((page) => page.users);
 
