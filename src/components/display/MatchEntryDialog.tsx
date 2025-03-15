@@ -403,6 +403,7 @@ const ScoreEntryForm = ({
           </div>
           <StickInput
             onChange={(value) => setValue(`players.${stickInputTarget}`, value)}
+            pointStickStyle="modern"
           />
           <div className="text-md font-bold mt-4">
             Total = {players[stickInputTarget]}

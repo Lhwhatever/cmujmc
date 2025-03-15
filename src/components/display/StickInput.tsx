@@ -4,11 +4,12 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Fieldset } from '@headlessui/react';
 import InputField from '../form/InputField';
-import PointStick from '../PointStick';
+import PointStick, { PointStickProps } from '../PointStick';
 import FieldLabel from '../form/FieldLabel';
 
 export interface StickInputProps {
   onChange: (_: number) => void;
+  pointStickStyle: PointStickProps['style'];
 }
 
 const schema = z.object({
@@ -20,7 +21,10 @@ const schema = z.object({
   loan: z.number().step(10000).min(0),
 });
 
-export default function StickInput({ onChange }: StickInputProps) {
+export default function StickInput({
+  onChange,
+  pointStickStyle,
+}: StickInputProps) {
   const defaultValues = useMemo(
     () => ({
       '100': 0,
@@ -55,10 +59,10 @@ export default function StickInput({ onChange }: StickInputProps) {
 
   return (
     <div>
-      <Fieldset className="grid grid-cols-2 gap-4">
+      <Fieldset className="grid grid-cols-2 gap-4 items-end">
         <div className="flex flex-col gap-1">
           <FieldLabel label="100 Points" required />
-          <PointStick value={100} style="traditional" />
+          <PointStick value={100} style={pointStickStyle} />
           <InputField
             name="100"
             register={register}
@@ -68,9 +72,23 @@ export default function StickInput({ onChange }: StickInputProps) {
           />
         </div>
 
+        {pointStickStyle === 'modern' && (
+          <div className="flex flex-col gap-1">
+            <FieldLabel label="500 Points" required />
+            <PointStick value={500} style={pointStickStyle} />
+            <InputField
+              name="500"
+              register={register}
+              errors={formState.errors}
+              type="number"
+              min={0}
+            />
+          </div>
+        )}
+
         <div className="flex flex-col gap-1">
           <FieldLabel label="1000 Points" required />
-          <PointStick value={1000} style="traditional" />
+          <PointStick value={1000} style={pointStickStyle} />
           <InputField
             name="1000"
             register={register}
@@ -82,7 +100,7 @@ export default function StickInput({ onChange }: StickInputProps) {
 
         <div className="flex flex-col gap-1">
           <FieldLabel label="5000 Points" required />
-          <PointStick value={5000} style="traditional" />
+          <PointStick value={5000} style={pointStickStyle} />
           <InputField
             name="5000"
             register={register}
@@ -94,7 +112,7 @@ export default function StickInput({ onChange }: StickInputProps) {
 
         <div className="flex flex-col gap-1">
           <FieldLabel label="10000 Points" required />
-          <PointStick value={10000} style="traditional" />
+          <PointStick value={10000} style={pointStickStyle} />
           <InputField
             name="10000"
             register={register}
