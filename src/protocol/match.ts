@@ -36,9 +36,10 @@ export const record = z.object({
   players: z.array(
     z.object({
       score: z.number().multipleOf(100),
-      chombos: z.string().array(),
+      chombos: z.string().array().optional(),
     }),
   ),
   time: z.date().optional(),
   leftoverBets: z.number().multipleOf(1000),
+  commit: z.boolean(),
 });

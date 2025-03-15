@@ -1,4 +1,4 @@
-import { RankedMatch } from './MatchEntryDialog';
+import { RankedMatch } from '../matchEntry/MatchEntryDialog';
 
 export type RankedMatchPlayer = RankedMatch['players'][number]['player'];
 

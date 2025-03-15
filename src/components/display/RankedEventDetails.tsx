@@ -7,7 +7,7 @@ import Button from '../Button';
 import Loading from '../Loading';
 import MatchPlayerName from './MatchPlayerName';
 import { useSession } from 'next-auth/react';
-import { RankedMatch } from './MatchEntryDialog';
+import { RankedMatch } from '../matchEntry/MatchEntryDialog';
 
 export type RankedEvent =
   RouterOutputs['events']['getByLeague']['events'][number];

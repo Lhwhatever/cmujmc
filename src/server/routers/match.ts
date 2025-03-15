@@ -102,21 +102,46 @@ const matchSelectorInRecord = Prisma.validator<Prisma.MatchSelect>()({
   },
 });
 
-const validateInRecord = (
+const recordCheckAuthorizations = (
   match: Prisma.MatchGetPayload<{ select: typeof matchSelectorInRecord }>,
   input: z.infer<typeof schema.match.record>,
   requesterId: string,
-  requesterRole: 'admin' | 'user',
-) => {
-  if (
-    requesterRole !== 'admin' &&
-    (input.time !== undefined ||
-      match.status !== Status.PENDING ||
-      match.players.every(({ playerId }) => playerId !== requesterId))
-  ) {
-    new AuthorizationError({}).logAndThrow();
+): AuthorizationError | undefined => {
+  if (match.status !== Status.PENDING) {
+    return new AuthorizationError({
+      reason: "You don't have the permissions to update a non-pending match.",
+    });
   }
 
+  if (match.players.every(({ playerId }) => playerId !== requesterId)) {
+    return new AuthorizationError({
+      reason:
+        "You don't have the permissions to record a match which you did not play in.",
+    });
+  }
+
+  if (
+    input.players.some(
+      ({ chombos }) => chombos !== undefined && chombos.length > 0,
+    )
+  ) {
+    return new AuthorizationError({
+      reason: "You don't have the permissions to record chombos.",
+    });
+  }
+
+  if (input.time !== undefined) {
+    return new AuthorizationError({
+      reason:
+        "You don't have the permissions to set an arbitrary time for the match.",
+    });
+  }
+};
+
+const recordCheckInputScores = (
+  match: Prisma.MatchGetPayload<{ select: typeof matchSelectorInRecord }>,
+  input: z.infer<typeof schema.match.record>,
+) => {
   if (input.players.length !== match.players.length) {
     throw new TRPCError({
       code: 'BAD_REQUEST',
@@ -148,6 +173,7 @@ const matchIncludes = Prisma.validator<Prisma.MatchInclude>()({
       rawScore: true,
       unregisteredPlaceholder: true,
       player: userSelector,
+      chombos: true,
     },
     orderBy: { playerPosition: 'asc' },
   },
@@ -254,13 +280,13 @@ const matchRouter = router({
           throw new NotFoundError('match', matchId);
         }
 
+        if (ctx.user.role !== 'admin' && input.commit) {
+          const error = recordCheckAuthorizations(match, input, ctx.user.id);
+          if (error) error.logAndThrow();
+        }
+
         // validation
-        const scores = validateInRecord(
-          match,
-          input,
-          ctx.user.id,
-          ctx.user.role,
-        );
+        const scores = recordCheckInputScores(match, input);
 
         // compute and update match results
         const time = input.time ?? new Date();
@@ -268,10 +294,12 @@ const matchRouter = router({
 
         const uma = match.ruleset.uma.map(({ value }) => value);
 
-        await tx.match.update({
-          where: { id: matchId },
-          data: { status: Status.COMPLETE, time },
-        });
+        if (input.commit) {
+          await tx.match.update({
+            where: { id: matchId },
+            data: { status: Status.COMPLETE, time },
+          });
+        }
 
         for (let i = 0; i < scores.length; ++i) {
           await tx.userMatch.update({
@@ -281,10 +309,13 @@ const matchRouter = router({
             data: {
               ...placements[i],
               rawScore: scores[i],
-              chombos: players[i].chombos.length,
+              chombos:
+                players[i].chombos?.length ?? (input.commit ? 0 : undefined),
             },
           });
         }
+
+        if (!input.commit) return;
 
         // update league scores
         const leagueId = match.parent?.parent.id;
@@ -346,7 +377,7 @@ const matchRouter = router({
             playerPosition: i + 1,
             leagueId,
             time,
-            chombos: players[i].chombos,
+            chombos: players[i].chombos ?? [],
             chomboDelta,
             rawScore: scores[i],
             returnPts: match.ruleset.returnPts,
