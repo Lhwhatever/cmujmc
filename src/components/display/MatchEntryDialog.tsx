@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Dialog from '../Dialog';
 import { Fieldset } from '@headlessui/react';
 import UserComboBox, { UserOption } from '../UserComboBox';
@@ -61,6 +61,18 @@ const MatchCreationForm = ({
       },
     },
   );
+
+  useEffect(() => {
+    if (!userListQuery.isFetching && userListQuery.hasNextPage) {
+      console.log('fetching next page');
+      void userListQuery.fetchNextPage();
+    }
+  }, [
+    userListQuery,
+    userListQuery.isFetching,
+    userListQuery.hasNextPage,
+    userListQuery.fetchNextPage,
+  ]);
 
   const users = userListQuery.data?.pages?.flatMap((r) => r.users);
 

@@ -1,27 +1,34 @@
 import { authedProcedure, publicProcedure, router } from '../trpc';
 import { prisma } from '../prisma';
-import { coalesceNames, getUserGroups, maskNames } from '../../utils/usernames';
+import { coalesceNames, maskNames } from '../../utils/usernames';
 import schema from '../../protocol/schema';
-import { updateUserInvalidateCache } from '../cache/userGroups';
+import {
+  cachedGetUserGroups,
+  updateUserInvalidateCache,
+} from '../cache/userGroups';
 import { cachedGetUsersPaginated } from '../cache/users';
 import { withCache } from '../cache/glide';
 
 const processPartialField = (s?: string) => (s === '' ? null : s);
 
 const userRouter = router({
-  listAll: publicProcedure
-    .input(schema.user.listAll)
-    .query(async ({ input, ctx }) => {
-      const userId = ctx.session?.user?.id;
-      const userGroups = await getUserGroups(userId);
-      const { nextCursor, users } = await withCache((cache) =>
-        cachedGetUsersPaginated(cache, input?.cursor),
+  listAll: publicProcedure.input(schema.user.listAll).query(({ input, ctx }) =>
+    withCache(async (cache) => {
+      const userGroups = await cachedGetUserGroups(
+        cache,
+        ctx.session?.user?.id,
+      );
+      const { nextCursor, users } = await cachedGetUsersPaginated(
+        cache,
+        input?.cursor,
       );
       return {
-        nextCursor,
+        userGroups,
+        nextCursor: nextCursor === '0' ? null : nextCursor,
         users: users.map((user) => maskNames(coalesceNames(user), userGroups)),
       };
     }),
+  ),
 
   self: authedProcedure.query(async ({ ctx }) => {
     const self = await prisma.user.findUniqueOrThrow({
