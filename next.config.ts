@@ -21,6 +21,11 @@ const config: NextConfig = {
     ignoreBuildErrors:
       !!process.env.CI || process.env.BUILD_ENV === 'production',
   },
+  images: {
+    dangerouslyAllowSVG: true,
+    contentDispositionType: 'attachment',
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+  },
 };
 
 export default withNextIntl(config);

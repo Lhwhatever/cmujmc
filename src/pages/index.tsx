@@ -7,13 +7,13 @@ import { useFormatter } from 'next-intl';
 import Link from 'next/link';
 import DateTime from '../components/DateTime';
 import { isSameDay } from 'date-fns';
-import Text from '../components/Text';
+import Image from 'next/image';
 
 const Header = () => {
   return (
     <div className="flex mb-4 gap-8">
-      <div className="max-w-[10rem] w-full">
-        <img src="./favicon.svg" alt="Club Logo" />
+      <div className="max-w-[10rem] w-full relative">
+        <Image src="/favicon.svg" alt="Club Logo" fill />
       </div>
       <div>
         <Heading level="h2" className="mb-2">
