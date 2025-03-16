@@ -49,12 +49,12 @@ export const computePlayerPt = ({
 };
 
 export type ComputeUserLeagueTxnArgs = ComputePlayerPtArg & {
-  playerId: string;
+  playerId: string | null;
   matchId: number;
   playerPosition: number;
   leagueId: number;
   time: Date;
-  chombos: number | string[];
+  chombos: string[];
   chomboDelta: Decimal;
   uma: Decimal[];
 };
@@ -68,8 +68,8 @@ export const computeTransactions = ({
   chombos,
   chomboDelta,
   ...playerPtArg
-}: ComputeUserLeagueTxnArgs) => {
-  const matchResultTxn: Prisma.UserLeagueTransactionCreateManyInput = {
+}: ComputeUserLeagueTxnArgs): Prisma.UserLeagueTransactionCreateManyInput[] => {
+  const matchResultTxn = {
     type: TransactionType.MATCH_RESULT,
     userId: playerId,
     leagueId,
@@ -79,11 +79,7 @@ export const computeTransactions = ({
     userMatchPlayerPosition: playerPosition,
   };
 
-  const chomboDescriptions: (string | null)[] = Array.isArray(chombos)
-    ? chombos
-    : new Array<string | null>(chombos).fill(null);
-
-  const chomboTxns = chomboDescriptions.map((description) => ({
+  const chomboTxns = chombos.map((description) => ({
     type: TransactionType.CHOMBO,
     userId: playerId,
     leagueId,
@@ -94,8 +90,5 @@ export const computeTransactions = ({
     userMatchPlayerPosition: playerPosition,
   }));
 
-  return {
-    txns: [matchResultTxn, ...chomboTxns],
-    chombos: chomboTxns.length,
-  };
+  return [matchResultTxn, ...chomboTxns];
 };

@@ -74,9 +74,11 @@ const LeaderboardContents = ({ leagueId }: LeaderboardProps) => {
           </TableCell>
           <TableCell className="flex flex-col">
             <div>{renderAliases(user.name, user)}</div>
-            <div className="font-normal italic text-xs">
-              <DateTime date={new Date(agg.lastActivityDate)} relative />
-            </div>
+            {Number.isFinite(agg.lastActivityDate) && (
+              <div className="font-normal italic text-xs">
+                <DateTime date={new Date(agg.lastActivityDate)} relative />
+              </div>
+            )}
           </TableCell>
           <TableCell>{new Decimal(agg.score).toFixed(1)}</TableCell>
           <TableCell>{formatter.number(agg.numMatches)}</TableCell>

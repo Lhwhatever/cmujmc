@@ -1,7 +1,7 @@
 import React from 'react';
 import Page from '../components/Page';
 import Heading from '../components/Heading';
-import StickInput from '../components/display/StickInput';
+import StickInput from '../components/matchEntry/StickInput';
 
 export default function SticksInputPage() {
   const [total, setTotal] = React.useState(0);
@@ -10,7 +10,7 @@ export default function SticksInputPage() {
     <Page>
       <Heading level="h3">Point Stick Adder</Heading>
       <Heading level="h5">Total = {total}</Heading>
-      <StickInput onChange={setTotal} />
+      <StickInput pointStickStyle="modern" onChange={setTotal} />
     </Page>
   );
 }

@@ -12,6 +12,7 @@ import type { Context } from './context';
 import { initTRPC, TRPCError } from '@trpc/server';
 import superjson from 'superjson';
 import { prisma } from './prisma';
+import { ZodError } from 'zod';
 
 const t = initTRPC.context<Context>().create({
   /**
@@ -21,8 +22,17 @@ const t = initTRPC.context<Context>().create({
   /**
    * @link https://trpc.io/docs/v11/error-formatting
    */
-  errorFormatter({ shape }) {
-    return shape;
+  errorFormatter({ shape, error }) {
+    return {
+      ...shape,
+      data: {
+        ...shape.data,
+        zodError:
+          error.code === 'BAD_REQUEST' && error.cause instanceof ZodError
+            ? error.cause.flatten()
+            : null,
+      },
+    };
   },
 });
 
@@ -45,7 +55,7 @@ export class AuthorizationError extends TRPCError {
   params: AuthorizationErrorParams;
 
   constructor(params: AuthorizationErrorParams) {
-    super({ code: 'UNAUTHORIZED' });
+    super({ code: 'UNAUTHORIZED', message: params.reason });
     this.params = params;
   }
 

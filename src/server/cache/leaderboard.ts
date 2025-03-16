@@ -1,8 +1,6 @@
 import Decimal from 'decimal.js';
 import {
-  aggregateEmpty,
   aggregateTxnArray,
-  reduceAggregates,
   TxnAggregate,
   txnsSelector,
 } from '../../utils/ranking';
@@ -16,6 +14,8 @@ import {
   GlideClusterClient,
   InfBoundary,
 } from '@valkey/valkey-glide';
+import { PrismaClient } from '@prisma/client';
+import * as runtime from '@prisma/client/runtime/library';
 
 const keymap = makeKeyMap(['league'], {
   updated: 'updated',
@@ -228,21 +228,31 @@ const updateCacheEntries = async (
   );
 };
 
-const regenerateLeaderboard = async (
+const regenerateLeaderboard = async <
+  Prisma extends Omit<PrismaClient, runtime.ITXClientDenyList>,
+>(
   cache: GlideClusterClient,
+  prisma: Prisma,
   k: inferKeyMap<typeof keymap>,
   leagueId: number,
   requiredMatchesForRank: number,
   userIds?: string[],
 ) => {
   const users = await prisma.userLeague.findMany({
-    select: {
-      userId: true,
-      txns: txnsSelector,
-    },
     where: {
       leagueId,
       userId: userIds !== undefined ? { in: userIds } : undefined,
+    },
+    select: {
+      user: {
+        select: {
+          id: true,
+          transactions: {
+            where: { leagueId },
+            select: txnsSelector,
+          },
+        },
+      },
     },
   });
 
@@ -250,9 +260,9 @@ const regenerateLeaderboard = async (
     cache,
     k,
     requiredMatchesForRank,
-    users.map(({ userId, txns }) => ({
-      userId,
-      aggregate: aggregateTxnArray(txns),
+    users.map(({ user }) => ({
+      userId: user.id,
+      aggregate: aggregateTxnArray(user.transactions),
     })),
   );
 };
@@ -277,6 +287,7 @@ export const cachedGetLeaderboard = async (
 
         const result = await regenerateLeaderboard(
           cache,
+          prisma,
           k,
           leagueId,
           matchesRequired,
@@ -291,62 +302,27 @@ export const cachedGetLeaderboard = async (
   );
 };
 
-export const updateLeaderboardEntries = async (
+export const recomputePlayersOnLeaderboard = async <
+  Prisma extends Omit<PrismaClient, runtime.ITXClientDenyList>,
+>(
   cache: GlideClusterClient,
+  prisma: Prisma,
   leagueId: number,
-  requiredMatchesForRank: number,
-  players: UpdateLeaderboardPlayerRecord[],
-) => {
-  const k = keymap(leagueId);
-  if (await isLeaderboardCached(cache, k)) {
-    await withBackoff(
-      async () => {
-        await cache.watch([k.leaderboard, k.records, k.unranked]);
-        const currRecords = await cache.hmget(
-          k.records,
-          players.map((players) => players.userId),
-        );
-
-        const newEntries = players.map(({ userId, aggregate }, i) => {
-          const serialized = currRecords[i];
-          const currRecord =
-            serialized !== null
-              ? superjson.parse<TxnAggregate>(serialized as string)
-              : aggregateEmpty;
-          return { userId, aggregate: reduceAggregates(aggregate, currRecord) };
-        });
-
-        return updateCacheEntries(cache, k, requiredMatchesForRank, newEntries);
-      },
-      50,
-      5,
-    );
-  }
-};
-
-export const recomputePlayersOnLeaderboard = async (
-  cache: GlideClusterClient,
-  leagueId: number,
+  matchesRequired: number,
   userIds?: string[],
 ): Promise<void> => {
   const k = keymap(leagueId);
   if (await isLeaderboardCached(cache, k)) {
     await withBackoff(
-      async () => {
-        const { matchesRequired } = await prisma.league.findUniqueOrThrow({
-          where: { id: leagueId },
-          select: {
-            matchesRequired: true,
-          },
-        });
-        return regenerateLeaderboard(
+      () =>
+        regenerateLeaderboard(
           cache,
+          prisma,
           k,
           leagueId,
           matchesRequired,
           userIds,
-        );
-      },
+        ),
       50,
       5,
     );

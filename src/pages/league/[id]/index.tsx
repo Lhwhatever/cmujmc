@@ -21,13 +21,12 @@ import { usePathname } from 'next/navigation';
 import RankedEventDetails, {
   RankedEvent,
 } from '../../../components/display/RankedEventDetails';
-import MatchEntryDialog, {
-  RankedMatch,
-} from '../../../components/display/MatchEntryDialog';
+import MatchEntryDialog from '../../../components/matchEntry/MatchEntryDialog';
 import Leaderboard from '../../../components/display/Leaderboad';
 import { PersonalStats } from '../../../components/display/PersonalStats';
 import ScoreHistory from '../../../components/display/ScoreHistory';
 import Link from 'next/link';
+import { RankedMatch } from '../../../components/matchEntry/types';
 
 const partitionEvents = (refTime: number, events: RankedEvent[]) => {
   const closed = [];
@@ -238,6 +237,7 @@ const EventsSection = ({ leagueId, registered }: EventsSectionProps) => {
         )}
       </Accordion>
       <MatchEntryDialog
+        leagueId={leagueId}
         targetEvent={targetEvent}
         setTargetEvent={setTargetEvent}
         targetMatch={targetMatch}

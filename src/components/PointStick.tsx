@@ -66,7 +66,7 @@ export default function PointStick(props: PointStickProps) {
   return (
     <div
       className={clsx(
-        'max-w-40 w-full h-4 border border-gray-800 flex flex-row justify-center items-center gap-0.5 rounded-sm',
+        'max-w-40 w-full h-4 border border-gray-800 flex flex-row justify-center items-center gap-0.5 rounded-md',
         getBgColor(props),
       )}
     >

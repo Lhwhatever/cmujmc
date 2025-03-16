@@ -24,10 +24,11 @@ model User {
   andrew        String?
   discord       String?
 
-  matches  UserMatch[]
-  leagues  UserLeague[]
-  accounts Account[]
-  sessions Session[]
+  matches      UserMatch[]
+  leagues      UserLeague[]
+  accounts     Account[]
+  sessions     Session[]
+  transactions UserLeagueTransaction[]
 
   @@index([andrew], type: BTree)
 }
@@ -90,10 +91,9 @@ model UserMatch {
   playerPosition          Int // 1-indexed
   playerId                String?
   unregisteredPlaceholder String?
-  rawScore                Int?
-  placementMin            Int? // 1-indexed
-  placementMax            Int? // in the event of a tie, this would differ from placementMin
-  chombos                 Int?
+  rawScore                Int
+  placementMin            Int // 1-indexed
+  placementMax            Int // in the event of a tie, this would differ from placementMin
 
   player User?                   @relation(fields: [playerId], references: [id])
   match  Match                   @relation(fields: [matchId], references: [id])
@@ -126,9 +126,10 @@ model League {
   matchesRequired   Int       @default(3)
   softPenaltyCutoff Int       @default(3)
 
-  defaultRuleset Ruleset      @relation(fields: [defaultRuleId], references: [id])
-  events         Event[]
-  users          UserLeague[]
+  defaultRuleset        Ruleset                 @relation(fields: [defaultRuleId], references: [id])
+  events                Event[]
+  users                 UserLeague[]
+  userLeagueTransaction UserLeagueTransaction[]
 }
 
 enum GameMode {
@@ -166,9 +167,8 @@ model UserLeague {
   leagueId    Int
   freeChombos Int? // null if not on softer penalty
 
-  user   User                    @relation(fields: [userId], references: [id])
-  league League                  @relation(fields: [leagueId], references: [id])
-  txns   UserLeagueTransaction[]
+  user   User   @relation(fields: [userId], references: [id])
+  league League @relation(fields: [leagueId], references: [id])
 
   @@id([leagueId, userId])
 }
@@ -184,9 +184,10 @@ model UserLeagueTransaction {
   id   String          @id @default(cuid())
   type TransactionType
 
-  userId     String
-  leagueId   Int
-  userLeague UserLeague @relation(fields: [userId, leagueId], references: [userId, leagueId])
+  userId   String?
+  leagueId Int
+  user     User?   @relation(fields: [userId], references: [id])
+  league   League  @relation(fields: [leagueId], references: [id])
 
   delta       Decimal
   time        DateTime @default(now())

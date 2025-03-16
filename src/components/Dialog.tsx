@@ -24,7 +24,7 @@ export default function Dialog({
       <DialogBackdrop className="fixed inset-0 bg-black/30" />
       <div className="fixed inset-0 flex w-screen items-center justify-center p-4 overflow-y-auto">
         <div className="flex min-h-full items-center justify-center">
-          <DialogPanel className="max-w-xl space-y-4 bg-white p-12">
+          <DialogPanel className="max-w-2xl space-y-4 bg-white p-12">
             {title && <DialogTitle className="font-bold">{title}</DialogTitle>}
             {children}
           </DialogPanel>

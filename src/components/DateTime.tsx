@@ -1,4 +1,5 @@
 import { useFormatter, DateTimeFormatOptions, useNow } from 'next-intl';
+import { useEffect, useState } from 'react';
 
 interface AbsoluteVariantProps {
   date: Date;
@@ -25,8 +26,13 @@ const RelativeVariant = ({
 }: RelativeVariantProps) => {
   const formatter = useFormatter();
   const now = useNow({ updateInterval: refreshMs });
+  const [text, setText] = useState<string>('');
 
-  return <>{formatter.relativeTime(date, { now, ...format })}</>;
+  useEffect(() => {
+    setText(formatter.relativeTime(date, { now, ...format }));
+  }, [setText, formatter, format, now, date]);
+
+  return <>{text}</>;
 };
 
 type Variants = RelativeVariantProps | AbsoluteVariantProps;

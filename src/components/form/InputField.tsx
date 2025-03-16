@@ -5,6 +5,7 @@ import { IFieldProps } from './baseTypes';
 import clsx from 'clsx';
 import FieldLabel from './FieldLabel';
 import _ from 'lodash';
+import { formatISO } from 'date-fns';
 
 interface VariantText {
   type?: 'text';
@@ -22,9 +23,15 @@ interface VariantDatetime {
   type: 'datetime-local';
   min?: Date;
   max?: Date;
+  defaultValue?: Date;
 }
 
 type Variants = VariantText | VariantNumber | VariantDatetime;
+
+const formatDateLocal = (d: Date) => {
+  const date = formatISO(d, { representation: 'complete' });
+  return date.slice(0, -9);
+};
 
 const dispatchVariants = (v: Variants) => {
   switch (v.type) {
@@ -37,8 +44,9 @@ const dispatchVariants = (v: Variants) => {
       return [
         {
           type: 'datetime-local',
-          min: v.min?.toISOString(),
-          max: v.max?.toISOString(),
+          min: v.min && formatDateLocal(v.min),
+          max: v.max && formatDateLocal(v.max),
+          defaultValue: v.defaultValue && formatDateLocal(v.defaultValue),
         },
         { valueAsDate: true },
       ];

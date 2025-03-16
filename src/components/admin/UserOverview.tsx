@@ -2,17 +2,24 @@ import { trpc } from '../../utils/trpc';
 import Table, { TableCell, TableHeading, TableRow } from '../Table';
 import Loading from '../Loading';
 import { renderAliases } from '../../utils/usernames';
-import { Suspense } from 'react';
+import { Suspense, useEffect } from 'react';
 
 const UserTable = () => {
-  const [{ pages }, _] = trpc.user.listAll.useSuspenseInfiniteQuery(
-    {},
-    {
-      getNextPageParam(s) {
-        return s.nextCursor;
+  const [{ pages }, { isFetching, hasNextPage, fetchNextPage }] =
+    trpc.user.listAll.useSuspenseInfiniteQuery(
+      {},
+      {
+        getNextPageParam(s) {
+          return s.nextCursor;
+        },
       },
-    },
-  );
+    );
+
+  useEffect(() => {
+    if (!isFetching && hasNextPage) {
+      void fetchNextPage();
+    }
+  }, [isFetching, hasNextPage, fetchNextPage]);
 
   const users = pages.flatMap((page) => page.users);
 
