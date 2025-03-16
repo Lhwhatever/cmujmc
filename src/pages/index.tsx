@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Page from '../components/Page';
 import Heading from '../components/Heading';
 import { trpc } from '../utils/trpc';
@@ -7,6 +7,43 @@ import { useFormatter } from 'next-intl';
 import Link from 'next/link';
 import DateTime from '../components/DateTime';
 import { isSameDay } from 'date-fns';
+import Text from '../components/Text';
+
+const Header = () => {
+  return (
+    <div className="flex mb-4 gap-8">
+      <div className="max-w-[10rem] w-full">
+        <img src="./favicon.svg" alt="Club Logo" />
+      </div>
+      <div>
+        <Heading level="h2" className="mb-2">
+          CMU Japanese Mahjong Club
+        </Heading>
+        <div className="hidden sm:block">
+          <p>
+            We are a beginner-friendly group of Riichi Mahjong players
+            affiliated with Carnegie Mellon University.
+          </p>
+          <p>
+            If you are a member of the CMU community, or are located in the
+            Pittsburgh area, we welcome you to join us!
+          </p>
+        </div>
+        <div>
+          <p>
+            📍{' '}
+            <a
+              href="https://maps.app.goo.gl/yx957CFMQD9wo3zv9"
+              className="underline text-gray-700"
+            >
+              5000 Forbes Ave, Pittsburgh, PA 15213
+            </a>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const EventsSection = () => {
   const [checkDate, setCheckDate] = useState(new Date(0));
@@ -15,19 +52,25 @@ const EventsSection = () => {
     setCheckDate(new Date());
   }, [setCheckDate]);
 
-  const query = trpc.events.list.useQuery({
+  const [{ events }] = trpc.events.list.useSuspenseQuery({
     limit: 3,
     sortDirection: 'start-asc',
     filters: [{ lhs: 'closingDate', op: 'gt', rhs: checkDate }],
   });
 
-  if (!query.data) {
-    return <Loading />;
-  }
-
   return (
     <div className="flex flex-col space-y-4">
-      {query.data.events.map(({ startDate, endDate, id, parent }) => {
+      <Heading level="h3">Club Events</Heading>
+      <p>
+        📅{' '}
+        <a
+          href="https://tinyurl.com/cmumahjong"
+          className="underline text-gray-700"
+        >
+          Club Calendar
+        </a>
+      </p>
+      {events.map(({ startDate, endDate, id, parent }) => {
         const date = startDate ?? checkDate;
         const month = formatter.dateTime(date, { month: 'short' });
         return (
@@ -85,9 +128,11 @@ export default function IndexPage() {
   return (
     <Page>
       <div className="flex h-screen flex-col items-stretch">
-        <div className="flex flex-col items-stretch">
-          <Heading level="h2">Club Events</Heading>
-          <EventsSection />
+        <div className="flex flex-col items-stretch gap-y-4">
+          <Header />
+          <Suspense fallback={<Loading />}>
+            <EventsSection />
+          </Suspense>
         </div>
       </div>
     </Page>

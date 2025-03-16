@@ -15,6 +15,7 @@ export default function Page({ children, title, className }: PageProps) {
       <Head>
         <title>{title ?? 'CMU Japanese Mahjong'}</title>
         <meta name="description" content="CMU Japanese Mahjong Club" />
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
       </Head>
       <div>
         <header className="fixed inset-x-0 top-0 z-40 h-16">
