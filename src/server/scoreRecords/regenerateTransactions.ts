@@ -43,23 +43,7 @@ export default async function regenerateTransactions<
 
   // compute new transactions
   for (const { playerId, playerPosition, rawScore } of updatedUserMatches) {
-    // skip guest players
-    if (playerId === null) continue;
-
-    // skip players not on the scoreboard
-    const userLeague = await tx.userLeague.findUnique({
-      where: {
-        leagueId_userId: { leagueId, userId: playerId },
-      },
-    });
-    if (userLeague === null) continue;
-
     const inputPlayer = input.players[playerPosition - 1];
-
-    const chombos =
-      inputPlayer.chombos ??
-      currMatch.players[playerPosition - 1].chombos ??
-      [];
 
     txnsToCreate.push(
       ...computeTransactions({
@@ -68,7 +52,7 @@ export default async function regenerateTransactions<
         playerPosition,
         leagueId,
         time,
-        chombos,
+        chombos: inputPlayer.chombos ?? [],
         chomboDelta,
         rawScore: rawScore ?? inputPlayer.score,
         returnPts: currMatch.ruleset.returnPts,
@@ -77,7 +61,7 @@ export default async function regenerateTransactions<
       }),
     );
 
-    playersWithNewTxns.add(playerId);
+    if (playerId !== null) playersWithNewTxns.add(playerId);
   }
 
   await tx.userLeagueTransaction.createMany({ data: txnsToCreate });

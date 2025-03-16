@@ -11,8 +11,7 @@ import schema from '../../protocol/schema';
 import { NotFoundError } from '../../protocol/errors';
 import { computeClosingDate } from './events';
 import { isBefore } from 'date-fns';
-import { Prisma, Status, TransactionType } from '@prisma/client';
-import { computeTransactions, umaSelector } from '../../utils/scoring';
+import { Prisma, TransactionType } from '@prisma/client';
 import { maskNames, userSelector, coalesceNames } from '../../utils/usernames';
 import { z } from 'zod';
 import assertNonNull from '../../utils/nullcheck';
@@ -23,7 +22,6 @@ import {
   recomputePlayersOnLeaderboard,
 } from '../cache/leaderboard';
 import { cachedGetUsers } from '../cache/users';
-import { txnsSelector } from '../../utils/ranking';
 import { withCache } from '../cache/glide';
 
 const leagueRouter = router({
@@ -146,64 +144,6 @@ const leagueRouter = router({
           }).logAndThrow();
         }
 
-        const matches = await tx.userMatch.findMany({
-          where: {
-            playerId: ctx.user.id,
-            match: {
-              parent: { parentId: leagueId },
-              status: Status.COMPLETE,
-            },
-          },
-          include: {
-            match: {
-              select: {
-                time: true,
-                ruleset: {
-                  select: {
-                    returnPts: true,
-                    chomboDelta: true,
-                    uma: umaSelector,
-                  },
-                },
-              },
-            },
-          },
-        });
-
-        const initialTxn: Prisma.UserLeagueTransactionCreateManyInput = {
-          type: TransactionType.INITIAL,
-          userId: ctx.user.id,
-          leagueId,
-          delta: league.startingPoints,
-          time: new Date(),
-        };
-
-        const txns = matches.flatMap(
-          ({
-            matchId,
-            playerPosition,
-            match,
-            chombos,
-            rawScore,
-            placementMin,
-            placementMax,
-          }) =>
-            computeTransactions({
-              playerId: ctx.user.id,
-              matchId,
-              playerPosition,
-              leagueId,
-              time: match.time,
-              chombos: assertNonNull(chombos, 'chombos'),
-              chomboDelta: match.ruleset.chomboDelta,
-              returnPts: match.ruleset.returnPts,
-              uma: match.ruleset.uma.map(({ value }) => value),
-              rawScore: assertNonNull(rawScore, 'rawScore'),
-              placementMin: assertNonNull(placementMin, 'placementMin'),
-              placementMax: assertNonNull(placementMax, 'placementMax'),
-            }),
-        );
-
         await tx.userLeague.create({
           data: {
             user: { connect: { id: ctx.user.id } },
@@ -211,9 +151,14 @@ const leagueRouter = router({
           },
         });
 
-        await tx.userLeagueTransaction.createManyAndReturn({
-          data: [initialTxn, ...txns],
-          select: txnsSelector.select,
+        await tx.userLeagueTransaction.create({
+          data: {
+            type: TransactionType.INITIAL,
+            userId: ctx.user.id,
+            leagueId,
+            delta: league.startingPoints,
+            time: new Date(),
+          },
         });
 
         await withCache((cache) =>
@@ -320,16 +265,12 @@ const leagueRouter = router({
                   userAt: players.findIndex(
                     ({ player }) => player?.id === userId,
                   ),
-                  players: players.map(
-                    ({ player, placementMin, placementMax, ...other }) => ({
-                      ...other,
-                      placementMin: assertNonNull(placementMin, 'placementMin'),
-                      placementMax: assertNonNull(placementMax, 'placementMax'),
-                      player: player
-                        ? maskNames(coalesceNames(player), userGroups)
-                        : null,
-                    }),
-                  ),
+                  players: players.map(({ player, ...other }) => ({
+                    ...other,
+                    player: player
+                      ? maskNames(coalesceNames(player), userGroups)
+                      : null,
+                  })),
                 },
               };
             }

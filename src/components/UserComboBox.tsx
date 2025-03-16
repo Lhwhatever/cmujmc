@@ -3,12 +3,25 @@ import ComboboxField from './form/ComboboxField';
 import { RouterOutputs } from '../utils/trpc';
 import Fuse from 'fuse.js';
 import { renderAliases } from '../utils/usernames';
+import { z } from 'zod';
+import { matchPlayerSchema } from '../server/scoreRecords/types';
 
 export type User = RouterOutputs['user']['listAll']['users'][number];
 
 export type UserOption =
   | { type: 'registered'; payload: User }
   | { type: 'unregistered'; payload: string };
+
+export const userOptionToParam = (
+  option: UserOption,
+): z.infer<typeof matchPlayerSchema> => {
+  switch (option.type) {
+    case 'registered':
+      return { type: 'registered', payload: option.payload.id };
+    case 'unregistered':
+      return { type: 'unregistered', payload: option.payload };
+  }
+};
 
 export interface UserComboBoxProps {
   label?: string;

@@ -32,7 +32,6 @@ export const currMatchSelector = Prisma.validator<Prisma.MatchSelect>()({
       playerId: true,
       unregisteredPlaceholder: true,
       txns: true,
-      chombos: true,
     },
   },
   parent: {

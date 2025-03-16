@@ -1,8 +1,6 @@
-import { z } from 'zod';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { trpc } from '../../utils/trpc';
 import { sumTableScores } from '../../utils/scoring';
 import { Fieldset } from '@headlessui/react';
 import clsx from 'clsx';
@@ -10,92 +8,61 @@ import MatchPlayerName from '../display/MatchPlayerName';
 import InputField from '../form/InputField';
 import Button from '../Button';
 import StickInput from './StickInput';
-import { ChomboEntryForm } from './ChomboEntryForm';
-import { RankedMatch } from './MatchEntryDialog';
-import ChomboAffirmationForm from './ChomboAffirmationForm';
-import { useSession } from 'next-auth/react';
 
-const scoreEntrySchema = z.object({
-  players: z.array(z.number().multipleOf(100)),
-  leftoverBets: z.number().multipleOf(1000).min(0),
-});
+import { RankedMatch, ScoreEntryFormData, scoreEntrySchema } from './types';
+
+export type ScoreEntryOnNext = (
+  data: ScoreEntryFormData,
+  onSuccess: () => void,
+  onError: (messages: string[]) => void,
+) => void;
 
 export interface ScoreEntryFormProps {
-  leagueId: number;
   targetMatch: RankedMatch;
-  onClose: () => void;
+  onPrev: () => void;
+  onNext: ScoreEntryOnNext;
+  hidden?: boolean;
 }
 
 export const ScoreEntryForm = ({
-  leagueId,
   targetMatch,
-  onClose,
+  onPrev,
+  onNext,
+  hidden,
 }: ScoreEntryFormProps) => {
-  const session = useSession();
   const numPlayers = targetMatch.players.length;
   const { startPts } = targetMatch.ruleset;
   const expectedTotal = numPlayers * startPts;
 
   const [stickInputTarget, setStickInputTarget] = useState<number | null>(null);
-  const [chomboEntryStage, setChomboEntryStage] = useState(false);
+  const [errors, setErrors] = useState<string[]>([]);
 
-  const { register, formState, watch, handleSubmit, getValues, setValue } =
-    useForm({
-      mode: 'onChange',
-      resolver: zodResolver(scoreEntrySchema),
-      defaultValues: {
-        players: targetMatch.players.map(
-          ({ rawScore }) => rawScore ?? startPts,
-        ),
-        leftoverBets: 0,
-      },
-    });
+  const { register, formState, watch, handleSubmit, setValue } = useForm({
+    mode: 'onChange',
+    resolver: zodResolver(scoreEntrySchema),
+    defaultValues: {
+      players: targetMatch.players.map(({ rawScore }) => rawScore ?? startPts),
+      leftoverBets: 0,
+    },
+  });
 
-  const utils = trpc.useUtils();
   const players = watch('players');
   const leftoverBets = watch('leftoverBets');
   const sum = sumTableScores(players, leftoverBets);
   const sumCorrect = sum === expectedTotal;
-  const handleContinue = () => {
-    void handleSubmit(() => {
-      if (sumCorrect) setChomboEntryStage(true);
-    })();
-  };
 
-  const editMatchMutation = trpc.matches.editMatch.useMutation({
-    onSuccess() {
-      onClose();
-      return Promise.all([
-        utils.matches.getIncompleteByEvent.invalidate(),
-        utils.matches.getCompletedByLeague.invalidate(leagueId),
-        utils.leagues.invalidate(),
-      ]);
-    },
-    onError(e) {
-      console.error(e);
-    },
+  const handleNext = handleSubmit((data) => {
+    if (sumCorrect) {
+      onNext(data, () => setErrors([]), setErrors);
+    }
   });
 
-  const handleComplete = (chombos?: [number, string][]) => {
-    editMatchMutation.mutate({
-      matchId: targetMatch.id,
-      leftoverBets: getValues('leftoverBets'),
-      players: getValues('players').map((score, index) => ({
-        score,
-        chombos: chombos?.flatMap(([player, desc]) =>
-          player === index ? [desc] : [],
-        ),
-      })),
-      commit: chombos !== undefined,
-    });
-  };
-
   return (
-    <>
+    <div className={clsx(hidden && 'hidden')}>
       <Fieldset
         className={clsx(
           'flex flex-col space-y-4',
-          (chomboEntryStage || stickInputTarget !== null) && 'hidden',
+          stickInputTarget !== null && 'hidden',
         )}
       >
         {targetMatch.players.map((player, index) => (
@@ -145,15 +112,20 @@ export const ScoreEntryForm = ({
             {sum} / {expectedTotal}
           </div>
         </div>
+        {errors.map((error, index) => (
+          <div key={index} className="text-xs text-red-500">
+            {error}
+          </div>
+        ))}
         <div className="flex flex-row gap-2">
-          <Button color="red" fill="filled" onClick={onClose}>
+          <Button color="red" fill="filled" onClick={onPrev}>
             Cancel
           </Button>
           <Button
             color="green"
             fill="outlined"
             disabled={!sumCorrect}
-            onClick={handleContinue}
+            onClick={handleNext}
           >
             Continue
           </Button>
@@ -183,20 +155,6 @@ export const ScoreEntryForm = ({
           </div>
         </div>
       )}
-      {session?.data?.user?.role === 'admin' ? (
-        <ChomboEntryForm
-          players={targetMatch.players}
-          hidden={!chomboEntryStage}
-          onBack={() => setChomboEntryStage(false)}
-          onSubmit={handleComplete}
-        />
-      ) : (
-        <ChomboAffirmationForm
-          hidden={!chomboEntryStage}
-          onBack={() => setChomboEntryStage(false)}
-          onSubmit={handleComplete}
-        />
-      )}
-    </>
+    </div>
   );
 };

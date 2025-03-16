@@ -1,135 +1,15 @@
-import { useEffect, useState } from 'react';
 import Dialog from '../Dialog';
-import { Fieldset } from '@headlessui/react';
-import UserComboBox, { UserOption } from '../UserComboBox';
-import Button from '../Button';
-import { RouterOutputs, trpc } from '../../utils/trpc';
-import { GameMode } from '@prisma/client';
-import { getNumPlayers } from '../../utils/gameModes';
+import { trpc } from '../../utils/trpc';
 import { RankedEvent } from '../display/RankedEventDetails';
-import { ScoreEntryForm } from './ScoreEntryForm';
-import { z } from 'zod';
-
-type MatchCreationResult = RouterOutputs['matches']['create'];
-export type RankedMatch = NonNullable<
-  RouterOutputs['matches']['getById']['match']
->;
-
-interface MatchCreationFormProps {
-  eventId: number;
-  gameMode: GameMode;
-  onRefresh: () => void;
-  onClose: () => void;
-  onSuccess: (_m: MatchCreationResult) => void;
-  hidden?: boolean;
-}
-
-const MatchCreationForm = ({
-  gameMode,
-  onClose,
-  onRefresh,
-  onSuccess: onMatchCreationSuccess,
-  eventId,
-  hidden,
-}: MatchCreationFormProps) => {
-  const [players, setPlayers] = useState(
-    () =>
-      new Array(getNumPlayers(gameMode)).fill(null) as (UserOption | null)[],
-  );
-  const updateUser = (i: number) => (player: UserOption | null) => {
-    setPlayers(players.map((p, j) => (i === j ? player : p)));
-  };
-  const [errors, setErrors] = useState<string[]>([]);
-
-  const createMatchMutation = trpc.matches.create.useMutation({
-    onSuccess(result) {
-      onMatchCreationSuccess(result);
-    },
-    onError(e) {
-      if (e.data?.zodError) {
-        setErrors(
-          Object.values(e.data.zodError.fieldErrors).flatMap((e) => e ?? []),
-        );
-      } else {
-        setErrors([e.message]);
-      }
-    },
-  });
-
-  const userListQuery = trpc.user.listAll.useInfiniteQuery(
-    {},
-    {
-      getNextPageParam(s) {
-        return s.nextCursor;
-      },
-    },
-  );
-
-  useEffect(() => {
-    if (!userListQuery.isFetching && userListQuery.hasNextPage) {
-      void userListQuery.fetchNextPage();
-    }
-  }, [
-    userListQuery,
-    userListQuery.isFetching,
-    userListQuery.hasNextPage,
-    userListQuery.fetchNextPage,
-  ]);
-
-  const users = userListQuery.data?.pages?.flatMap((r) => r.users);
-
-  const handleSubmit = () => {
-    if (players.every((p) => p !== null)) {
-      createMatchMutation.mutate({
-        eventId,
-        players: players.map(({ type, payload }) => ({
-          type,
-          payload: type === 'registered' ? payload.id : payload,
-        })),
-      });
-    } else {
-      setErrors(['Every player must be specified!']);
-    }
-  };
-
-  const outerClass = hidden ? 'hidden' : '';
-
-  return (
-    <div className={outerClass}>
-      <Fieldset className="space-y-6">
-        {players.map((player, index) => (
-          <UserComboBox
-            key={index}
-            label={`Player ${index + 1}`}
-            user={player}
-            onUserChange={updateUser(index)}
-            userList={users}
-            isLoading={userListQuery.isFetching}
-            required
-          />
-        ))}
-        {errors.map((error, index) => (
-          <div key={index} className="text-xs text-red-500">
-            {error}
-          </div>
-        ))}
-        <div className="flex flex-row gap-1 pt-2">
-          <Button color="red" fill="filled" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button color="blue" fill="outlined" onClick={onRefresh}>
-            Refresh Players
-          </Button>
-          <Button color="green" fill="outlined" onClick={handleSubmit}>
-            Next
-          </Button>
-        </div>
-      </Fieldset>
-    </div>
-  );
-};
+import { ScoreEntryForm, ScoreEntryOnNext } from './ScoreEntryForm';
+import MatchPlayerForm, { MatchPlayerFormOnNext } from './MatchPlayerForm';
+import { userOptionToParam } from '../UserComboBox';
+import { RankedMatch, ScoreEntryFormData } from './types';
+import { useState } from 'react';
+import ChomboForm, { ChomboFormOnNext } from './ChomboForm';
 
 export interface MatchEntryDialogProps {
+  leagueId: number;
   targetEvent: RankedEvent | null;
   setTargetEvent: (_: RankedEvent | null) => void;
   targetMatch: RankedMatch | null;
@@ -137,6 +17,7 @@ export interface MatchEntryDialogProps {
 }
 
 export default function MatchEntryDialog({
+  leagueId,
   targetEvent,
   setTargetEvent,
   targetMatch,
@@ -148,13 +29,86 @@ export default function MatchEntryDialog({
     setTargetMatch(null);
   };
 
-  const handleRefresh = () => void utils.user.listAll.invalidate();
+  const [matchEditStage, setMatchEditStage] = useState<1 | 2>(1);
 
-  const handleSuccess = ({ match }: MatchCreationResult) => {
-    setTargetMatch(match);
-    if (targetEvent) {
-      void (async () =>
-        await utils.matches.getIncompleteByEvent.invalidate(targetEvent.id))();
+  const [scoreEntryHandle, setScoreEntryHandle] = useState<{
+    data: ScoreEntryFormData;
+    onError: (messages: string[]) => void;
+  } | null>(null);
+
+  const createMatchMutation = trpc.matches.create.useMutation();
+  const editMatchMutation = trpc.matches.editMatch.useMutation();
+
+  const handleCreateMatch: MatchPlayerFormOnNext = (
+    { players, time },
+    onSuccess,
+    onError,
+  ) => {
+    if (targetEvent !== null) {
+      createMatchMutation.mutate(
+        {
+          eventId: targetEvent.id,
+          players: players.map(userOptionToParam),
+          time,
+        },
+        {
+          onSuccess({ match }) {
+            onSuccess();
+            void utils.matches.getIncompleteByEvent.invalidate(targetEvent.id);
+            setTargetMatch(match);
+          },
+          onError(e) {
+            if (e.data?.zodError) {
+              onError(
+                Object.values(e.data.zodError.fieldErrors).flatMap(
+                  (e) => e ?? [],
+                ),
+              );
+            } else {
+              onError([e.message]);
+            }
+          },
+        },
+      );
+    }
+  };
+
+  const handleScoreEntryNext: ScoreEntryOnNext = (data, onSuccess, onError) => {
+    setScoreEntryHandle({ data, onError });
+    onSuccess();
+    setMatchEditStage(2);
+  };
+
+  const handleChomboFormNext: ChomboFormOnNext = (data) => {
+    if (targetMatch !== null && scoreEntryHandle !== null) {
+      editMatchMutation.mutate(
+        {
+          matchId: targetMatch.id,
+          players: scoreEntryHandle.data.players.map((score, index) => ({
+            score,
+            chombos: data?.at(index),
+          })),
+          leftoverBets: scoreEntryHandle.data.leftoverBets,
+          commit: data !== undefined,
+        },
+        {
+          async onSuccess() {
+            setMatchEditStage(1);
+            handleClose();
+            await Promise.all([
+              utils.matches.getCompletedByLeague.invalidate(leagueId),
+              utils.matches.getIncompleteByEvent.invalidate(leagueId),
+              utils.leagues.scoreHistory.invalidate(leagueId),
+            ]);
+          },
+          async onError(error) {
+            scoreEntryHandle.onError([error.message]);
+            setMatchEditStage(1);
+          },
+        },
+      );
+    } else {
+      alert('Error: Illegal state!');
     }
   };
 
@@ -166,20 +120,30 @@ export default function MatchEntryDialog({
     >
       {targetEvent !== null && (
         <>
-          <MatchCreationForm
+          <MatchPlayerForm
+            operation={{
+              type: 'create',
+              event: targetEvent,
+            }}
             hidden={targetMatch !== null}
-            eventId={targetEvent.id}
-            gameMode={targetEvent.ruleset.gameMode}
-            onRefresh={handleRefresh}
-            onClose={handleClose}
-            onSuccess={handleSuccess}
+            onPrev={handleClose}
+            onNext={handleCreateMatch}
           />
           {targetMatch && (
-            <ScoreEntryForm
-              targetMatch={targetMatch}
-              onClose={handleClose}
-              leagueId={targetEvent.parentId}
-            />
+            <>
+              <ScoreEntryForm
+                hidden={matchEditStage !== 1}
+                targetMatch={targetMatch}
+                onPrev={handleClose}
+                onNext={handleScoreEntryNext}
+              />
+              <ChomboForm
+                hidden={matchEditStage !== 2}
+                targetMatch={targetMatch}
+                onPrev={() => setMatchEditStage(1)}
+                onNext={handleChomboFormNext}
+              />
+            </>
           )}
         </>
       )}

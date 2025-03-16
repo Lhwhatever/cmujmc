@@ -1,4 +1,4 @@
-import { GameMode, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import schema from '../../protocol/schema';
 import { getNumPlayers } from '../../utils/gameModes';

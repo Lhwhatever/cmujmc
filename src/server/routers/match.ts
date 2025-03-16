@@ -7,7 +7,7 @@ import {
 import schema from '../../protocol/schema';
 import { prisma } from '../prisma';
 import { NotFoundError } from '../../protocol/errors';
-import { GameMode, Prisma, Status } from '@prisma/client';
+import { GameMode, Prisma, Status, TransactionType } from '@prisma/client';
 import { TRPCError } from '@trpc/server';
 import { getNumPlayers } from '../../utils/gameModes';
 import { z } from 'zod';
@@ -19,7 +19,6 @@ import {
   userSelector,
 } from '../../utils/usernames';
 import { Session } from 'next-auth';
-import assertNonNull from '../../utils/nullcheck';
 import { cachedGetUserGroups } from '../cache/userGroups';
 import { recomputePlayersOnLeaderboard } from '../cache/leaderboard';
 import { withCache } from '../cache/glide';
@@ -34,6 +33,7 @@ import regenerateTransactions from '../scoreRecords/regenerateTransactions';
 //==================== for create ====================
 
 const validateCreateMatchPlayers = async (
+  time: Date | undefined,
   players: z.infer<typeof schema.match.create>['players'],
   gameMode: GameMode,
   requester: Session['user'],
@@ -60,14 +60,6 @@ const validateCreateMatchPlayers = async (
     }
   }
 
-  if (requester.role !== 'admin' && !hasSubmittingPlayer) {
-    throw new TRPCError({
-      code: 'UNAUTHORIZED',
-      message:
-        "You don't have the permission to record a match which you did not play in.",
-    });
-  }
-
   if (
     getNumPlayers(gameMode) !==
     registeredPlayers.size + unregisteredPlayers.size
@@ -76,6 +68,19 @@ const validateCreateMatchPlayers = async (
       code: 'BAD_REQUEST',
       message: 'Incorrect number of players',
     });
+  }
+
+  if (requester.role !== 'admin' && !hasSubmittingPlayer) {
+    new AuthorizationError({
+      reason:
+        "You don't have the permission to record a match which you did not play in.",
+    }).logAndThrow();
+  }
+
+  if (requester.role !== 'admin' && time !== undefined) {
+    new AuthorizationError({
+      reason: "You don't have the permission to specify an arbitrary time",
+    }).logAndThrow();
   }
 };
 
@@ -135,7 +140,6 @@ const matchIncludes = Prisma.validator<Prisma.MatchInclude>()({
       rawScore: true,
       unregisteredPlaceholder: true,
       player: userSelector,
-      chombos: true,
     },
     orderBy: { playerPosition: 'asc' },
   },
@@ -169,7 +173,9 @@ const matchRouter = router({
       );
       const event = await prisma.event.findUnique({
         where: { id: input.eventId },
-        select: { ruleset: { select: { id: true, gameMode: true } } },
+        select: {
+          ruleset: { select: { id: true, gameMode: true, startPts: true } },
+        },
       });
 
       if (event === null) {
@@ -177,6 +183,7 @@ const matchRouter = router({
       }
 
       await validateCreateMatchPlayers(
+        input.time,
         input.players,
         event.ruleset.gameMode,
         ctx.user,
@@ -185,6 +192,7 @@ const matchRouter = router({
       const match = await prisma.match.create({
         data: {
           status: Status.PENDING,
+          time: input.time,
           ruleset: { connect: { id: event.ruleset.id } },
           parent: { connect: { id: input.eventId } },
           players: {
@@ -192,6 +200,9 @@ const matchRouter = router({
               data: input.players.map((player, index) => ({
                 playerPosition: index + 1,
                 ...matchPlayerToPrisma(player),
+                rawScore: event.ruleset.startPts,
+                placementMin: 1,
+                placementMax: input.players.length,
               })),
             },
           },
@@ -218,6 +229,25 @@ const matchRouter = router({
       return { match: transformMatch(match, userGroups) };
     }),
 
+  getChombosOf: authedProcedure
+    .input(z.number())
+    .query(async ({ input: matchId, ctx }) => {
+      const chombos = await prisma.userLeagueTransaction.findMany({
+        where: { userMatchMatchId: matchId, type: TransactionType.CHOMBO },
+        select: {
+          time: true,
+          description: true,
+          userMatchMatchId: true,
+          userMatchPlayerPosition: true,
+        },
+      });
+
+      return {
+        count: chombos.length,
+        chombos: ctx.user.role === 'admin' ? chombos : undefined,
+      };
+    }),
+
   getCompletedByLeague: publicProcedure
     .input(z.number())
     .query(async ({ input: leagueId, ctx }) => {
@@ -233,19 +263,7 @@ const matchRouter = router({
         orderBy: { time: 'desc' },
       });
       return {
-        matches: matches.map(({ players, ...matchOther }) => ({
-          players: players.map((player) => {
-            const { placementMin, placementMax, rawScore, ...playerOther } =
-              transformMatchPlayer(player, userGroups);
-            return {
-              placementMin: assertNonNull(placementMin, 'placementMin'),
-              placementMax: assertNonNull(placementMax, 'placementMax'),
-              rawScore: assertNonNull(rawScore, 'rawScore'),
-              ...playerOther,
-            };
-          }),
-          ...matchOther,
-        })),
+        matches: matches.map((match) => transformMatch(match, userGroups)),
       };
     }),
 
@@ -289,10 +307,6 @@ const matchRouter = router({
 
         const scores = validateMatchScoreSum(currMatch.ruleset, input);
 
-        const updatedPlayers = input.players.map(
-          ({ player }, index) => player ?? currMatch,
-        );
-
         // compute and update match, userMatch entries
         const time = input.time ?? new Date();
         const placements = computePlacements(scores);
@@ -303,7 +317,7 @@ const matchRouter = router({
         });
 
         const updatedUserMatches = await Promise.all(
-          input.players.map(({ player, chombos, score }, i) =>
+          input.players.map(({ player, score }, i) =>
             tx.userMatch.update({
               where: {
                 matchId_playerPosition: {
@@ -315,7 +329,6 @@ const matchRouter = router({
                 ...placements[i],
                 ...(player ? matchPlayerToPrisma(player) : {}),
                 rawScore: score,
-                chombos: chombos?.length ?? (input.commit ? 0 : undefined),
               },
             }),
           ),

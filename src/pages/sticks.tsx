@@ -10,7 +10,7 @@ export default function SticksInputPage() {
     <Page>
       <Heading level="h3">Point Stick Adder</Heading>
       <Heading level="h5">Total = {total}</Heading>
-      <StickInput onChange={setTotal} />
+      <StickInput pointStickStyle="modern" onChange={setTotal} />
     </Page>
   );
 }

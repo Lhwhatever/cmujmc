@@ -1,7 +1,9 @@
 import { z } from 'zod';
 import { matchPlayerSchema } from '../server/scoreRecords/types';
 
-const ensureUnique = (array: z.infer<typeof matchPlayerSchema>[]) => {
+export const arePlayersDistinct = (
+  array: z.infer<typeof matchPlayerSchema>[],
+) => {
   const categories: Record<string, Set<string>> = {};
   for (const elt of array) {
     const s = categories[elt.type] ?? new Set();
@@ -21,7 +23,8 @@ export const create = z.object({
     .array(matchPlayerSchema)
     .min(3)
     .max(4)
-    .refine(ensureUnique, { message: 'Users must be unique!' }),
+    .refine(arePlayersDistinct, { message: 'Players must be distinct!' }),
+  time: z.date().optional(),
 });
 
 export const editMatch = z.object({

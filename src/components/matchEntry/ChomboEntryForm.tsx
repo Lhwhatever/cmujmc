@@ -10,26 +10,37 @@ import { Fieldset } from '@headlessui/react';
 import SelectField from '../form/SelectField';
 import { renderPlayerName } from '../../utils/usernames';
 import TextareaField from '../form/TextareaField';
-import { RankedMatch } from './MatchEntryDialog';
+
+import { ChomboFormData, CurrentChombos, RankedMatch } from './types';
 
 const chomboFormSchema = z.object({
   description: z.string(),
 });
 
-interface ChomboEntryFormProps {
-  hidden?: boolean;
-  players: RankedMatch['players'];
-  onBack: () => void;
-  onSubmit: (_: [number, string][]) => void;
+interface ChomboFormElement {
+  playerIndex: number;
+  description: string;
 }
 
-export const ChomboEntryForm = ({
+export interface ChomboEntryFormProps {
+  initialChombos: CurrentChombos;
+  players: RankedMatch['players'];
+  onPrev: () => void;
+  onNext: (data: ChomboFormData) => void;
+}
+
+const ChomboEntryForm = ({
+  initialChombos,
   players,
-  onBack,
-  onSubmit,
-  hidden,
+  onPrev,
+  onNext,
 }: ChomboEntryFormProps) => {
-  const [chombos, onChange] = useState<[number, string][]>([]);
+  const [chombos, onChange] = useState<ChomboFormElement[]>(
+    initialChombos.map(({ userMatchPlayerPosition, description }) => ({
+      playerIndex: (userMatchPlayerPosition ?? 1) - 1,
+      description: description ?? '',
+    })),
+  );
 
   const { register, formState, getValues, setValue, watch } = useForm({
     mode: 'onBlur',
@@ -41,7 +52,7 @@ export const ChomboEntryForm = ({
 
   const handleRecordChombo = () => {
     const description = getValues('description');
-    onChange([...chombos, [selectedPlayer, description]]);
+    onChange([...chombos, { playerIndex: selectedPlayer, description }]);
     setValue('description', '');
   };
 
@@ -49,18 +60,22 @@ export const ChomboEntryForm = ({
 
   const handleSubmit = () => {
     if (!chomboPending) {
-      onSubmit(chombos);
+      const data = players.map((): string[] => []);
+      for (const { playerIndex, description } of chombos) {
+        data[playerIndex].push(description);
+      }
+      onNext(data);
     }
   };
 
   return (
-    <div className={hidden ? 'hidden' : ''}>
+    <div>
       <div className="text-sm font-bold">Chombos</div>
       {chombos.length === 0 ? (
         <div className="text-sm">No chombos this match. Yay!</div>
       ) : (
         <div className="flex flex-col gap-1 max-h-48 overflow-auto">
-          {chombos.map(([player, desc], index) => {
+          {chombos.map(({ playerIndex, description }, index) => {
             const handleDelete = () => {
               onChange(chombos.filter((_, i) => i !== index));
             };
@@ -68,7 +83,7 @@ export const ChomboEntryForm = ({
               <div key={index} className="border rounded-lg p-2">
                 <div className="flex flex-row justify-between content-center">
                   <div className="text-sm font-bold align-middle">
-                    <MatchPlayerName {...players[player]} />
+                    <MatchPlayerName {...players[playerIndex]} />
                   </div>
                   <Button
                     color="red"
@@ -80,7 +95,7 @@ export const ChomboEntryForm = ({
                     <div className="sr-only">Delete</div>
                   </Button>
                 </div>
-                {desc && <Text className="text-sm">{desc}</Text>}
+                <Text className="text-sm">{description}</Text>
               </div>
             );
           })}
@@ -117,7 +132,7 @@ export const ChomboEntryForm = ({
       </Fieldset>
       <hr className="h-px my-3 bg-gray-200 border-0" />
       <div className="flex flex-row gap-4">
-        <Button color="red" fill="outlined" onClick={onBack}>
+        <Button color="red" fill="outlined" onClick={onPrev}>
           Back
         </Button>
         <Button
@@ -132,3 +147,5 @@ export const ChomboEntryForm = ({
     </div>
   );
 };
+
+export default ChomboEntryForm;

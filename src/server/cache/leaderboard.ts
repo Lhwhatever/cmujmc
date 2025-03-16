@@ -239,13 +239,20 @@ const regenerateLeaderboard = async <
   userIds?: string[],
 ) => {
   const users = await prisma.userLeague.findMany({
-    select: {
-      userId: true,
-      txns: txnsSelector,
-    },
     where: {
       leagueId,
       userId: userIds !== undefined ? { in: userIds } : undefined,
+    },
+    select: {
+      user: {
+        select: {
+          id: true,
+          transactions: {
+            where: { leagueId },
+            select: txnsSelector.select,
+          },
+        },
+      },
     },
   });
 
@@ -253,9 +260,9 @@ const regenerateLeaderboard = async <
     cache,
     k,
     requiredMatchesForRank,
-    users.map(({ userId, txns }) => ({
-      userId,
-      aggregate: aggregateTxnArray(txns),
+    users.map(({ user }) => ({
+      userId: user.id,
+      aggregate: aggregateTxnArray(user.transactions),
     })),
   );
 };

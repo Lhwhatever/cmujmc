@@ -1,4 +1,5 @@
-import { RankedMatch } from '../matchEntry/MatchEntryDialog';
+import { renderAliases } from '../../utils/usernames';
+import { RankedMatch } from '../matchEntry/types';
 
 export type RankedMatchPlayer = RankedMatch['players'][number]['player'];
 
@@ -11,6 +12,6 @@ export default function MatchPlayerName({
   player,
   unregisteredPlaceholder,
 }: MatchPlayerNameProps) {
-  if (player !== null) return <span>{player.name}</span>;
+  if (player !== null) return <span>{renderAliases(player.name, player)}</span>;
   else return <span>Guest &lsquo;{unregisteredPlaceholder}&rsquo;</span>;
 }
