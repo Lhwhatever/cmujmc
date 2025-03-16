@@ -249,7 +249,7 @@ const regenerateLeaderboard = async <
           id: true,
           transactions: {
             where: { leagueId },
-            select: txnsSelector.select,
+            select: txnsSelector,
           },
         },
       },

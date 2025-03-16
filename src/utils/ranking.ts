@@ -4,8 +4,8 @@ import Decimal from 'decimal.js';
 import assertNonNull, { assertRequired } from './nullcheck';
 import { prisma } from '../server/prisma';
 
-export const txnsSelector = Prisma.validator<Prisma.UserLeague$txnsArgs>()({
-  select: {
+export const txnsSelector =
+  Prisma.validator<Prisma.UserLeagueTransactionSelect>()({
     delta: true,
     time: true,
     type: true,
@@ -16,8 +16,7 @@ export const txnsSelector = Prisma.validator<Prisma.UserLeague$txnsArgs>()({
         placementMax: true,
       },
     },
-  },
-});
+  });
 
 export interface TxnAggregate {
   score: Decimal;
@@ -29,7 +28,7 @@ export interface TxnAggregate {
 
 type UserLeagueTransaction = Prisma.Result<
   typeof prisma.userLeagueTransaction,
-  typeof txnsSelector,
+  { select: typeof txnsSelector },
   'findFirstOrThrow'
 >;
 

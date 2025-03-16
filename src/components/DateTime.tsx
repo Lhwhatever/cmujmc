@@ -30,7 +30,7 @@ const RelativeVariant = ({
 
   useEffect(() => {
     setText(formatter.relativeTime(date, { now, ...format }));
-  }, [setText, formatter, setText, format, now]);
+  }, [setText, formatter, format, now, date]);
 
   return <>{text}</>;
 };
