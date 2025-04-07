@@ -31,6 +31,18 @@ export const lastLeaderboardUpdate = z.object({
   leagueId: z.number().int(),
 });
 
-export const softenPenalty = z.object({
-  leagueId: z.number().int(),
-});
+export const list = z
+  .object({
+    limit: z.number().int().positive().optional(),
+    filter: z
+      .object({
+        minUsers: z.number().int().min(0),
+        endDate: z
+          .object({
+            lt: z.date(),
+          })
+          .partial(),
+      })
+      .partial(),
+  })
+  .optional();
