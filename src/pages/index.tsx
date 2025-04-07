@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import Page from '../components/Page';
 import Heading from '../components/Heading';
 import { trpc } from '../utils/trpc';
@@ -124,14 +124,92 @@ const EventsSection = () => {
   );
 };
 
+const LeaguesSection = () => {
+  const [checkDate, setCheckDate] = useState(new Date(0));
+  useEffect(() => {
+    setCheckDate(new Date());
+  }, [setCheckDate]);
+
+  const [{ leagues }] = trpc.leagues.list.useSuspenseQuery({
+    limit: 10,
+    filter: {
+      minUsers: 8,
+      endDate: {
+        lt: checkDate,
+      },
+    },
+  });
+
+  return (
+    <div className="flex flex-col space-y-4">
+      <Heading level="h3">Past Leagues/Tournaments</Heading>
+      {leagues.length === 0 && <p>No leagues in record...</p>}
+      {leagues.map(
+        ({
+          startDate,
+          endDate,
+          id,
+          name,
+          description,
+          _count,
+          defaultRuleset,
+        }) => {
+          const information: React.ReactNode[] = [];
+          if (startDate) {
+            information.push(
+              <div>
+                Started <DateTime date={startDate} />
+              </div>,
+            );
+          }
+
+          if (endDate) {
+            information.push(
+              <div>
+                Ended <DateTime date={endDate} />
+              </div>,
+            );
+          }
+
+          information.push(`${_count.users} player(s)`);
+
+          return (
+            <div
+              key={id}
+              className="flex flex-col bg-gray-200 border rounded-lg border-gray-200 p-2 space-x-3 mt-2"
+            >
+              <Heading level="h6">
+                <Link href={`/league/${id}`}>{name}</Link>
+              </Heading>
+              <div className="flex flex-row gap-x-2 text-sm">
+                {information.map((info, idx) => (
+                  <React.Fragment key={idx}>
+                    {idx > 0 && <div>&middot;</div>}
+                    <div>{info}</div>
+                  </React.Fragment>
+                ))}
+              </div>
+              <div>Ruleset: {defaultRuleset.name}</div>
+              <div>{description}</div>
+            </div>
+          );
+        },
+      )}
+    </div>
+  );
+};
+
 export default function IndexPage() {
   return (
     <Page>
       <div className="flex h-screen flex-col items-stretch">
-        <div className="flex flex-col items-stretch gap-y-4">
+        <div className="flex flex-col items-stretch gap-y-8">
           <Header />
           <Suspense fallback={<Loading />}>
             <EventsSection />
+          </Suspense>
+          <Suspense fallback={<Loading />}>
+            <LeaguesSection />
           </Suspense>
         </div>
       </div>

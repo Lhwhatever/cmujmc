@@ -25,14 +25,33 @@ import { cachedGetUsers } from '../cache/users';
 import { withCache } from '../cache/glide';
 
 const leagueRouter = router({
-  list: publicProcedure.query(async () => {
-    const leagues = await prisma.league.findMany({
+  list: publicProcedure.input(schema.league.list).query(async ({ input }) => {
+    let leagues = await prisma.league.findMany({
       include: {
         defaultRuleset: {
           select: { name: true },
         },
+        _count: {
+          select: { users: true },
+        },
+      },
+      orderBy: {
+        endDate: Prisma.SortOrder.desc,
+      },
+      where: input?.filter && {
+        endDate: input.filter.endDate,
       },
     });
+
+    if (input?.filter?.minUsers !== undefined) {
+      const { minUsers } = input.filter;
+      leagues = leagues.filter(({ _count }) => _count.users > minUsers);
+    }
+
+    if (input?.limit !== undefined) {
+      leagues = leagues.slice(0, input.limit);
+    }
+
     return { leagues };
   }),
 

@@ -8,6 +8,13 @@ export const create = z.object({
   rulesetOverrideId: z.number().int().min(1).optional(),
 });
 
+export const edit = z.object({
+  eventId: z.number().int(),
+  startDate: z.date().nullish(),
+  endDate: z.date().nullish(),
+  closingDate: z.date().nullish(),
+});
+
 export const getByLeague = z.object({
   leagueId: z.number().int().min(1),
   limit: z.number().int().min(1).max(100).optional(),

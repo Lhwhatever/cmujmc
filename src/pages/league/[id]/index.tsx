@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Page from '../../../components/Page';
 import Heading from '../../../components/Heading';
 import { useRouter } from 'next/router';
@@ -9,14 +9,6 @@ import DateTimeRange from '../../../components/DateTimeRange';
 import Accordion, { AccordionSegment } from '../../../components/Accordion';
 import { signIn, useSession } from 'next-auth/react';
 import Button from '../../../components/Button';
-import Dialog from '../../../components/Dialog';
-import { Fieldset } from '@headlessui/react';
-import InputField from '../../../components/form/InputField';
-import schema from '../../../protocol/schema';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { AdminUserError } from '../../../protocol/errors';
 import { usePathname } from 'next/navigation';
 import RankedEventDetails, {
   RankedEvent,
@@ -27,6 +19,8 @@ import { PersonalStats } from '../../../components/display/PersonalStats';
 import ScoreHistory from '../../../components/display/ScoreHistory';
 import Link from 'next/link';
 import { RankedMatch } from '../../../components/matchEntry/types';
+import EventCreator from '../../../components/events/EventCreator';
+import EventEditor from '../../../components/events/EventEditor';
 
 const partitionEvents = (refTime: number, events: RankedEvent[]) => {
   const closed = [];
@@ -46,110 +40,6 @@ const partitionEvents = (refTime: number, events: RankedEvent[]) => {
   return [closed, ongoing, future];
 };
 
-interface EventCreatorProps {
-  leagueId: number;
-}
-
-const eventCreationSchema = schema.event.create.omit({ leagueId: true });
-type EventCreationParams = z.infer<typeof eventCreationSchema>;
-
-const eventCreationDefaultValues: EventCreationParams = {
-  startDate: undefined,
-  endDate: undefined,
-  submissionBufferMinutes: 30,
-};
-
-const EventCreator = ({ leagueId }: EventCreatorProps) => {
-  const utils = trpc.useUtils();
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const { register, formState, setError, clearErrors, handleSubmit } = useForm({
-    mode: 'onChange',
-    resolver: zodResolver(eventCreationSchema),
-    defaultValues: eventCreationDefaultValues,
-  });
-
-  const createEventMutation = trpc.events.create.useMutation({
-    async onSuccess() {
-      clearErrors();
-      setDialogOpen(false);
-      await utils.events.getByLeague.invalidate({ leagueId });
-    },
-    onError(e) {
-      const parsed = AdminUserError.parse<EventCreationParams>(e.message);
-      if (parsed) {
-        setError(
-          parsed.field,
-          {
-            type: 'value',
-            message: parsed.message,
-          },
-          { shouldFocus: true },
-        );
-      }
-    },
-  });
-
-  const onSubmit = (values: EventCreationParams) =>
-    createEventMutation.mutateAsync({ ...values, leagueId });
-
-  return (
-    <>
-      <Button color="green" fill="filled" onClick={() => setDialogOpen(true)}>
-        Create
-      </Button>
-      <Dialog
-        open={dialogOpen}
-        onClose={() => setDialogOpen(false)}
-        title="Create Event"
-      >
-        <Fieldset className="space-y-6">
-          <InputField
-            name="startDate"
-            label="Starts..."
-            type="datetime-local"
-            register={register}
-            errors={formState.errors}
-          />
-          <InputField
-            name="endDate"
-            label="Ends..."
-            type="datetime-local"
-            register={register}
-            errors={formState.errors}
-          />
-          <InputField
-            name="submissionBufferMinutes"
-            label="Number of minutes to submit results"
-            type="number"
-            step={5}
-            min={0}
-            register={register}
-            errors={formState.errors}
-          />
-          <div className="flex flex-row">
-            <Button
-              color="green"
-              fill="filled"
-              onClick={() => {
-                void handleSubmit(onSubmit)();
-              }}
-            >
-              Submit
-            </Button>
-            <Button
-              color="red"
-              fill="filled"
-              onClick={() => setDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-          </div>
-        </Fieldset>
-      </Dialog>
-    </>
-  );
-};
-
 interface EventsSectionProps {
   leagueId: number;
   registered: boolean;
@@ -160,26 +50,37 @@ const EventsSection = ({ leagueId, registered }: EventsSectionProps) => {
   useEffect(() => setNow(new Date()), [setNow]);
   const [targetEvent, setTargetEvent] = useState<RankedEvent | null>(null);
   const [targetMatch, setTargetMatch] = useState<RankedMatch | null>(null);
-
-  const query = trpc.events.getByLeague.useQuery({ leagueId });
-
-  if (query.isLoading || !query.data) {
-    return <Loading />;
-  }
-
-  const [closed, ongoing, future] = partitionEvents(
-    Date.now(),
-    query.data.events,
+  const [eventBeingEdited, setEventBeingEdited] = useState<RankedEvent | null>(
+    null,
   );
 
-  if (closed.length === 0 && ongoing.length === 0 && future.length === 0) {
-    return <p>No events planned.</p>;
-  }
+  const utils = trpc.useUtils();
+  const [{ events }] = trpc.events.getByLeague.useSuspenseQuery({ leagueId });
+  const deleteMutation = trpc.events.deleteEvent.useMutation();
 
   const handleUpdate = (e: RankedEvent, m: RankedMatch) => {
     setTargetEvent(e);
     setTargetMatch(m);
   };
+
+  const handleDelete = (e: RankedEvent) => {
+    deleteMutation.mutate(e.id, {
+      async onSuccess() {
+        await utils.events.getByLeague.refetch({ leagueId });
+      },
+    });
+  };
+
+  const handleEditSuccess = async () => {
+    await utils.events.getByLeague.refetch({ leagueId });
+    setEventBeingEdited(null);
+  };
+
+  if (events.length === 0) {
+    return <p>No events planned.</p>;
+  }
+
+  const [closed, ongoing, future] = partitionEvents(Date.now(), events);
 
   return (
     <>
@@ -197,6 +98,8 @@ const EventsSection = ({ leagueId, registered }: EventsSectionProps) => {
                 onRecord={setTargetEvent}
                 registered={registered}
                 onUpdate={handleUpdate}
+                onDelete={handleDelete}
+                onEdit={setEventBeingEdited}
               />
             ))}
           </AccordionSegment>
@@ -214,6 +117,8 @@ const EventsSection = ({ leagueId, registered }: EventsSectionProps) => {
                 onRecord={setTargetEvent}
                 registered={registered}
                 onUpdate={handleUpdate}
+                onDelete={handleDelete}
+                onEdit={setEventBeingEdited}
               />
             ))}
           </AccordionSegment>
@@ -231,11 +136,18 @@ const EventsSection = ({ leagueId, registered }: EventsSectionProps) => {
                 onRecord={setTargetEvent}
                 registered={registered}
                 onUpdate={handleUpdate}
+                onDelete={handleDelete}
+                onEdit={setEventBeingEdited}
               />
             ))}
           </AccordionSegment>
         )}
       </Accordion>
+      <EventEditor
+        event={eventBeingEdited}
+        onClose={() => setEventBeingEdited(null)}
+        onSuccess={handleEditSuccess}
+      />
       <MatchEntryDialog
         leagueId={leagueId}
         targetEvent={targetEvent}
@@ -325,7 +237,9 @@ const LeagueContents = ({ leagueId }: LeagueContentsProps) => {
         {session.data?.user.role === 'admin' && (
           <EventCreator leagueId={leagueId} />
         )}
-        <EventsSection leagueId={leagueId} registered={!!userInfo} />
+        <Suspense fallback={<Loading />}>
+          <EventsSection leagueId={leagueId} registered={!!userInfo} />
+        </Suspense>
       </div>
       {session.data && (
         <div>
