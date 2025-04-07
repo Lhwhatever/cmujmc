@@ -111,6 +111,8 @@ export interface RankedEventDetailsProps {
   event: RankedEvent;
   now: Date;
   onRecord: (_e: RankedEvent) => void;
+  onEdit: (_e: RankedEvent) => void;
+  onDelete: (_e: RankedEvent) => void;
   registered: boolean;
   onUpdate: (_e: RankedEvent, _m: RankedMatch) => void;
 }
@@ -120,6 +122,8 @@ export default function RankedEventDetails({
   event,
   now,
   onRecord,
+  onEdit,
+  onDelete,
   onUpdate,
 }: RankedEventDetailsProps) {
   const matchOpen =
@@ -129,7 +133,7 @@ export default function RankedEventDetails({
   const session = useSession();
 
   return (
-    <div>
+    <div className="flex flex-col">
       <Heading level="h5">
         <DateTimeRange startDate={event.startDate} endDate={event.endDate} />
       </Heading>
@@ -138,11 +142,28 @@ export default function RankedEventDetails({
         startDate={event.startDate}
         endDate={event.endDate}
       />
-      {((registered && matchOpen) || session.data?.user?.role === 'admin') && (
-        <Button color="green" fill="outlined" onClick={() => onRecord(event)}>
-          Record
-        </Button>
-      )}
+      <div className="flex flex-row gap-x-4">
+        {((registered && matchOpen) ||
+          session.data?.user?.role === 'admin') && (
+          <Button color="green" fill="outlined" onClick={() => onRecord(event)}>
+            Record
+          </Button>
+        )}
+        {session.data?.user?.role === 'admin' && (
+          <>
+            <Button
+              color="yellow"
+              fill="outlined"
+              onClick={() => onEdit(event)}
+            >
+              Edit
+            </Button>
+            <Button color="red" fill="outlined" onClick={() => onDelete(event)}>
+              Delete
+            </Button>
+          </>
+        )}
+      </div>
       {matchOpen && (
         <PendingMatches
           eventId={event.id}

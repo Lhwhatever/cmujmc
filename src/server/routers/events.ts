@@ -80,6 +80,115 @@ const eventRouter = router({
       });
     }),
 
+  edit: adminProcedure.input(schema.event.edit).mutation(async ({ input }) => {
+    const { eventId: id, startDate, endDate, closingDate } = input;
+    await prisma.$transaction(async (txn) => {
+      const event = await txn.event.findUniqueOrThrow({
+        where: { id },
+        select: {
+          startDate: true,
+          endDate: true,
+          closingDate: true,
+        },
+      });
+
+      const newStart = startDate !== undefined ? startDate : event.startDate;
+      const newEnd = endDate !== undefined ? endDate : event.endDate;
+      const newClosing =
+        closingDate !== undefined ? closingDate : event.closingDate;
+
+      if (newEnd !== null) {
+        const newStartNum = newStart?.getTime() ?? Number.NEGATIVE_INFINITY;
+        const newEndNum = newEnd.getTime();
+        const newClosingNum = newClosing?.getTime() ?? Number.POSITIVE_INFINITY;
+        if (!(newStartNum < newEndNum && newEndNum <= newClosingNum)) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Required: startDate < endDate <= closingDate',
+          });
+        }
+      } else {
+        const newStartNum = newStart?.getTime() ?? Number.NEGATIVE_INFINITY;
+        const newClosingNum = newClosing?.getTime() ?? Number.POSITIVE_INFINITY;
+        if (!(newStartNum < newClosingNum)) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Required: startDate < closingDate',
+          });
+        }
+      }
+
+      const filterStart: Prisma.MatchWhereInput | undefined =
+        newStart !== null
+          ? {
+              time: {
+                lt: newStart,
+              },
+            }
+          : undefined;
+
+      const filterClose: Prisma.MatchWhereInput | undefined =
+        newClosing !== null
+          ? {
+              time: {
+                gt: newClosing,
+              },
+            }
+          : undefined;
+
+      const badMatches = await txn.match.count({
+        where: {
+          eventId: id,
+          ...(filterStart
+            ? filterClose
+              ? { OR: [filterStart, filterClose] }
+              : filterStart
+            : filterClose ?? {}),
+        },
+      });
+
+      if (badMatches > 0) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message:
+            'There are some matches that fall outside of [startDate, closingDate]',
+        });
+      }
+
+      await txn.event.update({
+        where: { id },
+        data: {
+          startDate: newStart,
+          endDate: newEnd,
+          closingDate: newClosing,
+        },
+      });
+    });
+  }),
+
+  deleteEvent: adminProcedure
+    .input(z.number())
+    .mutation(async ({ input: id }) => {
+      await prisma.$transaction(async (txn) => {
+        const event = await txn.event.findUniqueOrThrow({
+          where: { id },
+          select: { _count: { select: { matches: true } } },
+        });
+
+        if (event._count.matches > 0) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: `Cannot delete event ${id} with nonzero matches`,
+          });
+        }
+
+        await txn.event.deleteMany({
+          where: { id },
+          limit: 1,
+        });
+      });
+    }),
+
   getByLeague: publicProcedure
     .input(schema.event.getByLeague)
     .query(async (opts) => {
