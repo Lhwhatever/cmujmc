@@ -8,7 +8,7 @@ import { trpc } from '../../../utils/trpc';
 import Loading from '../../../components/Loading';
 import { useEffect } from 'react';
 import InputField from '../../../components/form/InputField';
-import { JSONValue } from 'superjson/src/types';
+import { JSONValue } from 'superjson/dist/types';
 import TextareaField from '../../../components/form/TextareaField';
 import Button from '../../../components/Button';
 import { z } from 'zod';
