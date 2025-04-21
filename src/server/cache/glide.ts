@@ -1,8 +1,8 @@
 import { GlideClusterClient } from '@valkey/valkey-glide';
 import { TimeUnit } from '@valkey/valkey-glide/build-ts/src/Commands';
-import { JSONObject } from 'superjson/src/types';
 import superjson from 'superjson';
 import assertNonNull from '../../utils/nullcheck';
+import { JSONObject } from 'superjson/dist/types';
 
 const valkeyHost = process.env.VALKEY_HOST ?? '127.0.0.1';
 const valkeyPort = parseInt(process.env.VALKEY_PORT ?? '6379');

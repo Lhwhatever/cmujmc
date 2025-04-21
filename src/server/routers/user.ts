@@ -1,4 +1,9 @@
-import { authedProcedure, publicProcedure, router } from '../trpc';
+import {
+  adminProcedure,
+  authedProcedure,
+  publicProcedure,
+  router,
+} from '../trpc';
 import { prisma } from '../prisma';
 import { coalesceNames, maskNames } from '../../utils/usernames';
 import schema from '../../protocol/schema';
@@ -6,8 +11,9 @@ import {
   cachedGetUserGroups,
   updateUserInvalidateCache,
 } from '../cache/userGroups';
-import { cachedGetUsersPaginated } from '../cache/users';
+import { cachedGetUsersPaginated, invalidateUserCache } from '../cache/users';
 import { withCache } from '../cache/glide';
+import { z } from 'zod';
 
 const processPartialField = (s?: string) => (s === '' ? null : s);
 
@@ -48,6 +54,17 @@ const userRouter = router({
           },
         }),
       );
+    }),
+
+  promoteAdmin: adminProcedure
+    .input(z.string())
+    .mutation(async ({ input, ctx }) => {
+      console.log(`${ctx.user.name}: promoting ${input} to admin`);
+      await prisma.user.update({
+        where: { id: input },
+        data: { admin: true },
+      });
+      await withCache(invalidateUserCache);
     }),
 });
 
