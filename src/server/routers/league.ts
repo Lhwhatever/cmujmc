@@ -113,7 +113,7 @@ const leagueRouter = router({
           })
         : undefined;
 
-      const league = await prisma.league.findUnique({
+      const league = await prisma.league.findUniqueOrThrow({
         where: { id },
         include: {
           defaultRuleset: true,
@@ -121,12 +121,8 @@ const leagueRouter = router({
         },
       });
 
-      if (league === null) {
-        throw new NotFoundError('league', id);
-      }
-
       const { users, ...rest } = league;
-      const userInfo = users.length > 0 ? users[0] : null;
+      const userInfo = users?.at(0);
       return { league: rest, userInfo };
     }),
 
