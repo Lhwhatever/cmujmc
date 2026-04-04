@@ -39,6 +39,7 @@ yarn-error.log*
 *.env
 
 dist
+private
 
 cmumahjong_club.csr
 cmumahjong_club.key
