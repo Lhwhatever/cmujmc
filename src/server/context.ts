@@ -1,5 +1,5 @@
 import type { CreateNextContextOptions } from '@trpc/server/adapters/next';
-import { CreateWSSContextFnOptions } from '@trpc/server/src/adapters/ws';
+import { CreateWSSContextFnOptions } from '@trpc/server/adapters/ws';
 import { auth } from '../auth/auth';
 import { GetServerSidePropsContext } from 'next';
 import { ServerResponse } from 'http';

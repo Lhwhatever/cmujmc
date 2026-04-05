@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../../generated/prisma/client';
 import { umaSelector } from '../../utils/scoring';
 
 export const matchPlayerSchema = z.discriminatedUnion('type', [
@@ -25,7 +25,7 @@ export const matchPlayerToPrisma = (player: MatchPlayer) => {
   }
 };
 
-export const currMatchSelector = Prisma.validator<Prisma.MatchSelect>()({
+export const currMatchSelector = {
   status: true,
   players: {
     select: {
@@ -46,7 +46,7 @@ export const currMatchSelector = Prisma.validator<Prisma.MatchSelect>()({
       uma: umaSelector,
     },
   },
-});
+} satisfies Prisma.MatchSelect;
 
 export type CurrentMatch = Prisma.MatchGetPayload<{
   select: typeof currMatchSelector;

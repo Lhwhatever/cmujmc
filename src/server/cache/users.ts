@@ -2,7 +2,7 @@ import { prisma } from '../prisma';
 import { User, userSelector } from '../../utils/usernames';
 import superjson from 'superjson';
 import { composeKey } from './glide';
-import { GlideClusterClient } from '@valkey/valkey-glide';
+import { GlideClient } from '@valkey/valkey-glide';
 
 const keyPath = composeKey(['user', 'names']);
 
@@ -14,7 +14,7 @@ export interface CachedGetUsersResult {
 }
 
 const cachedGetUserPage = async (
-  cache: GlideClusterClient,
+  cache: GlideClient,
   cursor: string,
 ): Promise<CachedGetUsersResult> => {
   if (await cache.expire(keyPath, ttl)) {
@@ -43,15 +43,13 @@ const cachedGetUserPage = async (
 };
 
 export const cachedGetUsersPaginated = async (
-  cache: GlideClusterClient,
+  cache: GlideClient,
   cursor: string | null | undefined,
 ): Promise<CachedGetUsersResult> => {
   return cachedGetUserPage(cache, cursor ?? '0');
 };
 
-export const cachedGetUsers = async (
-  cache: GlideClusterClient,
-): Promise<User[]> => {
+export const cachedGetUsers = async (cache: GlideClient): Promise<User[]> => {
   const users: User[] = [];
   let cursor = '0';
   do {
@@ -63,7 +61,7 @@ export const cachedGetUsers = async (
 };
 
 export const invalidateUserCache = async (
-  cache: GlideClusterClient,
+  cache: GlideClient,
 ): Promise<void> => {
   await cache.del([keyPath]);
 };

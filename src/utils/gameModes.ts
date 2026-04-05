@@ -1,4 +1,4 @@
-import { GameMode } from '@prisma/client';
+import { GameMode } from '../generated/prisma/enums';
 
 export const getNumPlayers = (gameMode: GameMode) => {
   switch (gameMode) {

@@ -1,27 +1,12 @@
-import { prisma } from '../server/prisma';
-import { Prisma } from '@prisma/client';
+import type { prisma } from '../server/prisma';
+import { Prisma } from '../generated/prisma/browser';
 
 export interface UserGroups {
   cmu: boolean;
   discord: boolean;
 }
 
-export const getUserGroups = async (
-  userId?: string | null,
-): Promise<UserGroups> => {
-  if (userId === undefined || userId === null)
-    return { cmu: false, discord: false };
-  const user = await prisma.user.findUniqueOrThrow({
-    where: { id: userId },
-    select: { admin: true, andrew: true, discord: true },
-  });
-  return {
-    cmu: user.andrew !== null || user.admin,
-    discord: user.discord !== null || user.admin,
-  };
-};
-
-export const userSelector = Prisma.validator<Prisma.UserDefaultArgs>()({
+export const userSelector = {
   select: {
     id: true,
     displayName: true,
@@ -30,7 +15,7 @@ export const userSelector = Prisma.validator<Prisma.UserDefaultArgs>()({
     andrew: true,
     discord: true,
   },
-});
+} satisfies Prisma.UserDefaultArgs;
 
 export type User = Prisma.Result<
   typeof prisma.user,

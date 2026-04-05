@@ -1,7 +1,7 @@
 import React from 'react';
 import { RouterOutputs, trpc } from '../../utils/trpc';
 import Loading from '../Loading';
-import { TransactionType } from '@prisma/client';
+import { TransactionType } from '../../generated/prisma/enums';
 import DateTime from '../DateTime';
 import { DateTimeFormatOptions, useFormatter } from 'next-intl';
 import PlacementRange from './PlacementRange';
