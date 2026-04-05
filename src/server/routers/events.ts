@@ -1,7 +1,7 @@
 import { adminProcedure, publicProcedure, router } from '../trpc';
 import schema from '../../protocol/schema';
 import { prisma } from '../prisma';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../../generated/prisma/client';
 import { TRPCError } from '@trpc/server';
 import { addMinutes, isAfter, isBefore } from 'date-fns';
 import { AdminUserError } from '../../protocol/errors';

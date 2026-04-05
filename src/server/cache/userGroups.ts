@@ -1,15 +1,30 @@
-import { getUserGroups, UserGroups } from '../../utils/usernames';
+import { UserGroups } from '../../utils/usernames';
+
+export const getUserGroups = async (
+  userId?: string | null,
+): Promise<UserGroups> => {
+  if (userId === undefined || userId === null)
+    return { cmu: false, discord: false };
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { id: userId },
+    select: { admin: true, andrew: true, discord: true },
+  });
+  return {
+    cmu: user.andrew !== null || user.admin,
+    discord: user.discord !== null || user.admin,
+  };
+};
 import superjson from 'superjson';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../../generated/prisma/client';
 import { prisma } from '../prisma';
 import { invalidateUserCache } from './users';
 import { Duration } from './glide';
-import { GlideClusterClient, TimeUnit } from '@valkey/valkey-glide';
+import { GlideClient, TimeUnit } from '@valkey/valkey-glide';
 
 const expiry: Duration = { unit: TimeUnit.UnixSeconds, count: 3 * 60 * 60 };
 
 export const cachedGetUserGroups = async (
-  cache: GlideClusterClient,
+  cache: GlideClient,
   userId?: string | null,
 ): Promise<UserGroups> => {
   if (userId === null || userId === undefined) {
@@ -38,7 +53,7 @@ export const cachedGetUserGroups = async (
 export const updateUserInvalidateCache = async <
   T extends Omit<Prisma.Args<typeof prisma.user, 'update'>, 'where'>,
 >(
-  cache: GlideClusterClient,
+  cache: GlideClient,
   id: string,
   args: T,
 ) => {

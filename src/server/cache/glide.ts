@@ -1,21 +1,25 @@
-import { GlideClusterClient } from '@valkey/valkey-glide';
-import { TimeUnit } from '@valkey/valkey-glide/build-ts/src/Commands';
+import { GlideClient, TimeUnit } from '@valkey/valkey-glide';
 import superjson from 'superjson';
 import assertNonNull from '../../utils/nullcheck';
-import { JSONObject } from 'superjson/dist/types';
 
-const valkeyHost = process.env.VALKEY_HOST ?? '127.0.0.1';
+interface JSONObject {
+  [key: string]: JSONValue;
+}
+type JSONValue = string | number | boolean | null | JSONValue[] | JSONObject;
+
+const valkeyHost = process.env.VALKEY_HOST ?? 'localhost';
 const valkeyPort = parseInt(process.env.VALKEY_PORT ?? '6379');
 const valkeyTls = String(process.env.VALKEY_TLS).toLowerCase() === 'true';
 
 export const createCacheClient = () =>
-  GlideClusterClient.createClient({
+  GlideClient.createClient({
     addresses: [{ host: valkeyHost, port: valkeyPort }],
     useTLS: valkeyTls,
+    clientName: 'cmujmc-server',
   });
 
 export const withCache = async <T>(
-  f: (cache: GlideClusterClient) => Promise<T>,
+  f: (cache: GlideClient) => Promise<T>,
 ): Promise<T> => {
   const cache = await createCacheClient();
   try {
@@ -66,10 +70,10 @@ const compareStreamIds = (a: string, b: string): number => {
 };
 
 export class VStream<T extends JSONObject> {
-  private readonly cache: GlideClusterClient;
+  private readonly cache: GlideClient;
   private readonly streamKey: string;
 
-  public constructor(cache: GlideClusterClient, streamKey: string) {
+  public constructor(cache: GlideClient, streamKey: string) {
     this.cache = cache;
     this.streamKey = streamKey;
   }

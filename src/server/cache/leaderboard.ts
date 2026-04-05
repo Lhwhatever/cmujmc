@@ -9,13 +9,9 @@ import { inferKeyMap, makeKeyMap } from './glide';
 import lodash from 'lodash';
 import { prisma } from '../prisma';
 import assertNonNull from '../../utils/nullcheck';
-import {
-  ClusterTransaction,
-  GlideClusterClient,
-  InfBoundary,
-} from '@valkey/valkey-glide';
-import { PrismaClient } from '@prisma/client';
-import * as runtime from '@prisma/client/runtime/library';
+import { Transaction, GlideClient, InfBoundary } from '@valkey/valkey-glide';
+import { PrismaClient } from '../../generated/prisma/client';
+import * as runtime from '@prisma/client/runtime/client';
 
 const keymap = makeKeyMap(['league'], {
   updated: 'updated',
@@ -74,10 +70,10 @@ export interface LeaderboardEntry {
 }
 
 const isLeaderboardCached = async (
-  cache: GlideClusterClient,
+  cache: GlideClient,
   k: inferKeyMap<typeof keymap>,
 ): Promise<boolean> => {
-  const transaction = new ClusterTransaction()
+  const transaction = new Transaction()
     .exists([k.updated])
     .expire(k.records, ttl)
     .expire(k.updated, ttl)
@@ -85,14 +81,14 @@ const isLeaderboardCached = async (
     .expire(k.unranked, ttl);
 
   const [existsResults] = assertNonNull(
-    await cache.exec(transaction),
+    await cache.exec(transaction, false),
     'isLeaderboardCached',
   );
   return existsResults === 1;
 };
 
 export const getLastLeaderboardUpdate = async (
-  cache: GlideClusterClient,
+  cache: GlideClient,
   leagueId: number,
 ): Promise<number | null> => {
   const k = keymap(leagueId);
@@ -107,7 +103,7 @@ export interface Leaderboard {
 }
 
 const getCachedLeaderboard = async (
-  cache: GlideClusterClient,
+  cache: GlideClient,
   k: inferKeyMap<typeof keymap>,
 ): Promise<Leaderboard | null> => {
   if (!(await isLeaderboardCached(cache, k))) {
@@ -147,9 +143,9 @@ const getCachedLeaderboard = async (
       }
 
       const userIds = [...ranked, ...unranked];
-      const txn = new ClusterTransaction().hmget(k.records, userIds);
+      const txn = new Transaction().hmget(k.records, userIds);
 
-      const resultRecords = await cache.exec(txn);
+      const resultRecords = await cache.exec(txn, false);
       if (resultRecords === null) return null;
       const [records] = resultRecords;
       if (records !== null) {
@@ -174,12 +170,12 @@ const getCachedLeaderboard = async (
 };
 
 const updateCacheEntries = async (
-  cache: GlideClusterClient,
+  cache: GlideClient,
   k: inferKeyMap<typeof keymap>,
   requiredMatchesForRank: number,
   entries: UpdateLeaderboardPlayerRecord[],
 ) => {
-  let cacheTxn = new ClusterTransaction().set(k.updated, Date.now().toString());
+  let cacheTxn = new Transaction().set(k.updated, Date.now().toString());
 
   if (entries.length > 0) {
     const recordEntries: Record<string, string> = {};
@@ -225,13 +221,14 @@ const updateCacheEntries = async (
       .expire(k.leaderboard, ttl)
       .expire(k.records, ttl)
       .expire(k.unranked, ttl),
+    false,
   );
 };
 
 const regenerateLeaderboard = async <
   Prisma extends Omit<PrismaClient, runtime.ITXClientDenyList>,
 >(
-  cache: GlideClusterClient,
+  cache: GlideClient,
   prisma: Prisma,
   k: inferKeyMap<typeof keymap>,
   leagueId: number,
@@ -268,7 +265,7 @@ const regenerateLeaderboard = async <
 };
 
 export const cachedGetLeaderboard = async (
-  cache: GlideClusterClient,
+  cache: GlideClient,
   leagueId: number,
 ) => {
   const k = keymap(leagueId);
@@ -305,7 +302,7 @@ export const cachedGetLeaderboard = async (
 export const recomputePlayersOnLeaderboard = async <
   Prisma extends Omit<PrismaClient, runtime.ITXClientDenyList>,
 >(
-  cache: GlideClusterClient,
+  cache: GlideClient,
   prisma: Prisma,
   leagueId: number,
   matchesRequired: number,

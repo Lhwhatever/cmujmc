@@ -1,5 +1,5 @@
-import { Prisma, PrismaClient } from '@prisma/client';
-import * as runtime from '@prisma/client/runtime/library';
+import { Prisma, PrismaClient } from '../../generated/prisma/client';
+import * as runtime from '@prisma/client/runtime/client';
 import { CurrentMatch } from './types';
 import { computePlacements, computeTransactions } from '../../utils/scoring';
 import { z } from 'zod';

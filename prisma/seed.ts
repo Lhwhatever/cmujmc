@@ -3,13 +3,19 @@
  *
  * @link https://www.prisma.io/docs/guides/database/seed-database
  */
-import { PrismaClient, GameMode, Prisma } from '@prisma/client';
+import 'dotenv/config';
+import { PrismaClient, GameMode, Prisma } from '../src/generated/prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
 import process from 'node:process';
 import console from 'node:console';
 import * as readline from 'node:readline/promises';
 import { AbortSignal } from 'next/dist/compiled/@edge-runtime/primitives';
 
-const prisma = new PrismaClient();
+if (!process.env.DATABASE_URL) {
+  throw new Error('DATABASE_URL environment variable is not set');
+}
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+const prisma = new PrismaClient({ adapter });
 
 const rulesets: Prisma.RulesetCreateInput[] = [
   {

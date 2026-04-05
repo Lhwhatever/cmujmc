@@ -7,7 +7,7 @@ import {
 import schema from '../../protocol/schema';
 import { prisma } from '../prisma';
 import { NotFoundError } from '../../protocol/errors';
-import { GameMode, Prisma, Status, TransactionType } from '@prisma/client';
+import { GameMode, Prisma, Status, TransactionType } from '../../generated/prisma/client';
 import { TRPCError } from '@trpc/server';
 import { getNumPlayers } from '../../utils/gameModes';
 import { z } from 'zod';
@@ -131,7 +131,7 @@ const checkEditMatchPermissions = (
 
 //==================== for the rest ====================
 
-const matchIncludes = Prisma.validator<Prisma.MatchInclude>()({
+const matchIncludes = {
   players: {
     select: {
       playerPosition: true,
@@ -144,7 +144,7 @@ const matchIncludes = Prisma.validator<Prisma.MatchInclude>()({
     orderBy: { playerPosition: 'asc' },
   },
   ruleset: true,
-});
+} satisfies Prisma.MatchInclude;
 
 type Match = Prisma.MatchGetPayload<{ include: typeof matchIncludes }>;
 

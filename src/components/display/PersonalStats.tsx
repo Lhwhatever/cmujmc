@@ -1,5 +1,5 @@
 import { RouterOutputs, trpc } from '../../utils/trpc';
-import { TransactionType } from '@prisma/client';
+import { TransactionType } from '../../generated/prisma/enums';
 import { NumberFormatOptions, useFormatter } from 'next-intl';
 import Decimal from 'decimal.js';
 import SofterPenaltyInfo from './SofterPenaltyInfo';

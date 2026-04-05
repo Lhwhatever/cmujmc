@@ -8,7 +8,7 @@ import { trpc } from '../../../utils/trpc';
 import Loading from '../../../components/Loading';
 import { useEffect } from 'react';
 import InputField from '../../../components/form/InputField';
-import { JSONValue } from 'superjson/dist/types';
+import { Prisma } from '../../../generated/prisma/browser';
 import TextareaField from '../../../components/form/TextareaField';
 import Button from '../../../components/Button';
 import { z } from 'zod';
@@ -43,7 +43,7 @@ const wwydFormSchema = z.object({
 interface WwydFormProps {
   id: number;
   name: string;
-  schema: JSONValue;
+  schema: Prisma.JsonValue;
 }
 
 const WwydForm = ({ id, name, schema }: WwydFormProps) => {

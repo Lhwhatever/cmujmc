@@ -2,6 +2,7 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "module": "commonjs",
+    "moduleResolution": "node",
     "outDir": "dist",
     "target": "ES2023",
     "lib": ["ES2023", "DOM", "DOM.Iterable"],

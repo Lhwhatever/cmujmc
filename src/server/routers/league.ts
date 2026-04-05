@@ -11,7 +11,7 @@ import schema from '../../protocol/schema';
 import { NotFoundError } from '../../protocol/errors';
 import { computeClosingDate } from './events';
 import { isBefore } from 'date-fns';
-import { Prisma, TransactionType } from '@prisma/client';
+import { Prisma, TransactionType } from '../../generated/prisma/client';
 import { maskNames, userSelector, coalesceNames } from '../../utils/usernames';
 import { z } from 'zod';
 import assertNonNull from '../../utils/nullcheck';
@@ -108,9 +108,7 @@ const leagueRouter = router({
     .input(schema.league.get)
     .query(async ({ input: id, ctx }) => {
       const userFilter = ctx.session
-        ? Prisma.validator<Prisma.League$usersArgs>()({
-            where: { userId: ctx.session.user.id },
-          })
+        ? ({ where: { userId: ctx.session.user.id } } satisfies Prisma.League$usersArgs)
         : undefined;
 
       const league = await prisma.league.findUniqueOrThrow({

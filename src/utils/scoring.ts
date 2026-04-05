@@ -1,10 +1,11 @@
-import { Prisma, TransactionType } from '@prisma/client';
+import { Prisma } from '../generated/prisma/browser';
+import { TransactionType } from '../generated/prisma/enums';
 import Decimal from 'decimal.js';
 
-export const umaSelector = Prisma.validator<Prisma.Ruleset$umaArgs>()({
+export const umaSelector = {
   select: { value: true },
   orderBy: { position: 'asc' },
-});
+} satisfies Prisma.Ruleset$umaArgs;
 
 export const umaSerializer = (
   uma: Prisma.RulesetUmaGetPayload<typeof umaSelector>[],

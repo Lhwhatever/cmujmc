@@ -1,22 +1,22 @@
 import { createHash, BinaryLike } from 'crypto';
-import { Prisma, TransactionType } from '@prisma/client';
+import { Prisma } from '../generated/prisma/browser';
+import { TransactionType } from '../generated/prisma/enums';
 import Decimal from 'decimal.js';
 import assertNonNull, { assertRequired } from './nullcheck';
-import { prisma } from '../server/prisma';
+import type { prisma } from '../server/prisma';
 
-export const txnsSelector =
-  Prisma.validator<Prisma.UserLeagueTransactionSelect>()({
-    delta: true,
-    time: true,
-    type: true,
-    match: {
-      select: {
-        rawScore: true,
-        placementMin: true,
-        placementMax: true,
-      },
+export const txnsSelector = {
+  delta: true,
+  time: true,
+  type: true,
+  match: {
+    select: {
+      rawScore: true,
+      placementMin: true,
+      placementMax: true,
     },
-  });
+  },
+} satisfies Prisma.UserLeagueTransactionSelect;
 
 export interface TxnAggregate {
   score: Decimal;

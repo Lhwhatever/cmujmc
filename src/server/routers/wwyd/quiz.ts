@@ -22,12 +22,7 @@ import {
   VStream,
   withCache,
 } from '../../cache/glide';
-import {
-  ClusterScanCursor,
-  GlideClusterClient,
-  GlideString,
-  ObjectType,
-} from '@valkey/valkey-glide';
+import { GlideClient, GlideString, ObjectType } from '@valkey/valkey-glide';
 
 const keymap = makeKeyMap(['wwyd'], {
   name: 'name',
@@ -52,16 +47,16 @@ type StreamElement = z.infer<typeof schema.wwyd.quiz.playOutput>;
 type StoredScenario = z.infer<typeof wwydScenarioWithSettingSchema>;
 
 class WwydQuizState {
-  readonly cache: GlideClusterClient;
+  readonly cache: GlideClient;
   readonly k: inferKeyMap<typeof keymap>;
   readonly stream: VStream<StreamElement>;
 
-  static async list(cache: GlideClusterClient): Promise<[number, string][]> {
+  static async list(cache: GlideClient): Promise<[number, string][]> {
     const match = keymap('*').name;
 
-    let cursor = new ClusterScanCursor();
+    let cursor: GlideString = '0';
     const results: [number, string][] = [];
-    while (!cursor.isFinished()) {
+    do {
       const [nextCursor, keys] = await cache.scan(cursor, {
         match,
         type: ObjectType.STRING,
@@ -77,29 +72,26 @@ class WwydQuizState {
           results.push([extractId(keys[i] as string), name as string]);
         }
       }
-    }
+    } while (cursor != '0');
 
     return results;
   }
 
-  static async delete(
-    cache: GlideClusterClient,
-    quizId: number,
-  ): Promise<void> {
+  static async delete(cache: GlideClient, quizId: number): Promise<void> {
     const match = keymap(quizId).all;
 
-    let cursor = new ClusterScanCursor();
+    let cursor: GlideString = '0';
     const matchedKeys: GlideString[] = [];
-    while (!cursor.isFinished()) {
+    do {
       const [nextCursor, keys] = await cache.scan(cursor, { match });
       cursor = nextCursor;
       matchedKeys.push(...keys);
-    }
+    } while (cursor != '0');
 
     await cache.del(matchedKeys);
   }
 
-  constructor(quizId: number, cacheClient: GlideClusterClient) {
+  constructor(quizId: number, cacheClient: GlideClient) {
     this.cache = cacheClient;
     this.k = keymap(quizId);
     this.stream = new VStream(this.cache, this.k.stream);

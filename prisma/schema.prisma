@@ -3,12 +3,13 @@
 
 datasource db {
   provider = "postgres"
-  url      = env("DATABASE_URL")
 }
 
 generator client {
-  provider      = "prisma-client-js"
+  provider      = "prisma-client"
+  output        = "../src/generated/prisma"
   binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+  moduleFormat  = "cjs"
 }
 
 model User {
