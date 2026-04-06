@@ -57,7 +57,7 @@
     "corepack": "^0.31.0",
     "date-fns": "^4.1.0",
     "decimal.js": "^10.5.0",
-    "fuse.js": "^7.2.0",
+    "fuse.js": "^7.3.0",
     "immutable": "^5.1.4",
     "lodash": "^4.17.21",
     "next": "15.3.1",
